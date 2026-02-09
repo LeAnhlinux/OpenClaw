@@ -477,7 +477,7 @@ OpenClaw la tro ly AI tu host, tra loi ban tren cac kenh ban dang dung
   $ /opt/openclaw-tui.sh
 
 ********************************************************************************
-De xoa thong bao nay: rm -rf \$(readlink -f \${0})
+De xoa thong bao nay: rm -rf $(readlink -f ${0})
 EOF
 MOTDEOF
 
