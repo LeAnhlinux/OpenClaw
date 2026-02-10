@@ -257,9 +257,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="status" id="finishStatus"></div>
   </div></div>
 
-  <!-- Step 4: Pairing -->
+  <!-- Step 4: Channels -->
   <div class="step" id="step4"><div class="card">
-    <h2>Buoc 4: Ghep noi Dashboard</h2>
+    <h2>Buoc 4: Kenh nhan tin (tuy chon)</h2>
+    <p>Ket noi kenh nhan tin de chat voi AI. Co the bo qua va cau hinh sau.</p>
+    <div class="field">
+      <label>&#x1f4e8; Telegram Bot Token</label>
+      <input type="text" id="telegramToken" placeholder="123456789:ABCdefghijklmnop">
+      <p style="font-size:12px;color:#64748b;margin-top:4px">Tao bot tai <a href="https://t.me/BotFather" target="_blank" style="color:#38bdf8">@BotFather</a> tren Telegram, chay /newbot de lay token</p>
+    </div>
+    <div class="field">
+      <label>&#x1f4ac; Zalo Bot Token</label>
+      <input type="text" id="zaloToken" placeholder="12345689:abc-xyz">
+      <p style="font-size:12px;color:#64748b;margin-top:4px">Tao bot tai <a href="https://bot.zaloplatforms.com" target="_blank" style="color:#38bdf8">bot.zaloplatforms.com</a> de lay token</p>
+    </div>
+    <div class="status" id="channelStatus"></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="goStep(5)">Bo qua</button>
+      <button class="btn" id="channelBtn" onclick="saveChannels()">Luu kenh nhan tin</button>
+    </div>
+  </div></div>
+
+  <!-- Step 5: Pairing -->
+  <div class="step" id="step5"><div class="card">
+    <h2>Buoc 5: Ghep noi Dashboard</h2>
     <p>Mo link dashboard ben duoi trong <strong>tab moi</strong>, doi trang tai xong (se thay loi ghep noi - dieu nay binh thuong), roi quay lai day bam nut ghep noi.</p>
     <div class="url-box" id="pairingUrl" style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px 16px;margin:16px 0;word-break:break-all;font-family:monospace;font-size:14px;color:#38bdf8;cursor:pointer" onclick="window.open(this.textContent,'_blank')"></div>
     <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">&#x261d; Bam vao link tren de mo trong tab moi</p>
@@ -269,8 +290,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="status" id="pairStatus"></div>
   </div></div>
 
-  <!-- Step 5: Done -->
-  <div class="step" id="step5"><div class="card"><div class="done-box">
+  <!-- Step 6: Done -->
+  <div class="step" id="step6"><div class="card"><div class="done-box">
     <div class="check">&#x2705;</div>
     <h2>OpenClaw da san sang!</h2>
     <p>Server cua ban da duoc cau hinh va ghep noi thanh cong.</p>
@@ -295,6 +316,7 @@ function goStep(n){
   document.getElementById('step'+n).classList.add('active');
   if(n===2){document.getElementById('step2desc').textContent='Nhap '+names[selectedProvider]+' API key cua ban';document.getElementById('keyLabel').textContent=names[selectedProvider]+' API Key';document.getElementById('testStatus').className='status';keyVerified=false}
   if(n===3){document.getElementById('confirmProvider').textContent=names[selectedProvider];const k=document.getElementById('apiKey').value;document.getElementById('confirmKey').textContent=k.substring(0,8)+'...'+k.substring(k.length-4)}
+  if(n===5){document.getElementById('pairingUrl').textContent=dashboardUrlGlobal}
 }
 async function testKey(){
   const btn=document.getElementById('testBtn'),st=document.getElementById('testStatus'),k=document.getElementById('apiKey').value.trim();
@@ -311,15 +333,26 @@ async function finish(){
   const btn=document.getElementById('finishBtn'),st=document.getElementById('finishStatus');
   btn.disabled=true;btn.textContent='Dang cau hinh...';st.className='status loading';st.textContent='Dang ghi cau hinh va khoi dong OpenClaw...';
   try{const r=await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:selectedProvider,apiKey:document.getElementById('apiKey').value.trim()})});const d=await r.json();
-  if(d.ok){dashboardUrlGlobal=d.dashboardUrl;goStep(4);document.getElementById('pairingUrl').textContent=d.dashboardUrl}
+  if(d.ok){dashboardUrlGlobal=d.dashboardUrl;goStep(4)}
   else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Loi khi cau hinh');btn.disabled=false;btn.textContent='Hoan tat cai dat'}}
   catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Hoan tat cai dat'}
+}
+async function saveChannels(){
+  const btn=document.getElementById('channelBtn'),st=document.getElementById('channelStatus');
+  const tg=document.getElementById('telegramToken').value.trim();
+  const zl=document.getElementById('zaloToken').value.trim();
+  if(!tg&&!zl){st.className='status fail';st.textContent='Nhap it nhat 1 token hoac bam Bo qua';return}
+  btn.disabled=true;btn.textContent='Dang luu...';st.className='status loading';st.textContent='Dang cau hinh kenh nhan tin...';
+  try{const r=await fetch('/api/channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegram:tg,zalo:zl})});const d=await r.json();
+  if(d.ok){st.className='status ok';st.textContent='\\u2705 Da luu kenh nhan tin!';setTimeout(()=>{goStep(5);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal},1500)}
+  else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Loi khi luu');btn.disabled=false;btn.textContent='Luu kenh nhan tin'}}
+  catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Luu kenh nhan tin'}
 }
 async function doPairing(){
   const btn=document.getElementById('pairBtn'),st=document.getElementById('pairStatus');
   btn.disabled=true;btn.textContent='Dang tim yeu cau ghep noi...';st.className='status loading';st.textContent='Dang kiem tra...';
   try{const r=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json'}});const d=await r.json();
-  if(d.ok){goStep(5);document.getElementById('dashboardUrl').textContent=dashboardUrlGlobal;document.getElementById('dashboardLink').href=dashboardUrlGlobal}
+  if(d.ok){goStep(6);document.getElementById('dashboardUrl').textContent=dashboardUrlGlobal;document.getElementById('dashboardLink').href=dashboardUrlGlobal}
   else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Khong tim thay yeu cau ghep noi');btn.disabled=false;btn.textContent='Thu lai ghep noi'}}
   catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Thu lai ghep noi'}
 }
@@ -414,6 +447,38 @@ const server = http.createServer(async (req, res) => {
         return json(res, 500, { ok: false, error: 'OpenClaw khoi dong that bai. Kiem tra: journalctl -u openclaw -xe' });
       }
     } catch (e) { return json(res, 500, { ok: false, error: `Loi: ${e.message}` }); }
+  }
+
+  // --- API: Channels (luu token kenh nhan tin) ---
+  if (req.method === 'POST' && url.pathname === '/api/channels') {
+    if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Chua dang nhap' });
+    try {
+      const body = await parseBody(req);
+      let envContent = fs.readFileSync('/opt/openclaw.env', 'utf8');
+
+      // Telegram
+      if (body.telegram) {
+        envContent = envContent.replace(/^#?\s*TELEGRAM_BOT_TOKEN=.*$/m, '').trim();
+        envContent += `\nTELEGRAM_BOT_TOKEN=${body.telegram}`;
+      }
+
+      // Zalo
+      if (body.zalo) {
+        envContent = envContent.replace(/^#?\s*ZALO_BOT_TOKEN=.*$/m, '').trim();
+        envContent += `\nZALO_BOT_TOKEN=${body.zalo}`;
+      }
+
+      envContent = envContent.trim() + '\n';
+      fs.writeFileSync('/opt/openclaw.env', envContent, 'utf8');
+
+      // Restart de nhan token moi
+      execSync('systemctl restart openclaw', { timeout: 15000 });
+      execSync('sleep 2');
+
+      return json(res, 200, { ok: true });
+    } catch (e) {
+      return json(res, 500, { ok: false, error: `Loi: ${e.message}` });
+    }
   }
 
   // --- API: Pair (tim va approve pending pairing request) ---
