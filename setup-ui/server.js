@@ -520,22 +520,37 @@ const server = http.createServer(async (req, res) => {
         return json(res, 400, { ok: false, error: `DNS cua ${domain} dang tro ve ${resolvedIPs.join(', ')} — khong khop voi IP server nay (${serverIP}). Hay cap nhat A record.` });
       }
 
-      // Ghi Caddyfile voi domain + Let's Encrypt
-      const tlsBlock = email ? `\n  tls ${email}` : '';
-      const caddyConfig = `${domain} {${tlsBlock}
-  reverse_proxy localhost:18789 {
-    header_up Host {host}
-    header_up X-Real-IP {remote_host}
-    header_up X-Forwarded-For {remote_host}
-    header_up X-Forwarded-Proto {scheme}
-  }
+      // Ghi OPENCLAW_GATEWAY_BIND vao env (giong setup-openclaw-domain.sh)
+      const BIND_IP = '127.0.0.1';
+      const PORT_GW = 18789;
+      try {
+        let envContent = fs.readFileSync('/opt/openclaw.env', 'utf8');
+        if (/^OPENCLAW_GATEWAY_BIND=/m.test(envContent)) {
+          envContent = envContent.replace(/^OPENCLAW_GATEWAY_BIND=.*/m, `OPENCLAW_GATEWAY_BIND=${BIND_IP}`);
+        } else {
+          envContent = envContent.trim() + `\nOPENCLAW_GATEWAY_BIND=${BIND_IP}\n`;
+        }
+        fs.writeFileSync('/opt/openclaw.env', envContent, 'utf8');
+      } catch {}
+
+      // Ghi Caddyfile giong setup-openclaw-domain.sh
+      const emailLine = email ? `email ${email}\n` : '';
+      const caddyConfig = `${emailLine}${domain} {
+    tls {
+        issuer acme {
+            dir https://acme-v02.api.letsencrypt.org/directory
+            profile shortlived
+        }
+    }
+    reverse_proxy ${BIND_IP}:${PORT_GW}
 }
 `;
       fs.writeFileSync('/etc/caddy/Caddyfile', caddyConfig, 'utf8');
 
-      // Restart Caddy de apply config moi
-      execSync('systemctl restart caddy', { timeout: 15000 });
-      execSync('sleep 2');
+      // Enable + Restart Caddy
+      execSync('systemctl enable caddy 2>/dev/null || true', { timeout: 10000 });
+      execSync('systemctl restart caddy', { timeout: 30000 });
+      execSync('sleep 3');
 
       // Kiem tra Caddy con chay khong
       let caddyOk = false;
@@ -546,13 +561,8 @@ const server = http.createServer(async (req, res) => {
       } else {
         // Rollback ve config IP neu Caddy loi
         const fallbackConfig = `${serverIP} {
-  tls internal
-  reverse_proxy localhost:18789 {
-    header_up Host {host}
-    header_up X-Real-IP {remote_host}
-    header_up X-Forwarded-For {remote_host}
-    header_up X-Forwarded-Proto {scheme}
-  }
+    tls internal
+    reverse_proxy ${BIND_IP}:${PORT_GW}
 }
 `;
         fs.writeFileSync('/etc/caddy/Caddyfile', fallbackConfig, 'utf8');
