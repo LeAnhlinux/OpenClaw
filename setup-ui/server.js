@@ -257,13 +257,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="status" id="finishStatus"></div>
   </div></div>
 
-  <!-- Step 4: Done -->
-  <div class="step" id="step4"><div class="card"><div class="done-box">
+  <!-- Step 4: Pairing -->
+  <div class="step" id="step4"><div class="card">
+    <h2>Buoc 4: Ghep noi Dashboard</h2>
+    <p>Mo link dashboard ben duoi trong <strong>tab moi</strong>, doi trang tai xong (se thay loi ghep noi - dieu nay binh thuong), roi quay lai day bam nut ghep noi.</p>
+    <div class="url-box" id="pairingUrl" style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px 16px;margin:16px 0;word-break:break-all;font-family:monospace;font-size:14px;color:#38bdf8;cursor:pointer" onclick="window.open(this.textContent,'_blank')"></div>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">&#x261d; Bam vao link tren de mo trong tab moi</p>
+    <div class="btn-row">
+      <button class="btn" id="pairBtn" onclick="doPairing()">Da mo Dashboard - Ghep noi ngay</button>
+    </div>
+    <div class="status" id="pairStatus"></div>
+  </div></div>
+
+  <!-- Step 5: Done -->
+  <div class="step" id="step5"><div class="card"><div class="done-box">
     <div class="check">&#x2705;</div>
     <h2>OpenClaw da san sang!</h2>
-    <p>Server cua ban da duoc cau hinh thanh cong.</p>
-    <p>Truy cap dashboard tai:</p>
-    <div class="url-box" id="dashboardUrl"></div>
+    <p>Server cua ban da duoc cau hinh va ghep noi thanh cong.</p>
+    <p>Lam moi trang dashboard hoac truy cap tai:</p>
+    <div class="url-box" id="dashboardUrl" style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px 16px;margin:16px 0;word-break:break-all;font-family:monospace;font-size:14px;color:#38bdf8"></div>
     <a id="dashboardLink" href="#">Mo Dashboard &#x2192;</a>
     <p style="margin-top:24px;color:#64748b;font-size:12px">Trang setup nay se tu dong dong sau 10 giay...</p>
   </div></div></div>
@@ -294,13 +306,22 @@ async function testKey(){
   catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server'}
   btn.disabled=false;btn.textContent='Kiem tra ket noi';
 }
+let dashboardUrlGlobal='';
 async function finish(){
   const btn=document.getElementById('finishBtn'),st=document.getElementById('finishStatus');
   btn.disabled=true;btn.textContent='Dang cau hinh...';st.className='status loading';st.textContent='Dang ghi cau hinh va khoi dong OpenClaw...';
   try{const r=await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:selectedProvider,apiKey:document.getElementById('apiKey').value.trim()})});const d=await r.json();
-  if(d.ok){goStep(4);document.getElementById('dashboardUrl').textContent=d.dashboardUrl;document.getElementById('dashboardLink').href=d.dashboardUrl}
+  if(d.ok){dashboardUrlGlobal=d.dashboardUrl;goStep(4);document.getElementById('pairingUrl').textContent=d.dashboardUrl}
   else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Loi khi cau hinh');btn.disabled=false;btn.textContent='Hoan tat cai dat'}}
   catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Hoan tat cai dat'}
+}
+async function doPairing(){
+  const btn=document.getElementById('pairBtn'),st=document.getElementById('pairStatus');
+  btn.disabled=true;btn.textContent='Dang tim yeu cau ghep noi...';st.className='status loading';st.textContent='Dang kiem tra...';
+  try{const r=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json'}});const d=await r.json();
+  if(d.ok){goStep(5);document.getElementById('dashboardUrl').textContent=dashboardUrlGlobal;document.getElementById('dashboardLink').href=dashboardUrlGlobal}
+  else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Khong tim thay yeu cau ghep noi');btn.disabled=false;btn.textContent='Thu lai ghep noi'}}
+  catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Thu lai ghep noi'}
 }
 </script></body></html>`;
 }
@@ -387,12 +408,59 @@ const server = http.createServer(async (req, res) => {
       const dashboardUrl = `https://${serverIP}?token=${gatewayToken}`;
 
       if (running) {
-        setTimeout(() => selfDestruct(), 5000);
+        // Khong tu huy ngay — doi user hoan tat pairing truoc
         return json(res, 200, { ok: true, dashboardUrl });
       } else {
         return json(res, 500, { ok: false, error: 'OpenClaw khoi dong that bai. Kiem tra: journalctl -u openclaw -xe' });
       }
     } catch (e) { return json(res, 500, { ok: false, error: `Loi: ${e.message}` }); }
+  }
+
+  // --- API: Pair (tim va approve pending pairing request) ---
+  if (req.method === 'POST' && url.pathname === '/api/pair') {
+    if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Chua dang nhap' });
+    try {
+      const gatewayToken = getGatewayToken();
+
+      // Tim pending pairing requests
+      let output = '';
+      try {
+        output = execSync(
+          `/opt/openclaw-cli.sh devices list --token=${gatewayToken} 2>/dev/null`,
+          { timeout: 15000, stdio: 'pipe' }
+        ).toString();
+      } catch (e) {
+        output = e.stdout ? e.stdout.toString() : '';
+      }
+
+      // Lay phan Pending
+      const pendingSection = output.match(/Pending[\s\S]*?(?=Paired|$)/i);
+      if (!pendingSection) {
+        return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Hay mo dashboard truoc roi thu lai.' });
+      }
+
+      // Tim UUID trong phan pending
+      const uuids = pendingSection[0].match(/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/g);
+      if (!uuids || uuids.length === 0) {
+        return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Hay mo dashboard truoc roi thu lai.' });
+      }
+
+      if (uuids.length > 1) {
+        return json(res, 200, { ok: false, error: `Tim thay ${uuids.length} yeu cau. Co nguoi khac dang ket noi. Hay thu lai sau.` });
+      }
+
+      // Approve request
+      execSync(
+        `/opt/openclaw-cli.sh devices approve "${uuids[0]}" --token=${gatewayToken}`,
+        { timeout: 15000, stdio: 'pipe' }
+      );
+
+      // Ghep noi thanh cong — tu huy sau 5 giay
+      setTimeout(() => selfDestruct(), 5000);
+      return json(res, 200, { ok: true });
+    } catch (e) {
+      return json(res, 500, { ok: false, error: `Loi ghep noi: ${e.message}` });
+    }
   }
 
   json(res, 404, { error: 'Not found' });
