@@ -438,6 +438,22 @@ const server = http.createServer(async (req, res) => {
         return json(res, 400, { ok: false, error: 'Ten mien khong hop le' });
       }
 
+      // Kiem tra DNS: domain co tro ve IP server nay khong
+      const serverIP = getServerIP();
+      let resolvedIPs = [];
+      try {
+        const dnsResult = execSync(`dig +short A ${domain} 2>/dev/null || nslookup ${domain} 2>/dev/null | grep -oP '\\d+\\.\\d+\\.\\d+\\.\\d+'`, { timeout: 10000, stdio: 'pipe' }).toString().trim();
+        resolvedIPs = dnsResult.split('\n').map(ip => ip.trim()).filter(ip => /^\d+\.\d+\.\d+\.\d+$/.test(ip));
+      } catch { resolvedIPs = []; }
+
+      if (resolvedIPs.length === 0) {
+        return json(res, 400, { ok: false, error: `Khong the phan giai DNS cho ${domain}. Hay tro A record ve ${serverIP} truoc.` });
+      }
+
+      if (!resolvedIPs.includes(serverIP)) {
+        return json(res, 400, { ok: false, error: `DNS cua ${domain} dang tro ve ${resolvedIPs.join(', ')} — khong khop voi IP server nay (${serverIP}). Hay cap nhat A record.` });
+      }
+
       // Ghi Caddyfile voi domain + Let's Encrypt
       const emailLine = email ? `\n  tls ${email}` : '';
       const caddyConfig = `${domain} {${emailLine}
@@ -458,7 +474,6 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true, domain });
       } else {
         // Rollback ve config IP neu Caddy loi
-        const serverIP = getServerIP();
         const fallbackConfig = `${serverIP} {
   tls internal
   reverse_proxy localhost:18789
