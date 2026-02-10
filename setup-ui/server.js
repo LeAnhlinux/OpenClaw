@@ -521,9 +521,14 @@ const server = http.createServer(async (req, res) => {
       }
 
       // Ghi Caddyfile voi domain + Let's Encrypt
-      const emailLine = email ? `\n  tls ${email}` : '';
-      const caddyConfig = `${domain} {${emailLine}
-  reverse_proxy localhost:18789
+      const tlsBlock = email ? `\n  tls ${email}` : '';
+      const caddyConfig = `${domain} {${tlsBlock}
+  reverse_proxy localhost:18789 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+  }
 }
 `;
       fs.writeFileSync('/etc/caddy/Caddyfile', caddyConfig, 'utf8');
@@ -542,7 +547,12 @@ const server = http.createServer(async (req, res) => {
         // Rollback ve config IP neu Caddy loi
         const fallbackConfig = `${serverIP} {
   tls internal
-  reverse_proxy localhost:18789
+  reverse_proxy localhost:18789 {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+  }
 }
 `;
         fs.writeFileSync('/etc/caddy/Caddyfile', fallbackConfig, 'utf8');
@@ -590,10 +600,8 @@ const server = http.createServer(async (req, res) => {
       if (model) {
         config.agents.defaults.model.primary = model;
       }
-      // Neu co domain, update gateway bind de lang nghe 0.0.0.0
-      if (domain) {
-        config.gateway.bind = '0.0.0.0';
-      }
+      // Gateway luon bind loopback — Caddy reverse proxy tu localhost
+      // Khong can thay doi bind khi dung domain vi Caddy va OpenClaw cung server
       const configDir = '/home/openclaw/.openclaw';
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(`${configDir}/openclaw.json`, JSON.stringify(config, null, 2), 'utf8');
