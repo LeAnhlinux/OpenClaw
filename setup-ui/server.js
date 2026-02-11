@@ -321,6 +321,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <button class="btn btn-outline" onclick="goStep(6)">Bo qua</button>
       <button class="btn" id="channelBtn" onclick="saveChannels()">Luu kenh nhan tin</button>
     </div>
+    <!-- Telegram Pairing Code -->
+    <div id="telegramPairSection" style="display:none;margin-top:24px;border-top:1px solid #334155;padding-top:20px">
+      <h3 style="font-size:16px;color:#f1f5f9;margin-bottom:8px">&#x1f517; Ghep noi Telegram Bot</h3>
+      <p style="color:#94a3b8;font-size:13px;margin-bottom:16px">Mo bot Telegram cua ban, gui tin nhan bat ky. Bot se tra ve <strong style="color:#38bdf8">ma ghep noi (pairing code)</strong>. Nhap ma do vao ben duoi de ket noi.</p>
+      <div class="field">
+        <label>Ma ghep noi (Pairing Code)</label>
+        <input type="text" id="telegramPairCode" placeholder="Nhap ma ghep noi tu Telegram bot">
+      </div>
+      <div class="status" id="telegramPairStatus"></div>
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="skipTelegramPair()">Bo qua</button>
+        <button class="btn btn-success" id="telegramPairBtn" onclick="approveTelegramPair()">Ghep noi Telegram</button>
+      </div>
+    </div>
   </div></div>
 
   <!-- Step 6: Pairing -->
@@ -425,9 +439,34 @@ async function saveChannels(){
   if(!tg&&!zl){st.className='status fail';st.textContent='Nhap it nhat 1 token hoac bam Bo qua';return}
   btn.disabled=true;btn.textContent='Dang luu...';st.className='status loading';st.textContent='Dang cau hinh kenh nhan tin...';
   try{const r=await fetch('/api/channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegram:tg,zalo:zl})});const d=await r.json();
-  if(d.ok){st.className='status ok';st.textContent='\\u2705 Da luu kenh nhan tin!';setTimeout(()=>{goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal},1500)}
+  if(d.ok){st.className='status ok';st.textContent='\\u2705 Da luu kenh nhan tin!';
+    if(tg){
+      // Hien thi phan Telegram pairing code
+      setTimeout(()=>{
+        st.className='status';
+        document.getElementById('telegramPairSection').style.display='block';
+        btn.style.display='none';
+        document.querySelector('#step5 .btn-row').style.display='none';
+      },1500);
+    } else {
+      setTimeout(()=>{goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal},1500);
+    }
+  }
   else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Loi khi luu');btn.disabled=false;btn.textContent='Luu kenh nhan tin'}}
   catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Luu kenh nhan tin'}
+}
+function skipTelegramPair(){
+  goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal;
+}
+async function approveTelegramPair(){
+  const btn=document.getElementById('telegramPairBtn'),st=document.getElementById('telegramPairStatus');
+  const code=document.getElementById('telegramPairCode').value.trim();
+  if(!code){st.className='status fail';st.textContent='Vui long nhap ma ghep noi';return}
+  btn.disabled=true;btn.textContent='Dang ghep noi...';st.className='status loading';st.textContent='Dang ket noi Telegram bot...';
+  try{const r=await fetch('/api/telegram-pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});const d=await r.json();
+  if(d.ok){st.className='status ok';st.textContent='\\u2705 Ghep noi Telegram thanh cong!';setTimeout(()=>{goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal},1500)}
+  else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Khong the ghep noi');btn.disabled=false;btn.textContent='Ghep noi Telegram'}}
+  catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Ghep noi Telegram'}
 }
 async function doPairing(){
   const btn=document.getElementById('pairBtn'),st=document.getElementById('pairStatus');
@@ -664,6 +703,32 @@ const server = http.createServer(async (req, res) => {
       execSync('sleep 2');
 
       return json(res, 200, { ok: true });
+    } catch (e) {
+      return json(res, 500, { ok: false, error: `Loi: ${e.message}` });
+    }
+  }
+
+  // --- API: Telegram Pair (ghep noi Telegram bot bang pairing code) ---
+  if (req.method === 'POST' && url.pathname === '/api/telegram-pair') {
+    if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Chua dang nhap' });
+    try {
+      const body = await parseBody(req);
+      const code = (body.code || '').trim();
+      if (!code) return json(res, 400, { ok: false, error: 'Thieu ma ghep noi' });
+
+      // Chay lenh pairing approve telegram <code>
+      try {
+        execSync(
+          `/opt/openclaw-cli.sh pairing approve telegram ${code.replace(/[^a-zA-Z0-9_-]/g, '')}`,
+          { timeout: 15000, stdio: 'pipe' }
+        );
+        return json(res, 200, { ok: true });
+      } catch (e) {
+        const stderr = e.stderr ? e.stderr.toString() : '';
+        const stdout = e.stdout ? e.stdout.toString() : '';
+        const errMsg = stderr || stdout || e.message;
+        return json(res, 200, { ok: false, error: `Khong the ghep noi: ${errMsg.substring(0, 200)}` });
+      }
     } catch (e) {
       return json(res, 500, { ok: false, error: `Loi: ${e.message}` });
     }
