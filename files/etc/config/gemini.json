@@ -28,5 +28,11 @@
       "token": "${OPENCLAW_GATEWAY_TOKEN}"
     },
     "trustedProxies": ["127.0.0.1", "::1"]
+  },
+  "browser": {
+    "headless": true,
+    "executablePath": "/usr/bin/google-chrome",
+    "defaultProfile": "openclaw",
+    "noSandbox": true
   }
 }

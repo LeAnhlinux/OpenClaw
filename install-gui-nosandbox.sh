@@ -68,6 +68,14 @@ corepack enable
 corepack prepare pnpm@latest --activate
 
 # =============================================================================
+# 4b. Cai dat Google Chrome (cho browser tool)
+# =============================================================================
+log "Cai dat Google Chrome..."
+curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/google-chrome.deb
+apt-get install -y /tmp/google-chrome.deb || apt-get install -fy
+rm -f /tmp/google-chrome.deb
+
+# =============================================================================
 # 5. Cai dat Caddy (reverse proxy voi TLS tu dong)
 # =============================================================================
 log "Cai dat Caddy..."
@@ -386,6 +394,12 @@ cat > /etc/config/anthropic.json << 'EOF'
       "token": "${OPENCLAW_GATEWAY_TOKEN}"
     },
     "trustedProxies": ["127.0.0.1", "::1"]
+  },
+  "browser": {
+    "headless": true,
+    "executablePath": "/usr/bin/google-chrome",
+    "defaultProfile": "openclaw",
+    "noSandbox": true
   }
 }
 EOF
@@ -411,6 +425,12 @@ cat > /etc/config/openai.json << 'EOF'
       "token": "${OPENCLAW_GATEWAY_TOKEN}"
     },
     "trustedProxies": ["127.0.0.1", "::1"]
+  },
+  "browser": {
+    "headless": true,
+    "executablePath": "/usr/bin/google-chrome",
+    "defaultProfile": "openclaw",
+    "noSandbox": true
   }
 }
 EOF
@@ -436,6 +456,12 @@ cat > /etc/config/gemini.json << 'EOF'
       "token": "${OPENCLAW_GATEWAY_TOKEN}"
     },
     "trustedProxies": ["127.0.0.1", "::1"]
+  },
+  "browser": {
+    "headless": true,
+    "executablePath": "/usr/bin/google-chrome",
+    "defaultProfile": "openclaw",
+    "noSandbox": true
   }
 }
 EOF
