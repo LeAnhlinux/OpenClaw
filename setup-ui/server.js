@@ -12,13 +12,12 @@ const fs = require('fs');
 
 const PORT = 9999;
 const SESSION_TTL = 15 * 60 * 1000;      // 15 phut
-const AUTO_SHUTDOWN = 24 * 60 * 60 * 1000; // 24 gio
+// Khong tu dong tat — chi tu huy khi setup hoan tat (selfDestruct)
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;    // 15 phut
 
 const sessions = {};
 const loginAttempts = {};
-let shutdownTimer = null;
 
 // --- Helpers ---
 function getClientIP(req) {
@@ -722,6 +721,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[Setup UI] Dang chay tai http://0.0.0.0:${PORT}`);
-  console.log(`[Setup UI] Tu dong tat sau ${AUTO_SHUTDOWN / 60000} phut.`);
-  shutdownTimer = setTimeout(() => { console.log('[Setup UI] Timeout — tu dong tat.'); process.exit(0); }, AUTO_SHUTDOWN);
+  console.log('[Setup UI] Se tu huy khi setup hoan tat.');
 });
