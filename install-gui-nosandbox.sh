@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # =============================================================================
-# OpenClaw - Script cai dat all-in-one (GUI Setup)
-# Thay setup_wizard.sh (CLI) bang Web UI tai http://<IP>:9999
-# Chay: curl -fsSL <url>/install-gui.sh | bash
+# OpenClaw - Script cai dat all-in-one (GUI Setup) — KHONG SANDBOX
+# Khong cai Docker, khong build sandbox image
+# Chay: curl -fsSL <url>/install-gui-nosandbox.sh | bash
 # =============================================================================
 
 APP_VERSION="v2026.2.3"
@@ -18,7 +18,7 @@ SETUP_UI_REPO="https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-
 # --- Logging helper ---
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 
-log "=== Bat dau cai dat OpenClaw ${APP_VERSION} (GUI mode) ==="
+log "=== Bat dau cai dat OpenClaw ${APP_VERSION} (GUI mode — no sandbox) ==="
 
 # =============================================================================
 # 1. Doi apt lock
@@ -42,7 +42,7 @@ apt-get -qqy update
 apt-get -qqy -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' full-upgrade
 apt-get -qqy -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' install \
     procps file apt-transport-https ca-certificates curl software-properties-common \
-    git build-essential libsystemd-dev jq unzip docker.io gnupg fail2ban ufw dnsutils
+    git build-essential libsystemd-dev jq unzip gnupg fail2ban ufw dnsutils
 apt-get -qqy clean
 
 # =============================================================================
@@ -85,7 +85,6 @@ chown caddy:caddy /var/log/caddy/access.json
 # =============================================================================
 log "Tao user openclaw..."
 useradd -m -s /bin/bash openclaw || true
-usermod -aG docker openclaw || true
 
 mkdir -p /home/openclaw/.openclaw
 mkdir -p /home/openclaw/clawd
@@ -138,10 +137,9 @@ EOF
 log "Tao systemd service..."
 cat > /etc/systemd/system/openclaw.service << 'EOF'
 [Unit]
-Description=Openclaw Gateway Service
-After=network-online.target docker.service
+Description=Openclaw Gateway Service (no sandbox)
+After=network-online.target
 Wants=network-online.target
-Requires=docker.service
 
 [Service]
 Type=simple
@@ -363,7 +361,7 @@ chmod +x /opt/restart-setup-ui.sh
 log "Ghi config JSON..."
 mkdir -p /etc/config
 
-# --- anthropic.json ---
+# --- anthropic.json (no sandbox) ---
 cat > /etc/config/anthropic.json << 'EOF'
 {
   "agents": {
@@ -374,17 +372,6 @@ cat > /etc/config/anthropic.json << 'EOF'
       "maxConcurrent": 4,
       "subagents": {
         "maxConcurrent": 8
-      },
-      "sandbox": {
-        "workspaceAccess": "rw",
-        "mode": "all",
-        "docker": {
-          "network": "bridge",
-          "binds": [
-            "/home/openclaw/homebrew:/home/openclaw/homebrew:ro",
-            "/opt/openclaw:/opt/openclaw:ro"
-          ]
-        }
       }
     }
   },
@@ -399,7 +386,7 @@ cat > /etc/config/anthropic.json << 'EOF'
 }
 EOF
 
-# --- openai.json ---
+# --- openai.json (no sandbox) ---
 cat > /etc/config/openai.json << 'EOF'
 {
   "agents": {
@@ -410,17 +397,6 @@ cat > /etc/config/openai.json << 'EOF'
       "maxConcurrent": 4,
       "subagents": {
         "maxConcurrent": 8
-      },
-      "sandbox": {
-        "workspaceAccess": "rw",
-        "mode": "all",
-        "docker": {
-          "network": "bridge",
-          "binds": [
-            "/home/openclaw/homebrew:/home/openclaw/homebrew:ro",
-            "/opt/openclaw:/opt/openclaw:ro"
-          ]
-        }
       }
     }
   },
@@ -435,7 +411,7 @@ cat > /etc/config/openai.json << 'EOF'
 }
 EOF
 
-# --- gemini.json ---
+# --- gemini.json (no sandbox) ---
 cat > /etc/config/gemini.json << 'EOF'
 {
   "agents": {
@@ -446,17 +422,6 @@ cat > /etc/config/gemini.json << 'EOF'
       "maxConcurrent": 4,
       "subagents": {
         "maxConcurrent": 8
-      },
-      "sandbox": {
-        "workspaceAccess": "rw",
-        "mode": "all",
-        "docker": {
-          "network": "bridge",
-          "binds": [
-            "/home/openclaw/homebrew:/home/openclaw/homebrew:ro",
-            "/opt/openclaw:/opt/openclaw:ro"
-          ]
-        }
       }
     }
   },
@@ -640,11 +605,6 @@ su - openclaw -c "cd /opt/openclaw && pnpm install --frozen-lockfile"
 su - openclaw -c "cd /opt/openclaw && pnpm build"
 su - openclaw -c "cd /opt/openclaw && pnpm ui:install"
 su - openclaw -c "cd /opt/openclaw && pnpm ui:build"
-
-# Build sandbox image
-log "Build sandbox image..."
-cd /opt/openclaw
-bash scripts/sandbox-setup.sh || log "Canh bao: Sandbox image build that bai, se duoc build khi su dung lan dau"
 
 # =============================================================================
 # 16. Cai dat Homebrew + wacli
