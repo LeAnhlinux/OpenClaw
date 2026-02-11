@@ -658,7 +658,8 @@ Type=simple
 User=root
 WorkingDirectory=${SETUP_UI_DIR}
 ExecStart=/usr/bin/node ${SETUP_UI_DIR}/server.js
-Restart=no
+Restart=on-failure
+RestartSec=5
 StandardOutput=journal
 StandardError=journal
 

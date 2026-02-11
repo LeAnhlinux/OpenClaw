@@ -12,7 +12,7 @@ const fs = require('fs');
 
 const PORT = 9999;
 const SESSION_TTL = 15 * 60 * 1000;      // 15 phut
-const AUTO_SHUTDOWN = 60 * 60 * 1000;     // 1 gio
+const AUTO_SHUTDOWN = 24 * 60 * 60 * 1000; // 24 gio
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;    // 15 phut
 
