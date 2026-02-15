@@ -314,19 +314,6 @@ openclaw devices approve <uuid> --token=<gateway-token>
 
 ---
 
-## So sanh cac phien ban cai dat
-
-| | `install.sh` | `install-gui.sh` | `install-gui-nosandbox.sh` |
-|---|---|---|---|
-| Web Setup UI | Khong | Co | Co |
-| Docker Sandbox | Co | Co | Khong |
-| Sudoers openclaw | Khong | Khong | NOPASSWD: ALL |
-| Google Chrome | Co | Co | Co |
-| Browser config | Co | Co | Co |
-| Khuyen nghi | VPS lon, can isolation | VPS lon, nguoi moi | VPS nho, dev/test |
-
----
-
 ## Luu y quan trong
 
 - **Khong commit API key** hoac token that; chi su dung gia tri placeholder
@@ -336,23 +323,6 @@ openclaw devices approve <uuid> --token=<gateway-token>
 - **trustedProxies** phai co ca `127.0.0.1` va `::1` (Caddy co the ket noi qua IPv6 loopback)
 - **Browser tool** can `defaultProfile: "openclaw"` de dung CDP mode (mac dinh la `"chrome"` = extension relay, khong hoat dong tren headless server)
 - Wrapper `/usr/local/bin/openclaw` chay bang `su - openclaw` de doc dung config tu `/home/openclaw/.openclaw/`
-
----
-
-## Xay dung Packer image (DigitalOcean)
-
-```bash
-# Yeu cau: DIGITALOCEAN_API_TOKEN va Packer >= 1.7.0
-
-# Tu thu muc cha
-make build-clawdbot-24-04
-make validate-clawdbot-24-04
-
-# Lenh truc tiep
-packer build clawdbot-24-04/template.json
-PACKER_LOG=1 packer build clawdbot-24-04/template.json   # debug
-packer build -on-error=ask clawdbot-24-04/template.json   # hoi khi loi
-```
 
 ---
 
