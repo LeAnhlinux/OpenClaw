@@ -137,14 +137,17 @@ const PROVIDERS = {
 
 // --- Self-destruct ---
 function selfDestruct() {
-  console.log('[Setup UI] Setup hoan tat. Tu huy...');
+  console.log('[Setup UI] Setup hoan tat. Tu huy va kich hoat Management Panel...');
   try {
-    execSync('ufw deny 9999 2>/dev/null || true');
-    execSync('ufw delete allow 9999 2>/dev/null || true');
+    // Disable va xoa Setup UI service
     execSync('systemctl disable openclaw-setup 2>/dev/null || true');
     execSync('rm -f /etc/systemd/system/openclaw-setup.service 2>/dev/null || true');
     execSync('systemctl daemon-reload 2>/dev/null || true');
     execSync('rm -rf /opt/openclaw-setup 2>/dev/null || true');
+    // KHONG dong port 9999 — Management Panel se dung port nay
+    // Kich hoat Management Panel
+    execSync('systemctl start openclaw-panel 2>/dev/null || true');
+    console.log('[Setup UI] Management Panel da duoc kich hoat tren port 9999');
   } catch (e) { console.error('[Setup UI] Loi khi tu huy:', e.message); }
   process.exit(0);
 }
