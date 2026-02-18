@@ -2,9 +2,10 @@
 set -euo pipefail
 
 # =============================================================================
-# OpenClaw - Script cai dat all-in-one (GUI Setup) — KHONG SANDBOX
+# OpenClaw - Script cai dat all-in-one (DEV) — KHONG SANDBOX + Management Panel
 # Khong cai Docker, khong build sandbox image
-# Chay: curl -fsSL <url>/install-gui-nosandbox.sh | bash
+# Co Setup UI (1 lan) + Management Panel (vinh vien)
+# Chay: curl -fsSL <url>/install-dev.sh | bash
 # =============================================================================
 
 APP_VERSION="v2026.2.3"
@@ -14,6 +15,8 @@ LOG_FILE="/var/log/openclaw-install.log"
 SETUP_UI_DIR="/opt/openclaw-setup"
 SETUP_UI_PORT=9999
 SETUP_UI_REPO="https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/server.js"
+PANEL_DIR="/opt/openclaw-panel"
+PANEL_REPO="https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js"
 
 # --- Logging helper ---
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
@@ -502,6 +505,9 @@ cat <<EOF
   Dashboard URL: https://$myip?token=$gateway_token
   Gateway Token: $gateway_token
 
+🖥️ Management Panel:
+  http://$myip:9999  (dang nhap bang root)
+
 📝 Cau hinh:
   File moi truong: /opt/openclaw.env
   File cau hinh:   /home/openclaw/.openclaw/openclaw.json
@@ -702,6 +708,38 @@ WantedBy=multi-user.target
 EOF
 
 # =============================================================================
+# 18b. Cai dat Management Panel (Web)
+# =============================================================================
+log "Cai dat Management Panel..."
+mkdir -p ${PANEL_DIR}
+
+# Tai panel.js tu repo
+curl -fsSL "${PANEL_REPO}" -o ${PANEL_DIR}/panel.js || {
+    log "Canh bao: Khong tai duoc Management Panel."
+}
+
+# Tao systemd service cho Management Panel
+cat > /etc/systemd/system/openclaw-panel.service << EOF
+[Unit]
+Description=OpenClaw Management Panel (persistent web admin)
+After=network-online.target openclaw.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${PANEL_DIR}
+ExecStart=/usr/bin/node ${PANEL_DIR}/panel.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# =============================================================================
 # 19. Kich hoat va khoi dong dich vu
 # =============================================================================
 log "Kich hoat va khoi dong dich vu..."
@@ -712,6 +750,8 @@ systemctl daemon-reload
 systemctl enable openclaw
 systemctl enable caddy
 systemctl enable openclaw-setup
+# Enable panel nhung KHONG start — doi Setup UI selfDestruct kich hoat
+systemctl enable openclaw-panel
 
 # OpenClaw chay voi --allow-unconfigured (cho phep chay truoc khi co API key)
 systemctl restart openclaw
