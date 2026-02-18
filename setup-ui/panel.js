@@ -422,6 +422,48 @@ body{font-family:'Segoe UI',Roboto,-apple-system,sans-serif;background:var(--bg)
 /* Sections */
 .section{display:none} .section.active{display:block}
 
+/* Chat */
+.chat-box{display:flex;flex-direction:column;height:420px;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:#fafbfc}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.chat-msg{max-width:85%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;word-wrap:break-word;white-space:pre-wrap}
+.chat-msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+.chat-msg.ai{align-self:flex-start;background:#fff;border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}
+.chat-msg.ai .meta{font-size:10px;color:var(--text2);margin-top:6px;border-top:1px solid #f0f1f3;padding-top:4px}
+.chat-input{display:flex;gap:8px;padding:12px;border-top:1.5px solid var(--border);background:#fff}
+.chat-input input{flex:1;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none} .chat-input input:focus{border-color:var(--accent)}
+.chat-input button{padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px}
+
+/* Config Editor */
+.json-editor{width:100%;min-height:300px;font-family:'JetBrains Mono','Fira Code','Courier New',monospace;font-size:12px;padding:14px;background:#0f172a;color:#e2e8f0;border:none;border-radius:8px;outline:none;resize:vertical;line-height:1.6;tab-size:2}
+
+/* QR */
+.qr-box{text-align:center;padding:20px;background:#fff;border-radius:10px;border:1px solid var(--border)}
+.qr-box canvas{max-width:200px;max-height:200px}
+
+/* History item */
+.hist-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s}
+.hist-item:hover{border-color:var(--accent);background:rgba(66,133,244,.04)}
+
+/* Dark Mode */
+body.dark{--bg:#0f172a;--sidebar-bg:#0a0e1a;--card-bg:#1e293b;--text:#e2e8f0;--text2:#94a3b8;--border:#334155}
+body.dark .prov-item,body.dark .ch-item{background:var(--card-bg);border-color:var(--border)}
+body.dark .prov-item.current{background:#1a3a2a;border-color:var(--accent2)}
+body.dark .prov-item.selected,body.dark .ch-item.selected{background:#1a2a4a;border-color:var(--accent)}
+body.dark .config-pane{background:#1a2438;border-color:var(--border)}
+body.dark .field input,body.dark .field select,body.dark .field textarea{background:#0f172a;border-color:var(--border);color:var(--text)}
+body.dark .btn-outline{background:var(--card-bg);border-color:var(--border);color:var(--text2)}
+body.dark .chat-box{background:#1a2438;border-color:var(--border)} body.dark .chat-input{background:var(--card-bg);border-color:var(--border)}
+body.dark .chat-msg.ai{background:var(--card-bg);border-color:var(--border)}
+body.dark .chat-input input{background:#0f172a;border-color:var(--border);color:var(--text)}
+body.dark .info-row{border-color:var(--border)}
+body.dark .hist-item{border-color:var(--border)} body.dark .hist-item:hover{background:rgba(66,133,244,.08)}
+body.dark .log-box{background:#0a0e1a}
+body.dark .qr-box{background:var(--card-bg);border-color:var(--border)}
+body.dark .status.ok{background:#0a2e1a;border-color:#1a4a2a;color:#4ade80}
+body.dark .status.fail{background:#2e0a0a;border-color:#4a1a1a;color:#f87171}
+body.dark .status.loading{background:#0a1a2e;border-color:#1a2a4a;color:#60a5fa}
+body.dark .status.warn{background:#2e1a0a;border-color:#4a2a1a;color:#fbbf24}
+
 /* Responsive */
 .hamburger{display:none;position:fixed;top:12px;left:12px;z-index:20;background:var(--sidebar-bg);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:18px;cursor:pointer}
 @media(max-width:768px){
@@ -485,13 +527,24 @@ function panelPage() {
   <div class="brand"><h1>OpenClaw</h1><p>Management Panel</p></div>
   <nav>
     <div class="nav-item active" onclick="showTab('provider',this)"><span class="nav-icon">\u2728</span>AI Provider</div>
-    <div class="nav-item" onclick="showTab('channels',this)"><span class="nav-icon">\ud83d\udcac</span>Channels</div>
+    <div class="nav-item" onclick="showTab('channels',this)"><span class="nav-icon">\ud83d\udce8</span>Channels</div>
+    <div class="nav-item" onclick="showTab('chat',this)"><span class="nav-icon">\ud83d\udcac</span>Playground</div>
     <div class="nav-item" onclick="showTab('gateway',this)"><span class="nav-icon">\ud83d\udd11</span>Gateway</div>
     <div class="nav-item" onclick="showTab('domain',this)"><span class="nav-icon">\ud83c\udf10</span>Domain & SSL</div>
-    <div class="nav-item" onclick="showTab('update',this)"><span class="nav-icon">\ud83d\udce6</span>Update</div>
-    <div class="nav-item" onclick="showTab('status',this)"><span class="nav-icon">\ud83d\udcca</span>Status</div>
+    <div class="nav-item" onclick="showTab('analytics',this)"><span class="nav-icon">\ud83d\udcca</span>Analytics</div>
+    <div class="nav-item" onclick="showTab('history',this)"><span class="nav-icon">\ud83d\udcdd</span>History</div>
+    <div class="nav-item" onclick="showTab('notify',this)"><span class="nav-icon">\ud83d\udd14</span>Notify</div>
+    <div class="nav-item" onclick="showTab('users',this)"><span class="nav-icon">\ud83d\udc65</span>Users</div>
+    <div class="nav-item" onclick="showTab('backup',this)"><span class="nav-icon">\ud83d\udce6</span>Backup</div>
+    <div class="nav-item" onclick="showTab('config',this)"><span class="nav-icon">\ud83d\udd27</span>Config</div>
+    <div class="nav-item" onclick="showTab('qr',this)"><span class="nav-icon">\ud83d\udcf1</span>QR Code</div>
+    <div class="nav-item" onclick="showTab('update',this)"><span class="nav-icon">\u2b06\ufe0f</span>Update</div>
+    <div class="nav-item" onclick="showTab('status',this)"><span class="nav-icon">\ud83d\udfe2</span>Status</div>
   </nav>
-  <div class="sidebar-footer">OpenClaw Panel v1.0</div>
+  <div class="sidebar-footer" style="display:flex;align-items:center;justify-content:space-between">
+    <span>OpenClaw Panel v2.0</span>
+    <button onclick="toggleDark()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:16px" title="Dark Mode">\ud83c\udf19</button>
+  </div>
 </div>
 
 <div class="main">
@@ -598,6 +651,154 @@ function panelPage() {
     </div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcdd</span> Log OpenClaw</div><div class="log-box" id="logsBox">Dang tai...</div></div>
   </div>
+
+  <!-- TAB: Chat Playground -->
+  <div class="section" id="sec-chat">
+    <div class="page-title">\ud83d\udcac Chat Playground</div>
+    <div class="page-desc">Test chat truc tiep voi AI provider hien tai.</div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\u2728</span> <span id="chatProviderLabel">AI Chat</span></div>
+      <div class="chat-box">
+        <div class="chat-msgs" id="chatMsgs"><div class="chat-msg ai">Xin chao! Toi la AI assistant. Hay gui tin nhan de test.</div></div>
+        <div class="chat-input">
+          <input type="text" id="chatInput" placeholder="Nhap tin nhan..." onkeydown="if(event.key==='Enter')sendChat()">
+          <button onclick="sendChat()">Gui</button>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-outline" onclick="clearChat()">Xoa chat</button>
+        <span id="chatMeta" style="font-size:11px;color:var(--text2);align-self:center;margin-left:8px"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Usage Analytics -->
+  <div class="section" id="sec-analytics">
+    <div class="page-title">\ud83d\udcca Usage Analytics</div>
+    <div class="page-desc">Thong ke su dung API va token.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc8</span> Tong quan</div><div id="analyticsOverview" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> Lich su request (7 ngay)</div>
+      <div id="analyticsChart" style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:16px 0"></div>
+      <div id="analyticsList" style="margin-top:16px"></div>
+    </div>
+    <div class="btn-row"><button class="btn btn-outline" onclick="loadAnalytics()">Lam moi</button></div>
+  </div>
+
+  <!-- TAB: Conversation History -->
+  <div class="section" id="sec-history">
+    <div class="page-title">\ud83d\udcdd Conversation History</div>
+    <div class="page-desc">Xem lich su hoi thoai gan day.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc2</span> Cac cuoc hoi thoai</div>
+      <div id="historyList" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-outline" onclick="loadHistory()">Lam moi</button>
+      </div>
+    </div>
+    <div class="card" id="historyDetail" style="display:none">
+      <div class="card-title"><span class="ct-icon">\ud83d\udcac</span> <span id="historyDetailTitle">Chi tiet</span></div>
+      <div id="historyMsgs" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+  </div>
+
+  <!-- TAB: Notifications / Webhook -->
+  <div class="section" id="sec-notify">
+    <div class="page-title">\ud83d\udd14 Notifications & Webhook</div>
+    <div class="page-desc">Cau hinh canh bao khi service gap loi.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udce7</span> Webhook URL</div>
+      <div class="field"><label>Webhook URL (Slack, Discord, Telegram, etc.)</label><input type="text" id="webhookUrl" placeholder="https://hooks.slack.com/services/..."></div>
+      <div class="field"><label>Events</label>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" id="evtDown" checked> Service down (openclaw/caddy)</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" id="evtRestart"> Service restart</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" id="evtHigh"> High CPU/Memory (>90%)</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" id="evtUpdate"> Update available</label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveWebhook()">Luu</button>
+        <button class="btn btn-outline" onclick="testWebhook()">Test Webhook</button>
+      </div>
+      <div class="status" id="webhookStatus"></div>
+    </div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcdd</span> Log canh bao</div><div class="log-box" id="notifyLog">Chua co canh bao.</div></div>
+  </div>
+
+  <!-- TAB: User Management -->
+  <div class="section" id="sec-users">
+    <div class="page-title">\ud83d\udc65 User Management</div>
+    <div class="page-desc">Quan ly tai khoan truy cap panel.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd10</span> Doi mat khau Root</div>
+      <div class="field"><label>Mat khau cu</label><input type="password" id="oldPass" placeholder="Nhap mat khau hien tai"></div>
+      <div class="field"><label>Mat khau moi</label><input type="password" id="newPass" placeholder="Nhap mat khau moi"></div>
+      <div class="field"><label>Xac nhan</label><input type="password" id="confirmPass" placeholder="Nhap lai mat khau moi"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="changePassword()">Doi mat khau</button></div>
+      <div class="status" id="passStatus"></div>
+    </div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udee1\ufe0f</span> Bao mat</div>
+      <div id="securityInfo" class="info-grid"></div>
+      <div class="btn-row" style="margin-top:12px"><button class="btn btn-outline" onclick="loadUsers()">Lam moi</button></div>
+    </div>
+  </div>
+
+  <!-- TAB: Backup & Restore -->
+  <div class="section" id="sec-backup">
+    <div class="page-title">\ud83d\udce6 Backup & Restore</div>
+    <div class="page-desc">Sao luu va phuc hoi cau hinh he thong.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcbe</span> Backup</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Tao ban sao cau hinh (openclaw.json, openclaw.env, Caddyfile). Khong bao gom API key.</p>
+      <div class="btn-row"><button class="btn btn-primary" onclick="doBackup()">Tao Backup</button></div>
+      <div class="status" id="backupStatus"></div>
+      <div id="backupData" style="display:none;margin-top:14px">
+        <div class="field"><label>Backup Data (copy va luu lai)</label>
+          <textarea id="backupContent" class="json-editor" style="min-height:160px" readonly></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Restore</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Dan noi dung backup vao day de phuc hoi cau hinh.</p>
+      <div class="field"><label>Backup Data</label><textarea id="restoreContent" class="json-editor" style="min-height:120px" placeholder="Dan backup JSON vao day..."></textarea></div>
+      <div class="btn-row"><button class="btn btn-danger" onclick="doRestore()">Phuc hoi</button></div>
+      <div class="status" id="restoreStatus"></div>
+    </div>
+  </div>
+
+  <!-- TAB: Config Editor -->
+  <div class="section" id="sec-config">
+    <div class="page-title">\ud83d\udd27 Config Editor</div>
+    <div class="page-desc">Chinh sua truc tiep file cau hinh he thong.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc4</span> openclaw.json</div>
+      <textarea id="configJson" class="json-editor" style="min-height:320px"></textarea>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-primary" onclick="saveConfigFile('json')">Luu & Restart</button>
+        <button class="btn btn-outline" onclick="loadConfigEditor()">Reload</button>
+      </div>
+      <div class="status" id="configJsonStatus"></div>
+    </div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc4</span> openclaw.env</div>
+      <textarea id="configEnv" class="json-editor" style="min-height:200px"></textarea>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-primary" onclick="saveConfigFile('env')">Luu & Restart</button>
+        <button class="btn btn-outline" onclick="loadConfigEditor()">Reload</button>
+      </div>
+      <div class="status" id="configEnvStatus"></div>
+    </div>
+  </div>
+
+  <!-- TAB: QR Code -->
+  <div class="section" id="sec-qr">
+    <div class="page-title">\ud83d\udcf1 QR Code Pairing</div>
+    <div class="page-desc">Ma QR de truy cap dashboard tu dien thoai.</div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Dashboard QR</div>
+      <div class="qr-box" id="qrBox">
+        <div id="qrCanvas" style="margin:16px auto;display:inline-block;padding:12px;background:#fff;border-radius:8px"></div>
+        <p style="font-size:12px;color:var(--text2);margin-top:12px" id="qrUrl"></p>
+      </div>
+      <div class="btn-row" style="justify-content:center;margin-top:12px">
+        <button class="btn btn-outline" onclick="loadQR()">Tao lai QR</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -608,15 +809,13 @@ const channels=${chJSON};
 function showTab(name,el){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('sec-'+name).classList.add('active');
+  const sec=document.getElementById('sec-'+name);if(sec)sec.classList.add('active');
   if(el)el.classList.add('active');
   document.querySelector('.sidebar').classList.remove('open');
-  if(name==='provider')loadProvider();
-  if(name==='channels')loadChannels();
-  if(name==='gateway')loadGateway();
-  if(name==='domain')loadDomain();
-  if(name==='update')loadUpdate();
-  if(name==='status'){loadStatus();loadLogs();}
+  const loaders={provider:loadProvider,channels:loadChannels,gateway:loadGateway,domain:loadDomain,update:loadUpdate,
+    chat:loadChat,analytics:loadAnalytics,history:loadHistory,notify:loadNotify,users:loadUsers,backup:()=>{},config:loadConfigEditor,qr:loadQR,
+    status:()=>{loadStatus();loadLogs()}};
+  if(loaders[name])loaders[name]();
 }
 async function api(path,method,body){
   const o={method:method||'GET',headers:{'Content-Type':'application/json'}};
@@ -783,6 +982,177 @@ async function restartSvc(n){
   const d=await api('/api/restart','POST',{service:n});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?n+' OK!':d.error||'Loi';
   setTimeout(()=>{loadStatus();loadLogs()},2000);
 }
+
+// === Chat Playground ===
+let chatHistory=[];
+async function loadChat(){
+  const d=await api('/api/current-config');
+  document.getElementById('chatProviderLabel').textContent=d.providerName?(d.providerName+' — '+d.model):'AI Chat';
+}
+async function sendChat(){
+  const inp=document.getElementById('chatInput'),msg=inp.value.trim();if(!msg)return;
+  inp.value='';const box=document.getElementById('chatMsgs');
+  const userDiv=document.createElement('div');userDiv.className='chat-msg user';userDiv.textContent=msg;box.appendChild(userDiv);
+  chatHistory.push({role:'user',content:msg});
+  const aiDiv=document.createElement('div');aiDiv.className='chat-msg ai';aiDiv.textContent='Dang suy nghi...';box.appendChild(aiDiv);
+  box.scrollTop=box.scrollHeight;
+  const t0=Date.now();
+  try{const d=await api('/api/chat','POST',{message:msg,history:chatHistory.slice(-20)});
+    if(d.ok){aiDiv.innerHTML=d.reply.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>')+'<div class="meta">'+(d.tokens?d.tokens+' tokens | ':'')+((Date.now()-t0)/1000).toFixed(1)+'s'+(d.model?' | '+d.model:'')+'</div>';
+      chatHistory.push({role:'assistant',content:d.reply});
+      document.getElementById('chatMeta').textContent='Messages: '+chatHistory.length;
+    }else{aiDiv.textContent='Loi: '+(d.error||'Khong the ket noi');}
+  }catch(e){aiDiv.textContent='Loi: '+e.message;}
+  box.scrollTop=box.scrollHeight;
+}
+function clearChat(){chatHistory=[];document.getElementById('chatMsgs').innerHTML='<div class="chat-msg ai">Chat da xoa. Hay gui tin nhan moi.</div>';document.getElementById('chatMeta').textContent=''}
+
+// === Usage Analytics ===
+async function loadAnalytics(){
+  const d=await api('/api/analytics');
+  const ov=document.getElementById('analyticsOverview');
+  if(!d.ok){ov.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co du lieu</span></div>';return}
+  ov.innerHTML='<div class="info-row"><span class="info-k">Tong request</span><span class="info-v">'+d.totalRequests+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Tong token</span><span class="info-v">'+(d.totalTokens||0).toLocaleString()+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Hom nay</span><span class="info-v">'+d.todayRequests+' req</span></div>'+
+    '<div class="info-row"><span class="info-k">Provider</span><span class="info-v">'+(d.provider||'-')+'</span></div>';
+  const chart=document.getElementById('analyticsChart'),list=document.getElementById('analyticsList');
+  chart.innerHTML='';list.innerHTML='';
+  if(d.daily&&d.daily.length>0){
+    const maxR=Math.max(...d.daily.map(x=>x.requests),1);
+    d.daily.forEach(day=>{const pct=Math.max(4,(day.requests/maxR)*100);
+      const bar=document.createElement('div');bar.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px';
+      bar.innerHTML='<span style="font-size:10px;color:var(--text2)">'+day.requests+'</span><div style="width:100%;height:'+pct+'px;background:var(--accent);border-radius:4px;min-width:20px"></div><span style="font-size:9px;color:var(--text2)">'+day.date.slice(5)+'</span>';
+      chart.appendChild(bar);
+    });
+  }
+}
+
+// === Conversation History ===
+async function loadHistory(){
+  const d=await api('/api/conversations');
+  const el=document.getElementById('historyList');
+  document.getElementById('historyDetail').style.display='none';
+  if(!d.ok||!d.conversations||d.conversations.length===0){el.innerHTML='<div style="font-size:12px;color:var(--text2)">Chua co hoi thoai nao.</div>';return}
+  el.innerHTML='';
+  d.conversations.forEach((c,i)=>{
+    const div=document.createElement('div');div.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s';
+    div.innerHTML='<span style="font-size:18px">\\ud83d\\udcac</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+(c.title||'Hoi thoai #'+(i+1))+'</div><div style="font-size:11px;color:var(--text2)">'+(c.date||'')+' \\u2014 '+(c.messageCount||0)+' tin nhan'+(c.channel?' \\u2014 '+c.channel:'')+'</div></div>';
+    div.onmouseover=()=>{div.style.borderColor='var(--accent)'};div.onmouseout=()=>{div.style.borderColor='var(--border)'};
+    div.onclick=()=>showConversation(c.id,c.title||'Hoi thoai #'+(i+1));
+    el.appendChild(div);
+  });
+}
+async function showConversation(id,title){
+  document.getElementById('historyDetail').style.display='block';
+  document.getElementById('historyDetailTitle').textContent=title;
+  const d=await api('/api/conversations/'+id);
+  const el=document.getElementById('historyMsgs');
+  if(!d.ok){el.innerHTML='<div style="color:var(--text2)">Loi</div>';return}
+  el.innerHTML='';
+  (d.messages||[]).forEach(m=>{
+    const div=document.createElement('div');div.className='chat-msg '+(m.role==='user'?'user':'ai');div.style.maxWidth='95%';
+    div.textContent=m.content||'';el.appendChild(div);
+  });
+}
+
+// === Notifications / Webhook ===
+async function loadNotify(){
+  const d=await api('/api/webhook');
+  if(d.ok&&d.config){
+    document.getElementById('webhookUrl').value=d.config.url||'';
+    document.getElementById('evtDown').checked=d.config.events?.down!==false;
+    document.getElementById('evtRestart').checked=!!d.config.events?.restart;
+    document.getElementById('evtHigh').checked=!!d.config.events?.highResource;
+    document.getElementById('evtUpdate').checked=!!d.config.events?.update;
+  }
+  if(d.log)document.getElementById('notifyLog').textContent=d.log;
+}
+async function saveWebhook(){
+  const st=document.getElementById('webhookStatus');st.className='status loading';st.textContent='Dang luu...';
+  const d=await api('/api/webhook','POST',{url:document.getElementById('webhookUrl').value.trim(),
+    events:{down:document.getElementById('evtDown').checked,restart:document.getElementById('evtRestart').checked,
+      highResource:document.getElementById('evtHigh').checked,update:document.getElementById('evtUpdate').checked}});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu!':d.error||'Loi';
+}
+async function testWebhook(){
+  const st=document.getElementById('webhookStatus');st.className='status loading';st.textContent='Dang gui test...';
+  const d=await api('/api/webhook-test','POST',{});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Webhook OK!':d.error||'Loi';
+}
+
+// === User Management ===
+async function loadUsers(){
+  const d=await api('/api/security');
+  const el=document.getElementById('securityInfo');
+  if(!d.ok){el.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Loi</span></div>';return}
+  el.innerHTML='<div class="info-row"><span class="info-k">Fail2ban</span><span class="info-v"><span class="badge '+(d.fail2ban?'bg-green':'bg-red')+'">'+(d.fail2ban?'Active':'Inactive')+'</span></span></div>'+
+    '<div class="info-row"><span class="info-k">UFW Firewall</span><span class="info-v"><span class="badge '+(d.ufw?'bg-green':'bg-red')+'">'+(d.ufw?'Active':'Inactive')+'</span></span></div>'+
+    '<div class="info-row"><span class="info-k">SSH</span><span class="info-v">'+(d.sshPort||22)+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Login IP hien tai</span><span class="info-v">'+(d.clientIP||'-')+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Banned IPs</span><span class="info-v">'+(d.bannedIPs||0)+'</span></div>';
+}
+async function changePassword(){
+  const st=document.getElementById('passStatus'),o=document.getElementById('oldPass').value,n=document.getElementById('newPass').value,c=document.getElementById('confirmPass').value;
+  if(!o||!n){st.className='status fail';st.textContent='Nhap day du';return}
+  if(n!==c){st.className='status fail';st.textContent='Mat khau moi khong khop';return}
+  if(n.length<6){st.className='status fail';st.textContent='Mat khau moi qua ngan (min 6)';return}
+  st.className='status loading';st.textContent='Dang doi...';
+  const d=await api('/api/change-password','POST',{oldPassword:o,newPassword:n});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da doi mat khau!':d.error||'Loi';
+  if(d.ok){document.getElementById('oldPass').value='';document.getElementById('newPass').value='';document.getElementById('confirmPass').value=''}
+}
+
+// === Backup & Restore ===
+async function doBackup(){
+  const st=document.getElementById('backupStatus');st.className='status loading';st.textContent='Dang tao backup...';
+  const d=await api('/api/backup');
+  if(d.ok){st.className='status ok';st.textContent='Backup thanh cong! Copy noi dung ben duoi.';
+    document.getElementById('backupData').style.display='block';
+    document.getElementById('backupContent').value=JSON.stringify(d.data,null,2);
+  }else{st.className='status fail';st.textContent=d.error||'Loi'}
+}
+async function doRestore(){
+  const st=document.getElementById('restoreStatus'),raw=document.getElementById('restoreContent').value.trim();
+  if(!raw){st.className='status fail';st.textContent='Dan noi dung backup';return}
+  let data;try{data=JSON.parse(raw)}catch{st.className='status fail';st.textContent='JSON khong hop le';return}
+  if(!confirm('Ban chac chan muon phuc hoi? Cau hinh hien tai se bi ghi de.'))return;
+  st.className='status loading';st.textContent='Dang phuc hoi...';
+  const d=await api('/api/restore','POST',{data});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Phuc hoi thanh cong! OpenClaw da restart.':d.error||'Loi';
+}
+
+// === Config Editor ===
+async function loadConfigEditor(){
+  const d=await api('/api/config-read');
+  if(d.ok){document.getElementById('configJson').value=d.json||'{}';document.getElementById('configEnv').value=d.env||''}
+}
+async function saveConfigFile(type){
+  const stId=type==='json'?'configJsonStatus':'configEnvStatus';const st=document.getElementById(stId);
+  st.className='status loading';st.textContent='Dang luu...';
+  const content=type==='json'?document.getElementById('configJson').value:document.getElementById('configEnv').value;
+  if(type==='json'){try{JSON.parse(content)}catch(e){st.className='status fail';st.textContent='JSON loi: '+e.message;return}}
+  const d=await api('/api/config-write','POST',{type,content});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu! Restart OK.':d.error||'Loi';
+}
+
+// === QR Code ===
+async function loadQR(){
+  const d=await api('/api/current-config');
+  const host=d.domain||d.serverIP||'localhost',token=d.token||'';
+  const url='https://'+host+'?token='+token;
+  document.getElementById('qrUrl').textContent=url;
+  // Simple QR code using API
+  const canvas=document.getElementById('qrCanvas');
+  canvas.innerHTML='<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(url)+'" alt="QR" style="border-radius:8px;width:180px;height:180px">';
+}
+
+// === Dark Mode ===
+function toggleDark(){
+  document.body.classList.toggle('dark');
+  try{localStorage.setItem('oc-dark',document.body.classList.contains('dark')?'1':'0')}catch{}
+}
+(function(){try{if(localStorage.getItem('oc-dark')==='1')document.body.classList.add('dark')}catch{}})();
 
 showTab('provider',document.querySelector('.nav-item'));
 </script></body></html>`;
@@ -1003,6 +1373,250 @@ const server = http.createServer(async (req, res) => {
       if (!['openclaw', 'caddy'].includes(svc)) return json(res, 400, { ok: false, error: 'Invalid' });
       const ok = restartService(svc); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok, error: ok ? null : 'Fail' });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Chat Playground ===
+  if (req.method === 'POST' && url.pathname === '/api/chat') {
+    try {
+      const body = await parseBody(req);
+      const config = getConfig();
+      const model = config?.agents?.defaults?.model?.primary || '';
+      if (!model) return json(res, 400, { ok: false, error: 'Chua cau hinh provider' });
+
+      // Detect provider from model string
+      const provKey = Object.entries(PROVIDERS).find(([k]) => {
+        if (model.startsWith(k + '/')) return true;
+        if (k === 'gemini' && model.startsWith('google/')) return true;
+        if (k === 'bedrock' && model.startsWith('amazon-bedrock/')) return true;
+        return false;
+      });
+      if (!provKey) return json(res, 400, { ok: false, error: 'Provider khong xac dinh' });
+      const prov = provKey[1];
+      const apiKey = getEnvValue(prov.envKey);
+      if (!apiKey) return json(res, 400, { ok: false, error: 'API key chua cau hinh' });
+
+      // Build messages
+      const messages = (body.history || []).slice(-20).map(m => ({ role: m.role, content: m.content }));
+      if (!messages.length || messages[messages.length - 1].content !== body.message)
+        messages.push({ role: 'user', content: body.message });
+
+      // Route to correct API
+      let reply = '', tokens = 0;
+      const actualModel = model.includes('/') ? model.split('/').slice(1).join('/') : model;
+
+      if (provKey[0] === 'anthropic') {
+        const r = safeExec(`curl -s -X POST https://api.anthropic.com/v1/messages -H 'x-api-key: ${apiKey.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '${JSON.stringify({model:actualModel,max_tokens:1024,messages}).replace(/'/g,"'\\''")}'`, 60000);
+        try { const j = JSON.parse(r); reply = j.content?.[0]?.text || 'No response'; tokens = (j.usage?.input_tokens||0) + (j.usage?.output_tokens||0); } catch { reply = r || 'Loi parse response'; }
+      } else if (provKey[0] === 'gemini') {
+        const gModel = actualModel.replace('google/', '');
+        const r = safeExec(`curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey.replace(/'/g,"'\\''")}" -H 'content-type: application/json' -d '${JSON.stringify({contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}))}).replace(/'/g,"'\\''")}'`, 60000);
+        try { const j = JSON.parse(r); reply = j.candidates?.[0]?.content?.parts?.[0]?.text || 'No response'; tokens = j.usageMetadata?.totalTokenCount || 0; } catch { reply = r || 'Loi'; }
+      } else {
+        // OpenAI-compatible (most providers)
+        let baseUrl = 'https://api.openai.com/v1';
+        if (provKey[0] === 'xai') baseUrl = 'https://api.x.ai/v1';
+        else if (provKey[0] === 'minimax') baseUrl = 'https://api.minimax.io/v1';
+        else if (provKey[0] === 'moonshot' || provKey[0] === 'kimi-coding') baseUrl = 'https://api.moonshot.ai/v1';
+        else if (provKey[0] === 'zai') baseUrl = 'https://api.z.ai/v1';
+        else if (provKey[0] === 'venice') baseUrl = 'https://api.venice.ai/api/v1';
+        else if (provKey[0] === 'nvidia') baseUrl = 'https://integrate.api.nvidia.com/v1';
+        else if (provKey[0] === 'huggingface') baseUrl = 'https://router.huggingface.co/v1';
+        else if (provKey[0] === 'together') baseUrl = 'https://api.together.xyz/v1';
+        else if (provKey[0] === 'openrouter') baseUrl = 'https://openrouter.ai/api/v1';
+        else if (provKey[0] === 'synthetic') baseUrl = 'https://api.synthetic.new/openai/v1';
+        else if (provKey[0] === 'ollama') baseUrl = 'http://127.0.0.1:11434/v1';
+        else if (provKey[0] === 'vllm') baseUrl = 'http://127.0.0.1:8000/v1';
+        else if (provKey[0] === 'litellm') baseUrl = 'http://localhost:4000/v1';
+
+        const r = safeExec(`curl -s -X POST ${baseUrl}/chat/completions -H 'Authorization: Bearer ${apiKey.replace(/'/g,"'\\''")}' -H 'content-type: application/json' -d '${JSON.stringify({model:actualModel,messages,max_tokens:1024}).replace(/'/g,"'\\''")}'`, 60000);
+        try { const j = JSON.parse(r); reply = j.choices?.[0]?.message?.content || 'No response'; tokens = j.usage?.total_tokens || 0; } catch { reply = r || 'Loi'; }
+      }
+
+      // Track usage
+      try {
+        const statsFile = '/opt/openclaw-panel-stats.json';
+        let stats = {}; try { stats = JSON.parse(fs.readFileSync(statsFile, 'utf8')); } catch {}
+        const today = new Date().toISOString().slice(0, 10);
+        stats.requests = (stats.requests || 0) + 1; stats.tokens = (stats.tokens || 0) + tokens;
+        stats.daily = stats.daily || {}; stats.daily[today] = stats.daily[today] || { requests: 0, tokens: 0 };
+        stats.daily[today].requests++; stats.daily[today].tokens += tokens;
+        fs.writeFileSync(statsFile, JSON.stringify(stats), 'utf8');
+      } catch {}
+
+      return json(res, 200, { ok: true, reply, tokens, model });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Analytics ===
+  if (req.method === 'GET' && url.pathname === '/api/analytics') {
+    try {
+      const statsFile = '/opt/openclaw-panel-stats.json';
+      let stats = {}; try { stats = JSON.parse(fs.readFileSync(statsFile, 'utf8')); } catch {}
+      const config = getConfig(); const model = config?.agents?.defaults?.model?.primary || '';
+      const provInfo = Object.entries(PROVIDERS).find(([k]) => model.startsWith(k + '/') || (k === 'gemini' && model.startsWith('google/')) || (k === 'bedrock' && model.startsWith('amazon-bedrock/')));
+      const today = new Date().toISOString().slice(0, 10);
+      const daily = [];
+      for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toISOString().slice(0, 10); daily.push({ date: ds, requests: stats.daily?.[ds]?.requests || 0, tokens: stats.daily?.[ds]?.tokens || 0 }); }
+      return json(res, 200, { ok: true, totalRequests: stats.requests || 0, totalTokens: stats.tokens || 0, todayRequests: stats.daily?.[today]?.requests || 0, provider: provInfo ? provInfo[1].name : '-', daily });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Conversations ===
+  if (req.method === 'GET' && url.pathname === '/api/conversations') {
+    try {
+      const convDir = '/home/openclaw/.openclaw/conversations';
+      let conversations = [];
+      try {
+        if (fs.existsSync(convDir)) {
+          const files = fs.readdirSync(convDir).filter(f => f.endsWith('.json')).sort().reverse().slice(0, 50);
+          files.forEach((f, i) => {
+            try {
+              const data = JSON.parse(fs.readFileSync(`${convDir}/${f}`, 'utf8'));
+              const msgs = data.messages || data.conversation || [];
+              const firstMsg = msgs.find(m => m.role === 'user');
+              conversations.push({
+                id: f.replace('.json', ''), title: (firstMsg?.content || '').substring(0, 60) || 'Hoi thoai',
+                date: data.createdAt || data.timestamp || f.replace('.json', '').slice(0, 10),
+                messageCount: msgs.length, channel: data.channel || data.platform || ''
+              });
+            } catch {}
+          });
+        }
+      } catch {}
+      return json(res, 200, { ok: true, conversations });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+  if (req.method === 'GET' && url.pathname.startsWith('/api/conversations/')) {
+    try {
+      const id = url.pathname.replace('/api/conversations/', '').replace(/[^a-zA-Z0-9_.-]/g, '');
+      const convDir = '/home/openclaw/.openclaw/conversations';
+      const fpath = `${convDir}/${id}.json`;
+      if (!fs.existsSync(fpath)) return json(res, 404, { ok: false, error: 'Not found' });
+      const data = JSON.parse(fs.readFileSync(fpath, 'utf8'));
+      return json(res, 200, { ok: true, messages: data.messages || data.conversation || [] });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Webhook / Notifications ===
+  if (req.method === 'GET' && url.pathname === '/api/webhook') {
+    try {
+      const webhookFile = '/opt/openclaw-panel-webhook.json';
+      let config = {}; try { config = JSON.parse(fs.readFileSync(webhookFile, 'utf8')); } catch {}
+      let log = ''; try { log = fs.readFileSync('/opt/openclaw-panel-notify.log', 'utf8').split('\n').slice(-30).join('\n'); } catch {}
+      return json(res, 200, { ok: true, config, log: log || 'Chua co canh bao.' });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/webhook') {
+    try {
+      const body = await parseBody(req);
+      fs.writeFileSync('/opt/openclaw-panel-webhook.json', JSON.stringify({ url: body.url || '', events: body.events || {} }, null, 2), 'utf8');
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/webhook-test') {
+    try {
+      const webhookFile = '/opt/openclaw-panel-webhook.json';
+      let config = {}; try { config = JSON.parse(fs.readFileSync(webhookFile, 'utf8')); } catch {}
+      if (!config.url) return json(res, 400, { ok: false, error: 'Chua cau hinh webhook URL' });
+      const payload = JSON.stringify({ text: '[OpenClaw] Test notification from Management Panel', content: '[OpenClaw] Test notification from Management Panel' });
+      const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST '${config.url.replace(/'/g,"'\\''")}' -H 'content-type: application/json' -d '${payload.replace(/'/g,"'\\''")}'`, 15000);
+      const ok = r === '200' || r === '204' || r === '201';
+      const logLine = `[${new Date().toISOString()}] Test webhook → ${ok ? 'OK' : 'FAIL'} (${r})\n`;
+      try { fs.appendFileSync('/opt/openclaw-panel-notify.log', logLine, 'utf8'); } catch {}
+      return json(res, 200, { ok, error: ok ? null : 'HTTP ' + r });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Security / User Management ===
+  if (req.method === 'GET' && url.pathname === '/api/security') {
+    try {
+      return json(res, 200, {
+        ok: true,
+        fail2ban: isServiceActive('fail2ban'),
+        ufw: !!safeExec("ufw status | grep -q 'Status: active' && echo 1"),
+        sshPort: safeExec("grep -E '^Port ' /etc/ssh/sshd_config | awk '{print $2}'") || '22',
+        clientIP: ip,
+        bannedIPs: (safeExec('fail2ban-client status sshd 2>/dev/null | grep "Total banned"') || '').replace(/.*:\s*/, '') || '0'
+      });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/change-password') {
+    try {
+      const body = await parseBody(req);
+      if (!body.oldPassword || !body.newPassword) return json(res, 400, { ok: false, error: 'Thieu thong tin' });
+      if (body.newPassword.length < 6) return json(res, 400, { ok: false, error: 'Mat khau moi qua ngan' });
+      if (!verifyPassword('root', body.oldPassword)) return json(res, 401, { ok: false, error: 'Mat khau cu sai' });
+      try {
+        execSync(`echo 'root:${body.newPassword.replace(/'/g,"'\\''")}' | chpasswd`, { timeout: 10000 });
+        return json(res, 200, { ok: true });
+      } catch (e) { return json(res, 500, { ok: false, error: 'Loi doi mat khau: ' + e.message }); }
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Backup ===
+  if (req.method === 'GET' && url.pathname === '/api/backup') {
+    try {
+      const data = { _type: 'openclaw-backup', _date: new Date().toISOString(), _version: getEnvValue('OPENCLAW_VERSION') || '' };
+      try { data.config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch { data.config = {}; }
+      // Remove sensitive data
+      if (data.config?.gateway?.auth?.token) data.config.gateway.auth.token = '***REDACTED***';
+      try { const env = fs.readFileSync(ENV_FILE, 'utf8'); data.env = env.replace(/^(.*(?:KEY|TOKEN|SECRET|PASSWORD).*)=(.+)$/gm, '$1=***REDACTED***'); } catch { data.env = ''; }
+      try { data.caddyfile = fs.readFileSync(CADDYFILE, 'utf8'); } catch { data.caddyfile = ''; }
+      return json(res, 200, { ok: true, data });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Restore ===
+  if (req.method === 'POST' && url.pathname === '/api/restore') {
+    try {
+      const body = await parseBody(req);
+      const d = body.data;
+      if (!d || d._type !== 'openclaw-backup') return json(res, 400, { ok: false, error: 'Backup data khong hop le' });
+      // Restore config (keep existing token)
+      if (d.config && typeof d.config === 'object') {
+        const existing = getConfig();
+        const token = existing?.gateway?.auth?.token || getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+        if (d.config.gateway?.auth?.token === '***REDACTED***' && token) d.config.gateway.auth.token = token;
+        saveConfig(d.config);
+      }
+      // Restore env (keep sensitive values)
+      if (d.env && typeof d.env === 'string') {
+        const lines = d.env.split('\n');
+        for (const line of lines) {
+          const m = line.match(/^([A-Z_]+)=(.+)$/);
+          if (m && !m[2].includes('REDACTED')) setEnvValue(m[1], m[2]);
+        }
+      }
+      // Restore Caddyfile
+      if (d.caddyfile) { fs.writeFileSync(CADDYFILE, d.caddyfile, 'utf8'); restartService('caddy'); }
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: isServiceActive('openclaw') });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Config Editor ===
+  if (req.method === 'GET' && url.pathname === '/api/config-read') {
+    try {
+      let j = '{}', e = '';
+      try { j = fs.readFileSync(CONFIG_FILE, 'utf8'); } catch {}
+      try { e = fs.readFileSync(ENV_FILE, 'utf8'); } catch {}
+      return json(res, 200, { ok: true, json: j, env: e });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/config-write') {
+    try {
+      const body = await parseBody(req);
+      if (body.type === 'json') {
+        try { JSON.parse(body.content); } catch (e) { return json(res, 400, { ok: false, error: 'JSON loi: ' + e.message }); }
+        const dir = '/home/openclaw/.openclaw'; fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(CONFIG_FILE, body.content, 'utf8');
+        execSync(`chown openclaw:openclaw ${CONFIG_FILE}`); execSync(`chmod 0600 ${CONFIG_FILE}`);
+      } else if (body.type === 'env') {
+        fs.writeFileSync(ENV_FILE, body.content, 'utf8');
+      } else { return json(res, 400, { ok: false, error: 'Type khong hop le' }); }
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: isServiceActive('openclaw') });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
