@@ -469,6 +469,12 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .btn-danger{background:linear-gradient(135deg,#ea4335,#c5221f);color:#fff;box-shadow:0 4px 15px rgba(234,67,53,.3)}
 .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
 .btn-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn-sm{padding:6px 14px;font-size:12px;border-radius:8px}
+.dev-item{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:2px solid var(--border);border-radius:12px;margin-bottom:10px;transition:all .3s ease}
+.dev-item:hover{border-color:var(--accent);background:rgba(66,133,244,.03);transform:translateY(-1px);box-shadow:0 4px 15px rgba(0,0,0,.06)}
+.dev-info{flex:1;min-width:0}
+.dev-name{font-weight:700;font-size:14px;color:var(--text1);margin-bottom:4px}
+.dev-meta{font-size:12px;color:var(--text2)}
 
 /* Status */
 .status{padding:14px 18px;border-radius:10px;font-size:13px;margin-top:14px;display:none;font-weight:600}
@@ -565,6 +571,7 @@ body.dark .chat-box{background:#1a2438;border-color:var(--border)} body.dark .ch
 body.dark .chat-msg.ai{background:var(--card-bg);border-color:var(--border)}
 body.dark .chat-input input{background:#0f172a;border-color:var(--border);color:var(--text)}
 body.dark .info-row{border-color:var(--border)}
+body.dark .dev-item{border-color:var(--border)} body.dark .dev-item:hover{border-color:var(--accent);background:rgba(66,133,244,.06)}
 body.dark .hist-item{border-color:var(--border)} body.dark .hist-item:hover{background:rgba(66,133,244,.08)}
 body.dark .log-box{background:#0a0e1a}
 body.dark .qr-box{background:var(--card-bg);border-color:var(--border)}
@@ -748,7 +755,7 @@ function panelPage() {
       </div>
       <div class="status" id="pairDeviceStatus"></div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Thiet bi da ghep noi</div><div id="deviceList" class="info-grid"><div style="color:var(--text2);font-size:12px;padding:8px">Dang tai...</div></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Thiet bi da ghep noi</div><div id="deviceList"><div style="color:var(--text2);font-size:12px;padding:8px">Dang tai...</div></div></div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Thay doi token</div>
       <div class="field"><label>Token tu nhap (tuy chon)</label><input type="text" id="customToken" placeholder="De trong de tao ngau nhien"></div>
       <div class="btn-row">
@@ -1098,11 +1105,26 @@ async function loadDevices(){
     if(!d.devices||d.devices.length===0){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Chua co thiet bi nao duoc ghep noi.</div>';return}
     let h='';d.devices.forEach(dev=>{
       const badge=dev.status==='paired'?'bg-green':dev.status==='pending'?'bg-blue':'bg-red';
-      const label=dev.status==='paired'?'Paired':dev.status==='pending'?'Pending':dev.status;
-      h+='<div class="info-row"><span class="info-k" style="max-width:50%;word-break:break-all">'+(dev.name||dev.uuid||'Unknown')+'</span><span class="info-v"><span class="badge '+badge+'">'+label+'</span></span></div>';
+      const label=dev.status==='paired'?'Da ghep':dev.status==='revoked'?'Da huy':'Cho duyet';
+      const modeIcon=dev.mode==='cli'?'\\uD83D\\uDDA5\\uFE0F':'\\uD83C\\uDF10';
+      const info=dev.platform+(dev.ip?' &middot; '+dev.ip:'')+(dev.mode?' &middot; '+modeIcon+' '+dev.mode:'');
+      h+='<div class="dev-item">';
+      h+='<div class="dev-info"><div class="dev-name">'+(dev.name||dev.uuid||'Unknown')+' <span class="badge '+badge+'" style="font-size:10px;padding:2px 8px;vertical-align:middle">'+label+'</span></div>';
+      h+='<div class="dev-meta">'+info+'</div></div>';
+      if(dev.status==='paired'){h+='<button class="btn btn-sm btn-danger" onclick="revokeDevice(\''+dev.uuid+'\',\''+( dev.role||'operator')+'\',this)">Revoke</button>'}
+      h+='</div>';
     });
     el.innerHTML=h;
   }catch{document.getElementById('deviceList').innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Loi tai danh sach.</div>'}
+}
+async function revokeDevice(deviceId,role,btn){
+  if(!confirm('Ban co chac muon huy ghep noi thiet bi nay?')) return;
+  const orig=btn.textContent;btn.disabled=true;btn.textContent='Dang huy...';
+  try{
+    const d=await api('/api/device-revoke','DELETE',{deviceId,role});
+    if(d.ok){btn.textContent='Da huy!';setTimeout(()=>loadDevices(),500)}
+    else{alert(d.error||'Loi revoke');btn.disabled=false;btn.textContent=orig}
+  }catch(e){alert('Loi: '+e.message);btn.disabled=false;btn.textContent=orig}
 }
 async function pairDevice(){
   const st=document.getElementById('pairDeviceStatus'),btn=document.getElementById('pairDeviceBtn');
@@ -1703,10 +1725,24 @@ const server = http.createServer(async (req, res) => {
       try { output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); } catch (e) { output = (e.stdout || '').toString(); }
       let data; try { data = JSON.parse(output); } catch { return json(res, 200, { ok: true, devices: [] }); }
       const devices = [];
-      (data.paired || []).forEach(d => devices.push({ uuid: d.deviceId || d.id || '', name: (d.platform || d.clientId || d.deviceId || '').substring(0, 20), status: 'paired', ip: d.remoteIp || '', platform: d.platform || '', client: d.clientId || '', mode: d.clientMode || '' }));
-      (data.pending || []).forEach(d => devices.push({ uuid: d.deviceId || d.id || '', name: (d.platform || d.clientId || d.deviceId || '').substring(0, 20) + ' (cho duyet)', status: 'pending', ip: d.remoteIp || '', platform: d.platform || '', client: d.clientId || '', mode: d.clientMode || '' }));
+      (data.paired || []).forEach(d => { const tokens = d.tokens || []; const allRevoked = tokens.length > 0 && tokens.every(t => t.revokedAtMs); const st = allRevoked ? 'revoked' : 'paired'; devices.push({ uuid: d.deviceId || d.id || '', name: (d.platform || d.clientId || d.deviceId || '').substring(0, 20), status: st, ip: d.remoteIp || '', platform: d.platform || '', client: d.clientId || '', mode: d.clientMode || '', role: d.role || 'operator' }); });
+      (data.pending || []).forEach(d => devices.push({ uuid: d.deviceId || d.id || '', name: (d.platform || d.clientId || d.deviceId || '').substring(0, 20) + ' (cho duyet)', status: 'pending', ip: d.remoteIp || '', platform: d.platform || '', client: d.clientId || '', mode: d.clientMode || '', role: d.role || 'operator' }));
       return json(res, 200, { ok: true, devices });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Revoke Device
+  if (req.method === 'DELETE' && url.pathname === '/api/device-revoke') {
+    try {
+      const body = await parseBody(req);
+      const deviceId = (body.deviceId || '').replace(/[^a-f0-9]/g, '');
+      const role = (body.role || 'operator').replace(/[^a-z]/g, '');
+      if (!deviceId) return json(res, 400, { ok: false, error: 'Thieu device ID' });
+      const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+      if (!gatewayToken) return json(res, 400, { ok: false, error: 'Chua co gateway token' });
+      execSync(`/opt/openclaw-cli.sh devices revoke --device ${deviceId} --role ${role} --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: 'Loi revoke: ' + (e.stderr ? e.stderr.toString().trim() : e.message) }); }
   }
 
   // Gateway Token
