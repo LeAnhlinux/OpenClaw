@@ -1623,4 +1623,26 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: 'Not found' });
 });
 
-server.listen(PORT, '0.0.0.0', () => { console.log(`[Management Panel] http://0.0.0.0:${PORT}`); });
+// Retry listen voi backoff neu port van bi chiem (vd: Setup UI chua exit hoan toan)
+let retryCount = 0;
+const MAX_RETRIES = 10;
+
+function startListen() {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Management Panel] http://0.0.0.0:${PORT}`);
+    retryCount = 0;
+  });
+}
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE' && retryCount < MAX_RETRIES) {
+    retryCount++;
+    console.log(`[Management Panel] Port ${PORT} dang bi chiem. Retry ${retryCount}/${MAX_RETRIES} sau 3 giay...`);
+    setTimeout(startListen, 3000);
+  } else {
+    console.error(`[Management Panel] Loi: ${err.message}`);
+    process.exit(1);
+  }
+});
+
+startListen();

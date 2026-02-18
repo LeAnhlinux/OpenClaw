@@ -18,6 +18,7 @@ const BLOCK_DURATION = 15 * 60 * 1000;    // 15 phut
 
 const sessions = {};
 const loginAttempts = {};
+let finalizing = false;
 
 // --- Helpers ---
 function getClientIP(req) {
@@ -263,19 +264,70 @@ const CHANNELS = {
 
 // --- Self-destruct ---
 function selfDestruct() {
-  console.log('[Setup UI] Setup hoan tat. Tu huy va kich hoat Management Panel...');
+  console.log('[Setup UI] Setup hoan tat. Chuyen giao sang Management Panel...');
   try {
-    // Disable va xoa Setup UI service
+    const { spawn } = require('child_process');
+
+    // 1. Enable Panel service (de sau nay reboot tu start)
+    execSync('systemctl enable openclaw-panel 2>/dev/null || true');
+
+    // 2. Disable Setup UI service (khong auto-restart khi exit)
     execSync('systemctl disable openclaw-setup 2>/dev/null || true');
-    execSync('rm -f /etc/systemd/system/openclaw-setup.service 2>/dev/null || true');
-    execSync('systemctl daemon-reload 2>/dev/null || true');
-    execSync('rm -rf /opt/openclaw-setup 2>/dev/null || true');
-    // KHONG dong port 9999 — Management Panel se dung port nay
-    // Kich hoat Management Panel
-    execSync('systemctl start openclaw-panel 2>/dev/null || true');
-    console.log('[Setup UI] Management Panel da duoc kich hoat tren port 9999');
-  } catch (e) { console.error('[Setup UI] Loi khi tu huy:', e.message); }
-  process.exit(0);
+
+    // 3. Tao handoff script — chay SAU KHI Setup exit de giai phong port 9999
+    const handoffScript = `#!/bin/bash
+# OpenClaw Setup → Panel handoff script
+# Doi Setup UI exit hoan toan (port 9999 free)
+sleep 3
+
+# Kiem tra port 9999 da free chua
+for i in 1 2 3 4 5; do
+  if ! ss -tlnp | grep -q ':9999 '; then
+    break
+  fi
+  echo "[Handoff] Port 9999 van bi chiem, doi them..."
+  sleep 2
+done
+
+# Start Management Panel
+systemctl start openclaw-panel
+sleep 2
+
+# Kiem tra Panel da chay chua
+if systemctl is-active --quiet openclaw-panel; then
+  echo "[Handoff] Management Panel da start thanh cong!"
+else
+  echo "[Handoff] Panel chua start, thu lai..."
+  systemctl restart openclaw-panel
+  sleep 2
+fi
+
+# Don dep Setup UI files
+systemctl daemon-reload 2>/dev/null
+rm -rf /opt/openclaw-setup 2>/dev/null
+rm -f /etc/systemd/system/openclaw-setup.service 2>/dev/null
+systemctl daemon-reload 2>/dev/null
+
+# Tu xoa
+rm -f /opt/openclaw-handoff.sh 2>/dev/null
+echo "[Handoff] Hoan tat."
+`;
+    fs.writeFileSync('/opt/openclaw-handoff.sh', handoffScript, { mode: 0o755 });
+
+    // 4. Spawn detached handoff script — tiep tuc chay sau khi Setup exit
+    spawn('/bin/bash', ['/opt/openclaw-handoff.sh'], {
+      detached: true, stdio: ['ignore', 'pipe', 'pipe']
+    }).unref();
+
+    console.log('[Setup UI] Handoff script da spawn. Exit sau 1 giay...');
+
+    // 5. Exit — giai phong port 9999 de handoff script start Panel
+    setTimeout(() => process.exit(0), 1000);
+  } catch (e) {
+    console.error('[Setup UI] Loi selfDestruct:', e.message);
+    // Fallback: van exit de khong block
+    setTimeout(() => process.exit(1), 500);
+  }
 }
 
 // --- HTML: Login ---
@@ -463,6 +515,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
     <div class="url-box" id="pairingUrl" style="cursor:pointer" onclick="window.open(this.textContent,'_blank')"></div>
     <p style="font-size:13px;color:#5f6368;margin-bottom:16px">&#x261d; Bam vao link tren de mo trong tab moi</p>
     <div class="btn-row">
+      <button class="btn btn-outline" onclick="skipPairing()">Bo qua (ghep sau)</button>
       <button class="btn" id="pairBtn" onclick="doPairing()">Da mo Dashboard - Ghep noi ngay</button>
     </div>
     <div class="status" id="pairStatus"></div>
@@ -472,11 +525,14 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
   <div class="step" id="step7"><div class="card"><div class="done-box">
     <div class="check">&#x2705;</div>
     <h2>OpenClaw da san sang!</h2>
-    <p>Server cua ban da duoc cau hinh va ghep noi thanh cong.</p>
-    <p>Lam moi trang dashboard hoac truy cap tai:</p>
+    <p>Server cua ban da duoc cau hinh thanh cong.</p>
+    <p>Truy cap dashboard tai:</p>
     <div class="url-box" id="dashboardUrl"></div>
     <a id="dashboardLink" href="#">Mo Dashboard &#x2192;</a>
-    <p style="margin-top:24px;color:#9aa0a6;font-size:12px">Trang setup nay se tu dong dong sau 10 giay...</p>
+    <div style="margin-top:24px;padding:16px;background:#e8f0fe;border-radius:10px;border:1px solid #a4c2f4">
+      <p style="color:#1967d2;font-size:13px;font-weight:600;margin-bottom:8px">&#x1f504; Dang chuyen sang Management Panel...</p>
+      <p style="color:#5f6368;font-size:12px;margin:0">Setup UI se tu dong dong va chuyen sang <strong>Management Panel</strong> (cung port 9999). Trang se tu reload sau <span id="countdown">15</span> giay.</p>
+    </div>
   </div></div></div>
 </div>
 
@@ -621,9 +677,34 @@ async function doPairing(){
   const btn=document.getElementById('pairBtn'),st=document.getElementById('pairStatus');
   btn.disabled=true;btn.textContent='Dang tim yeu cau ghep noi...';st.className='status loading';st.textContent='Dang kiem tra...';
   try{const r=await fetch('/api/pair',{method:'POST',headers:{'Content-Type':'application/json'}});const d=await r.json();
-  if(d.ok){goStep(7);document.getElementById('dashboardUrl').textContent=dashboardUrlGlobal;document.getElementById('dashboardLink').href=dashboardUrlGlobal}
+  if(d.ok){showDone()}
   else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Khong tim thay yeu cau ghep noi');btn.disabled=false;btn.textContent='Thu lai ghep noi'}}
   catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Thu lai ghep noi'}
+}
+function skipPairing(){showDone()}
+function showDone(){
+  goStep(7);
+  document.getElementById('dashboardUrl').textContent=dashboardUrlGlobal;
+  document.getElementById('dashboardLink').href=dashboardUrlGlobal;
+  // Goi selfDestruct phia server (fire-and-forget)
+  fetch('/api/finalize',{method:'POST',headers:{'Content-Type':'application/json'}}).catch(()=>{});
+  // Countdown + polling: hien dem nguoc, dong thoi poll Panel san sang
+  let sec=15,panelReady=false;
+  const cd=document.getElementById('countdown');
+  // Countdown hien thi
+  const iv=setInterval(()=>{
+    sec--;if(cd)cd.textContent=Math.max(0,sec);
+    if(sec<=0&&panelReady){clearInterval(iv);window.location.href='/';}
+    if(sec<=-5){clearInterval(iv);window.location.href='/';}// Force reload sau 20s
+  },1000);
+  // Poll Panel availability — khi Setup die va Panel start, / se tra HTML
+  const poll=()=>{
+    fetch('/',{method:'HEAD',signal:AbortSignal.timeout(2000)})
+      .then(r=>{if(r.ok){panelReady=true;if(sec<=0){clearInterval(iv);window.location.href='/';}}else setTimeout(poll,2000)})
+      .catch(()=>setTimeout(poll,2000));
+  };
+  // Bat dau poll sau 8 giay (doi Setup exit + Panel start)
+  setTimeout(poll,8000);
 }
 </script></body></html>`;
 }
@@ -926,18 +1007,29 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: false, error: `Tim thay ${uuids.length} yeu cau. Co nguoi khac dang ket noi. Hay thu lai sau.` });
       }
 
-      // Approve request
+      // Approve request — KHONG selfDestruct o day, doi /api/finalize
       execSync(
         `/opt/openclaw-cli.sh devices approve "${uuids[0]}" --token=${gatewayToken}`,
         { timeout: 15000, stdio: 'pipe' }
       );
 
-      // Ghep noi thanh cong — tu huy sau 5 giay
-      setTimeout(() => selfDestruct(), 5000);
       return json(res, 200, { ok: true });
     } catch (e) {
       return json(res, 500, { ok: false, error: `Loi ghep noi: ${e.message}` });
     }
+  }
+
+  // --- API: Finalize (chuyen giao sang Management Panel) ---
+  // Goi tu Step 7 sau khi pair xong (hoac skip pair)
+  // Tra response truoc, roi selfDestruct sau 8 giay de Panel kip start
+  if (req.method === 'POST' && url.pathname === '/api/finalize') {
+    if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Chua dang nhap' });
+    if (finalizing) return json(res, 200, { ok: true, message: 'Dang chuyen giao...' });
+    finalizing = true;
+    console.log('[Setup UI] /api/finalize — se chuyen giao sang Panel sau 8 giay...');
+    json(res, 200, { ok: true });
+    setTimeout(() => selfDestruct(), 8000);
+    return;
   }
 
   json(res, 404, { error: 'Not found' });

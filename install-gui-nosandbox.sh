@@ -750,8 +750,10 @@ systemctl daemon-reload
 systemctl enable openclaw
 systemctl enable caddy
 systemctl enable openclaw-setup
-# Enable panel nhung KHONG start — doi Setup UI selfDestruct kich hoat
-systemctl enable openclaw-panel
+# Panel KHONG enable, KHONG start — doi Setup UI selfDestruct kich hoat
+# selfDestruct() se: enable + start openclaw-panel sau khi setup hoan tat
+# Neu reboot truoc khi setup xong → chi Setup UI chay, Panel khong chay
+# Sau khi setup xong → Panel duoc enable → reboot se tu start Panel
 
 # OpenClaw chay voi --allow-unconfigured (cho phep chay truoc khi co API key)
 systemctl restart openclaw
