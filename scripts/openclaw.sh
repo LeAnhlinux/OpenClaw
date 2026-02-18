@@ -7,6 +7,7 @@ REPO_DIR="/opt/openclaw"
 # Open required ports
 ufw allow 80
 ufw allow 443
+ufw allow 9999/tcp comment "OpenClaw Panel HTTP"
 ufw limit ssh/tcp
 ufw --force enable
 
@@ -295,6 +296,16 @@ ${DOMAIN} {
     }
     reverse_proxy ${BIND_IP}:${PORT}
 }
+
+${DOMAIN}:9443 {
+    tls {
+        issuer acme {
+            dir https://acme-v02.api.letsencrypt.org/directory
+            profile shortlived
+        }
+    }
+    reverse_proxy ${BIND_IP}:9999
+}
 CADDYEOC
     if [ -n "$EMAIL" ]; then
         # Prepend email directive for Let's Encrypt account binding
@@ -302,10 +313,15 @@ CADDYEOC
     fi
 }
 
+# Firewall: open 9443 (Panel HTTPS), close 9999 (Panel HTTP)
+ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null || true
+ufw delete allow 9999/tcp 2>/dev/null || true
+
 systemctl enable caddy
 systemctl restart openclaw
 
 echo "Caddy is now proxying https://${DOMAIN} to ${BIND_IP}:${PORT}."
+echo "Panel HTTPS: https://${DOMAIN}:9443"
 echo "Gateway bind set to ${BIND_IP}. You can adjust /opt/openclaw.env and rerun this script if needed."
 EOF
 

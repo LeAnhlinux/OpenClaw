@@ -93,6 +93,25 @@ function getGatewayToken() {
 // --- Helper exec ---
 function safeExec(cmd, t) { try { return execSync(cmd, { timeout: t || 15000, stdio: 'pipe' }).toString().trim(); } catch { return ''; } }
 
+// --- Caddy + Firewall helpers ---
+function writeCaddyfile(domain, email) {
+  const BIND = '127.0.0.1', GW_PORT = 18789, PANEL_PORT = 9999;
+  let cfg = '';
+  if (domain) {
+    const el = email ? `email ${email}\n` : '';
+    const tlsBlock = `    tls {\n        issuer acme {\n            dir https://acme-v02.api.letsencrypt.org/directory\n            profile shortlived\n        }\n    }`;
+    cfg = `${el}${domain} {\n${tlsBlock}\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n\n${domain}:9443 {\n${tlsBlock}\n    reverse_proxy ${BIND}:${PANEL_PORT}\n}\n`;
+    try { execSync('ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null', { stdio: 'ignore' }); } catch {}
+    try { execSync('ufw delete allow 9999/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
+  } else {
+    const serverIP = getServerIP();
+    cfg = `${serverIP} {\n    tls internal\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n`;
+    try { execSync('ufw allow 9999/tcp comment "OpenClaw Panel HTTP" 2>/dev/null', { stdio: 'ignore' }); } catch {}
+    try { execSync('ufw delete allow 9443/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
+  }
+  fs.writeFileSync('/etc/caddy/Caddyfile', cfg, 'utf8');
+}
+
 // --- Provider configs ---
 const PROVIDERS = {
   // ====== CLOUD PROVIDERS ======
@@ -775,19 +794,8 @@ const server = http.createServer(async (req, res) => {
         fs.writeFileSync('/opt/openclaw.env', envContent, 'utf8');
       } catch {}
 
-      // Ghi Caddyfile giong setup-openclaw-domain.sh
-      const emailLine = email ? `email ${email}\n` : '';
-      const caddyConfig = `${emailLine}${domain} {
-    tls {
-        issuer acme {
-            dir https://acme-v02.api.letsencrypt.org/directory
-            profile shortlived
-        }
-    }
-    reverse_proxy ${BIND_IP}:${PORT_GW}
-}
-`;
-      fs.writeFileSync('/etc/caddy/Caddyfile', caddyConfig, 'utf8');
+      // Ghi Caddyfile (gateway + panel HTTPS)
+      writeCaddyfile(domain, email);
 
       // Enable + Restart Caddy
       execSync('systemctl enable caddy 2>/dev/null || true', { timeout: 10000 });
@@ -801,13 +809,8 @@ const server = http.createServer(async (req, res) => {
       if (caddyOk) {
         return json(res, 200, { ok: true, domain });
       } else {
-        // Rollback ve config IP neu Caddy loi
-        const fallbackConfig = `${serverIP} {
-    tls internal
-    reverse_proxy ${BIND_IP}:${PORT_GW}
-}
-`;
-        fs.writeFileSync('/etc/caddy/Caddyfile', fallbackConfig, 'utf8');
+        // Rollback ve config IP (khong co panel HTTPS)
+        writeCaddyfile(null);
         execSync('systemctl restart caddy 2>/dev/null || true', { timeout: 15000 });
         return json(res, 500, { ok: false, error: 'Caddy khoi dong that bai voi domain nay. Co the DNS chua tro dung. Da rollback ve config IP.' });
       }

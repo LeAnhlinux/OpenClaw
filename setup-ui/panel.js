@@ -78,6 +78,27 @@ function restartService(n) { try { execSync(`systemctl restart ${n}`, { timeout:
 function isServiceActive(n) { try { execSync(`systemctl is-active --quiet ${n}`); return true; } catch { return false; } }
 function safeExec(cmd, t) { try { return execSync(cmd, { timeout: t || 15000, stdio: 'pipe' }).toString().trim(); } catch { return ''; } }
 
+// --- Caddy + Firewall helpers ---
+function writeCaddyfile(domain, email) {
+  const BIND = '127.0.0.1', GW_PORT = 18789, PANEL_PORT = 9999;
+  let cfg = '';
+  if (domain) {
+    const el = email ? `email ${email}\n` : '';
+    const tlsBlock = `    tls {\n        issuer acme {\n            dir https://acme-v02.api.letsencrypt.org/directory\n            profile shortlived\n        }\n    }`;
+    cfg = `${el}${domain} {\n${tlsBlock}\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n\n${domain}:9443 {\n${tlsBlock}\n    reverse_proxy ${BIND}:${PANEL_PORT}\n}\n`;
+    // Firewall: mo 9443, dong 9999
+    try { execSync('ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null', { stdio: 'ignore' }); } catch {}
+    try { execSync('ufw delete allow 9999/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
+  } else {
+    const serverIP = getServerIP();
+    cfg = `${serverIP} {\n    tls internal\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n`;
+    // Firewall: mo 9999, dong 9443
+    try { execSync('ufw allow 9999/tcp comment "OpenClaw Panel HTTP" 2>/dev/null', { stdio: 'ignore' }); } catch {}
+    try { execSync('ufw delete allow 9443/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
+  }
+  fs.writeFileSync(CADDYFILE, cfg, 'utf8');
+}
+
 // --- Fallback helpers ---
 const FALLBACK_FILE = '/opt/openclaw-fallback.json';
 function getFallbackConfig() {
@@ -1762,7 +1783,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req); const serverIP = getServerIP();
       if (body.resetToIP) {
-        fs.writeFileSync(CADDYFILE, `${serverIP} {\n    tls internal\n    reverse_proxy localhost:18789\n}\n`, 'utf8');
+        writeCaddyfile(null);
         restartService('caddy'); await new Promise(r => setTimeout(r, 2000)); return json(res, 200, { ok: true });
       }
       const domain = (body.domain || '').trim().toLowerCase(), email = (body.email || '').trim();
@@ -1774,11 +1795,10 @@ const server = http.createServer(async (req, res) => {
       if (!ips.length) try { const o = safeExec(`python3 -c "import socket; print(socket.gethostbyname('${domain}'))"`, 10000); if (/^\d+\.\d+\.\d+\.\d+$/.test(o)) ips = [o]; } catch {}
       if (!ips.length) return json(res, 400, { ok: false, error: `Khong phan giai DNS. Tro A record ve ${serverIP}.` });
       if (!ips.includes(serverIP)) return json(res, 400, { ok: false, error: `DNS tro ve ${ips.join(', ')} — khong phai ${serverIP}.` });
-      const el = email ? `email ${email}\n` : '';
-      fs.writeFileSync(CADDYFILE, `${el}${domain} {\n    tls {\n        issuer acme {\n            dir https://acme-v02.api.letsencrypt.org/directory\n            profile shortlived\n        }\n    }\n    reverse_proxy localhost:18789\n}\n`, 'utf8');
+      writeCaddyfile(domain, email);
       execSync('systemctl enable caddy 2>/dev/null || true', { timeout: 10000 }); restartService('caddy'); await new Promise(r => setTimeout(r, 3000));
       if (isServiceActive('caddy')) return json(res, 200, { ok: true, domain });
-      fs.writeFileSync(CADDYFILE, `${serverIP} {\n    tls internal\n    reverse_proxy localhost:18789\n}\n`, 'utf8'); restartService('caddy');
+      writeCaddyfile(null); restartService('caddy');
       return json(res, 500, { ok: false, error: 'Caddy loi. Da rollback.' });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
