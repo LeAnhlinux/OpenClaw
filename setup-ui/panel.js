@@ -555,7 +555,6 @@ function panelPage() {
     <div class="nav-item" onclick="showTab('domain',this)"><span class="nav-icon">\ud83c\udf10</span>Domain & SSL</div>
     <div class="nav-item" onclick="showTab('analytics',this)"><span class="nav-icon">\ud83d\udcca</span>Analytics</div>
     <div class="nav-item" onclick="showTab('history',this)"><span class="nav-icon">\ud83d\udcdd</span>History</div>
-    <div class="nav-item" onclick="showTab('notify',this)"><span class="nav-icon">\ud83d\udd14</span>Notify</div>
     <div class="nav-item" onclick="showTab('users',this)"><span class="nav-icon">\ud83d\udc65</span>Users</div>
     <div class="nav-item" onclick="showTab('backup',this)"><span class="nav-icon">\ud83d\udce6</span>Backup</div>
     <div class="nav-item" onclick="showTab('config',this)"><span class="nav-icon">\ud83d\udd27</span>Config</div>
@@ -770,28 +769,7 @@ function panelPage() {
     </div>
   </div>
 
-  <!-- TAB: Notifications / Webhook -->
-  <div class="section" id="sec-notify">
-    <div class="page-title">\ud83d\udd14 Notifications & Webhook</div>
-    <div class="page-desc">Cau hinh canh bao khi service gap loi.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udce7</span> Webhook URL</div>
-      <div class="field"><label>Webhook URL (Slack, Discord, Telegram, etc.)</label><input type="text" id="webhookUrl" placeholder="https://hooks.slack.com/services/..."></div>
-      <div class="field"><label>Events</label>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
-          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" id="evtDown" checked> Service down (openclaw/caddy)</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" id="evtRestart"> Service restart</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" id="evtHigh"> High CPU/Memory (>90%)</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" id="evtUpdate"> Update available</label>
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="saveWebhook()">Luu</button>
-        <button class="btn btn-outline" onclick="testWebhook()">Test Webhook</button>
-      </div>
-      <div class="status" id="webhookStatus"></div>
-    </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcdd</span> Log canh bao</div><div class="log-box" id="notifyLog">Chua co canh bao.</div></div>
-  </div>
+
 
   <!-- TAB: User Management -->
   <div class="section" id="sec-users">
@@ -883,7 +861,7 @@ function showTab(name,el){
   if(el)el.classList.add('active');
   document.querySelector('.sidebar').classList.remove('open');
   const loaders={provider:loadProvider,channels:loadChannels,gateway:loadGateway,domain:loadDomain,update:loadUpdate,
-    chat:loadChat,analytics:loadAnalytics,history:loadHistory,notify:loadNotify,users:loadUsers,backup:()=>{},config:loadConfigEditor,qr:loadQR,
+    chat:loadChat,analytics:loadAnalytics,history:loadHistory,users:loadUsers,backup:()=>{},config:loadConfigEditor,qr:loadQR,
     doctor:loadDoctor,status:()=>{loadStatus();loadLogs()}};
   if(loaders[name])loaders[name]();
 }
@@ -1151,31 +1129,6 @@ async function showConversation(id,title){
     const div=document.createElement('div');div.className='chat-msg '+(m.role==='user'?'user':'ai');div.style.maxWidth='95%';
     div.textContent=m.content||'';el.appendChild(div);
   });
-}
-
-// === Notifications / Webhook ===
-async function loadNotify(){
-  const d=await api('/api/webhook');
-  if(d.ok&&d.config){
-    document.getElementById('webhookUrl').value=d.config.url||'';
-    document.getElementById('evtDown').checked=d.config.events?.down!==false;
-    document.getElementById('evtRestart').checked=!!d.config.events?.restart;
-    document.getElementById('evtHigh').checked=!!d.config.events?.highResource;
-    document.getElementById('evtUpdate').checked=!!d.config.events?.update;
-  }
-  if(d.log)document.getElementById('notifyLog').textContent=d.log;
-}
-async function saveWebhook(){
-  const st=document.getElementById('webhookStatus');st.className='status loading';st.textContent='Dang luu...';
-  const d=await api('/api/webhook','POST',{url:document.getElementById('webhookUrl').value.trim(),
-    events:{down:document.getElementById('evtDown').checked,restart:document.getElementById('evtRestart').checked,
-      highResource:document.getElementById('evtHigh').checked,update:document.getElementById('evtUpdate').checked}});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu!':d.error||'Loi';
-}
-async function testWebhook(){
-  const st=document.getElementById('webhookStatus');st.className='status loading';st.textContent='Dang gui test...';
-  const d=await api('/api/webhook-test','POST',{});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Webhook OK!':d.error||'Loi';
 }
 
 // === User Management ===
@@ -1715,36 +1668,6 @@ const server = http.createServer(async (req, res) => {
       if (!fs.existsSync(fpath)) return json(res, 404, { ok: false, error: 'Not found' });
       const data = JSON.parse(fs.readFileSync(fpath, 'utf8'));
       return json(res, 200, { ok: true, messages: data.messages || data.conversation || [] });
-    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
-  }
-
-  // === Webhook / Notifications ===
-  if (req.method === 'GET' && url.pathname === '/api/webhook') {
-    try {
-      const webhookFile = '/opt/openclaw-panel-webhook.json';
-      let config = {}; try { config = JSON.parse(fs.readFileSync(webhookFile, 'utf8')); } catch {}
-      let log = ''; try { log = fs.readFileSync('/opt/openclaw-panel-notify.log', 'utf8').split('\n').slice(-30).join('\n'); } catch {}
-      return json(res, 200, { ok: true, config, log: log || 'Chua co canh bao.' });
-    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
-  }
-  if (req.method === 'POST' && url.pathname === '/api/webhook') {
-    try {
-      const body = await parseBody(req);
-      fs.writeFileSync('/opt/openclaw-panel-webhook.json', JSON.stringify({ url: body.url || '', events: body.events || {} }, null, 2), 'utf8');
-      return json(res, 200, { ok: true });
-    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
-  }
-  if (req.method === 'POST' && url.pathname === '/api/webhook-test') {
-    try {
-      const webhookFile = '/opt/openclaw-panel-webhook.json';
-      let config = {}; try { config = JSON.parse(fs.readFileSync(webhookFile, 'utf8')); } catch {}
-      if (!config.url) return json(res, 400, { ok: false, error: 'Chua cau hinh webhook URL' });
-      const payload = JSON.stringify({ text: '[OpenClaw] Test notification from Management Panel', content: '[OpenClaw] Test notification from Management Panel' });
-      const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST '${config.url.replace(/'/g,"'\\''")}' -H 'content-type: application/json' -d '${payload.replace(/'/g,"'\\''")}'`, 15000);
-      const ok = r === '200' || r === '204' || r === '201';
-      const logLine = `[${new Date().toISOString()}] Test webhook → ${ok ? 'OK' : 'FAIL'} (${r})\n`;
-      try { fs.appendFileSync('/opt/openclaw-panel-notify.log', logLine, 'utf8'); } catch {}
-      return json(res, 200, { ok, error: ok ? null : 'HTTP ' + r });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
