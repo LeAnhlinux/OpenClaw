@@ -1682,15 +1682,14 @@ const server = http.createServer(async (req, res) => {
       const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
       if (!gatewayToken) return json(res, 400, { ok: false, error: 'Chua co gateway token' });
       let output = '';
-      try {
-        output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString();
-      } catch (e) { output = (e.stdout || '').toString(); }
-      const pendingSection = output.match(/Pending[\s\S]*?(?=Paired|$)/i);
-      if (!pendingSection) return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Mo dashboard truoc roi thu lai.' });
-      const uuids = pendingSection[0].match(/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/g);
-      if (!uuids || uuids.length === 0) return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Mo dashboard truoc roi thu lai.' });
-      if (uuids.length > 1) return json(res, 200, { ok: false, error: `Tim thay ${uuids.length} yeu cau. Thu lai sau.` });
-      execSync(`/opt/openclaw-cli.sh devices approve "${uuids[0]}" --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
+      try { output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); } catch (e) { output = (e.stdout || '').toString(); }
+      let data; try { data = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Khong doc duoc danh sach thiet bi' }); }
+      const pending = data.pending || [];
+      if (!pending.length) return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Mo dashboard truoc roi thu lai.' });
+      if (pending.length > 1) return json(res, 200, { ok: false, error: 'Tim thay ' + pending.length + ' yeu cau. Thu lai sau.' });
+      const deviceId = pending[0].deviceId || pending[0].id || '';
+      if (!deviceId) return json(res, 200, { ok: false, error: 'Khong lay duoc device ID' });
+      execSync(`/opt/openclaw-cli.sh devices approve "${deviceId}" --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: 'Loi ghep noi: ' + e.message }); }
   }
@@ -1701,22 +1700,11 @@ const server = http.createServer(async (req, res) => {
       const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
       if (!gatewayToken) return json(res, 200, { ok: true, devices: [] });
       let output = '';
-      try {
-        output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString();
-      } catch (e) { output = (e.stdout || '').toString(); }
+      try { output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); } catch (e) { output = (e.stdout || '').toString(); }
+      let data; try { data = JSON.parse(output); } catch { return json(res, 200, { ok: true, devices: [] }); }
       const devices = [];
-      // Parse paired devices
-      const pairedSection = output.match(/Paired[\s\S]*?(?=Pending|$)/i);
-      if (pairedSection) {
-        const uuids = pairedSection[0].match(/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/g);
-        if (uuids) uuids.forEach(u => devices.push({ uuid: u, name: u.substring(0, 8) + '...', status: 'paired' }));
-      }
-      // Parse pending devices
-      const pendingSection = output.match(/Pending[\s\S]*?(?=Paired|$)/i);
-      if (pendingSection) {
-        const uuids = pendingSection[0].match(/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/g);
-        if (uuids) uuids.forEach(u => devices.push({ uuid: u, name: u.substring(0, 8) + '... (cho duyet)', status: 'pending' }));
-      }
+      (data.paired || []).forEach(d => devices.push({ uuid: d.deviceId || d.id || '', name: (d.platform || d.clientId || d.deviceId || '').substring(0, 20), status: 'paired', ip: d.remoteIp || '', platform: d.platform || '', client: d.clientId || '', mode: d.clientMode || '' }));
+      (data.pending || []).forEach(d => devices.push({ uuid: d.deviceId || d.id || '', name: (d.platform || d.clientId || d.deviceId || '').substring(0, 20) + ' (cho duyet)', status: 'pending', ip: d.remoteIp || '', platform: d.platform || '', client: d.clientId || '', mode: d.clientMode || '' }));
       return json(res, 200, { ok: true, devices });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
