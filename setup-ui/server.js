@@ -274,57 +274,28 @@ function selfDestruct() {
     // 2. Disable Setup UI service (khong auto-restart khi exit)
     execSync('systemctl disable openclaw-setup 2>/dev/null || true');
 
-    // 3. Tao handoff script — chay SAU KHI Setup exit de giai phong port 9999
-    const handoffScript = `#!/bin/bash
-# OpenClaw Setup → Panel handoff (fast)
-echo "[Handoff] Start..."
-
-# Kill Setup UI ngay — force giai phong port 9999
-pkill -f "node.*server\\.js" 2>/dev/null || true
-
-# Doi port 9999 free — check nhanh moi 0.3s, toi da 5s
-for i in \$(seq 1 16); do
-  ss -tlnp 2>/dev/null | grep -q ':9999\\b' || break
-  [ "\$i" -ge 10 ] && {
-    PID=\$(ss -tlnp 2>/dev/null | grep ':9999\\b' | grep -oP 'pid=\\K[0-9]+' | head -1)
-    [ -n "\$PID" ] && [ "\$PID" != "1" ] && kill -9 "\$PID" 2>/dev/null
-  }
-  sleep 0.3
-done
-
-# Start Panel
-systemctl start openclaw-panel
-sleep 1
-
-# Verify — retry 2 lan
-for attempt in 1 2; do
-  systemctl is-active --quiet openclaw-panel && { echo "[Handoff] Panel OK!"; break; }
-  systemctl restart openclaw-panel; sleep 1
-done
-
-# Don dep (background — khong can doi)
-{
-  systemctl stop openclaw-setup 2>/dev/null
-  rm -rf /opt/openclaw-setup 2>/dev/null
-  rm -f /etc/systemd/system/openclaw-setup.service 2>/dev/null
-  systemctl daemon-reload 2>/dev/null
-  rm -f /opt/openclaw-handoff.sh 2>/dev/null
-} &
-
-echo "[Handoff] Done."
-`;
-    fs.writeFileSync('/opt/openclaw-handoff.sh', handoffScript, { mode: 0o755 });
-
-    // 4. Spawn detached handoff script — tiep tuc chay sau khi Setup exit
-    // Dung execSync('nohup ... &') de dam bao script song sot khi parent exit
-    // KHONG dung spawn() vi co race condition voi fd close va process.exit()
-    execSync('nohup /bin/bash /opt/openclaw-handoff.sh >> /var/log/openclaw-handoff.log 2>&1 &', { stdio: 'ignore' });
-
-    console.log('[Setup UI] Handoff script da spawn. Dong server va exit...');
-
-    // 5. DONG SERVER + EXIT ngay de giai phong port 9999
+    // 3. DONG SERVER TRUOC — giai phong port 9999 ngay lap tuc
+    console.log('[Setup UI] Dong server de giai phong port 9999...');
     try { server.close(); } catch {}
-    setTimeout(() => process.exit(0), 300);
+
+    // 4. Doi port thuc su free, roi start Panel TRUC TIEP (khong can handoff script)
+    setTimeout(() => {
+      try {
+        console.log('[Setup UI] Starting Management Panel...');
+        execSync('systemctl start openclaw-panel', { timeout: 10000, stdio: 'ignore' });
+
+        // Verify
+        try { execSync('systemctl is-active --quiet openclaw-panel'); console.log('[Setup UI] Panel OK!'); }
+        catch { try { execSync('systemctl restart openclaw-panel', { timeout: 10000, stdio: 'ignore' }); } catch {} }
+
+        // Cleanup bang systemd-run — tach hoan toan, chay doc lap, khong bi kill khi process exit
+        try {
+          execSync('systemd-run --no-block --unit=openclaw-cleanup /bin/bash -c "sleep 2; systemctl stop openclaw-setup 2>/dev/null; rm -rf /opt/openclaw-setup 2>/dev/null; rm -f /etc/systemd/system/openclaw-setup.service 2>/dev/null; systemctl daemon-reload 2>/dev/null" 2>/dev/null', { stdio: 'ignore' });
+        } catch {}
+      } catch (e) { console.error('[Setup UI] Loi start Panel:', e.message); }
+
+      process.exit(0);
+    }, 500);
   } catch (e) {
     console.error('[Setup UI] Loi selfDestruct:', e.message);
     // Fallback: dong server + exit de khong block
