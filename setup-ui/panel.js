@@ -1111,7 +1111,7 @@ async function loadDevices(){
       h+='<div class="dev-item">';
       h+='<div class="dev-info"><div class="dev-name">'+(dev.name||dev.uuid||'Unknown')+' <span class="badge '+badge+'" style="font-size:10px;padding:2px 8px;vertical-align:middle">'+label+'</span></div>';
       h+='<div class="dev-meta">'+info+'</div></div>';
-      if(dev.status==='paired'){h+='<button class="btn btn-sm btn-danger" onclick="revokeDevice(\''+dev.uuid+'\',\''+( dev.role||'operator')+'\',this)">Revoke</button>'}
+      if(dev.status==='paired'){h+='<button class="btn btn-sm btn-danger" data-did="'+dev.uuid+'" data-role="'+(dev.role||'operator')+'" onclick="revokeDevice(this.dataset.did,this.dataset.role,this)">Revoke</button>'}
       h+='</div>';
     });
     el.innerHTML=h;
