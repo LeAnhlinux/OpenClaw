@@ -89,49 +89,163 @@ function getGatewayToken() {
   catch { return ''; }
 }
 
+// --- Helper exec ---
+function safeExec(cmd, t) { try { return execSync(cmd, { timeout: t || 15000, stdio: 'pipe' }).toString().trim(); } catch { return ''; } }
+
 // --- Provider configs ---
 const PROVIDERS = {
+  // ====== CLOUD PROVIDERS ======
   anthropic: {
-    name: 'Anthropic',
-    envKey: 'ANTHROPIC_API_KEY',
-    configFile: '/etc/config/anthropic.json',
-    testFn: (apiKey) => {
-      try {
-        const r = execSync(`curl -s -o /dev/null -w '%{http_code}' -X POST https://api.anthropic.com/v1/messages \
-          -H 'x-api-key: ${apiKey.replace(/'/g, "'\\''")}' \
-          -H 'anthropic-version: 2023-06-01' \
-          -H 'content-type: application/json' \
-          -d '{"model":"claude-sonnet-4-20250514","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`,
-          { timeout: 15000, stdio: 'pipe' }).toString().trim();
-        return r === '200';
-      } catch { return false; }
-    }
+    name: 'Anthropic', envKey: 'ANTHROPIC_API_KEY', configFile: '/etc/config/anthropic.json',
+    color: '#d97706', icon: '&#x2728;', category: 'cloud',
+    models: [
+      { id: 'anthropic/claude-opus-4-6', name: 'Claude Opus 4.6', desc: 'Flagship — smartest' },
+      { id: 'anthropic/claude-opus-4-5', name: 'Claude Opus 4.5', desc: 'Powerful — deep thinking' },
+      { id: 'anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', desc: 'Balanced — fast' },
+      { id: 'anthropic/claude-haiku-3-5-20241022', name: 'Claude Haiku 3.5', desc: 'Fastest — low cost' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST https://api.anthropic.com/v1/messages -H 'x-api-key: ${k.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '{"model":"claude-sonnet-4-20250514","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`, 15000) === '200'; } catch { return false; } }
   },
   openai: {
-    name: 'OpenAI',
-    envKey: 'OPENAI_API_KEY',
-    configFile: '/etc/config/openai.json',
-    testFn: (apiKey) => {
-      try {
-        const r = execSync(`curl -s -o /dev/null -w '%{http_code}' https://api.openai.com/v1/models \
-          -H 'Authorization: Bearer ${apiKey.replace(/'/g, "'\\''")}' `,
-          { timeout: 15000, stdio: 'pipe' }).toString().trim();
-        return r === '200';
-      } catch { return false; }
-    }
+    name: 'OpenAI', envKey: 'OPENAI_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#10a37f', icon: '&#x1f9e0;', category: 'cloud',
+    models: [
+      { id: 'openai/gpt-5.1-codex', name: 'GPT-5.1 Codex', desc: 'Latest — code + reasoning' },
+      { id: 'openai/gpt-5.2', name: 'GPT-5.2', desc: 'Powerful — general purpose' },
+      { id: 'openai/o3', name: 'o3', desc: 'Reasoning — logic & math' },
+      { id: 'openai/gpt-4.1', name: 'GPT-4.1', desc: 'Balanced — fast' },
+      { id: 'openai/gpt-4.1-mini', name: 'GPT-4.1 Mini', desc: 'Lightweight — low cost' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.openai.com/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
   },
   gemini: {
-    name: 'Google Gemini',
-    envKey: 'GOOGLE_API_KEY',
-    configFile: '/etc/config/gemini.json',
-    testFn: (apiKey) => {
-      try {
-        const r = execSync(`curl -s -o /dev/null -w '%{http_code}' \
-          "https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.replace(/'/g, "'\\''")}"`,
-          { timeout: 15000, stdio: 'pipe' }).toString().trim();
-        return r === '200';
-      } catch { return false; }
-    }
+    name: 'Google Gemini', envKey: 'GOOGLE_API_KEY', configFile: '/etc/config/gemini.json',
+    color: '#4285f4', icon: '&#x1f48e;', category: 'cloud',
+    models: [
+      { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', desc: 'Flagship — reasoning & coding' },
+      { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: 'Balanced — fast thinking' },
+      { id: 'google/gemini-2.0-flash', name: 'Gemini 2.0 Flash', desc: 'Speed — low latency' },
+      { id: 'google/gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', desc: 'Lightweight — cost efficient' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' "https://generativelanguage.googleapis.com/v1beta/models?key=${k.replace(/'/g,"'\\''")}"`  , 15000) === '200'; } catch { return false; } }
+  },
+  xai: {
+    name: 'xAI (Grok)', envKey: 'XAI_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#1d1d1f', icon: '&#x1f680;', category: 'cloud',
+    models: [
+      { id: 'xai/grok-4-1-fast-reasoning', name: 'Grok 4.1 Fast', desc: 'Reasoning — 2M context' },
+      { id: 'xai/grok-4-1-fast-non-reasoning', name: 'Grok 4.1 Instant', desc: 'Non-reasoning — 2M context' },
+      { id: 'xai/grok-4-0709', name: 'Grok 4', desc: 'Flagship — strongest reasoning' },
+      { id: 'xai/grok-3', name: 'Grok 3', desc: 'Stable — 131K context' },
+      { id: 'xai/grok-3-mini', name: 'Grok 3 Mini', desc: 'Light reasoning — low cost' },
+      { id: 'xai/grok-code-fast-1', name: 'Grok Code', desc: 'Code optimized — 256K context' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.x.ai/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  minimax: {
+    name: 'MiniMax', envKey: 'MINIMAX_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#6366f1', icon: '&#x26a1;', category: 'cloud',
+    models: [
+      { id: 'minimax/MiniMax-M2.5', name: 'MiniMax M2.5', desc: 'Latest — most capable' },
+      { id: 'minimax/MiniMax-M2.1', name: 'MiniMax M2.1', desc: 'Balanced — reliable' },
+      { id: 'minimax/MiniMax-M2.1-lightning', name: 'M2.1 Lightning', desc: 'Fast — low latency' },
+      { id: 'minimax/MiniMax-M2', name: 'MiniMax M2', desc: 'Base — cost efficient' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.minimax.io/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  moonshot: {
+    name: 'Moonshot AI', envKey: 'MOONSHOT_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#7c3aed', icon: '&#x1f319;', category: 'cloud',
+    models: [
+      { id: 'moonshot/kimi-k2.5', name: 'Kimi K2.5', desc: 'Latest — most powerful' },
+      { id: 'moonshot/kimi-k2-thinking', name: 'Kimi K2 Thinking', desc: 'Reasoning — deep thinking' },
+      { id: 'moonshot/kimi-k2-thinking-turbo', name: 'K2 Thinking Turbo', desc: 'Fast reasoning' },
+      { id: 'moonshot/kimi-k2-0905-preview', name: 'Kimi K2 Preview', desc: 'Balanced — stable' },
+      { id: 'moonshot/kimi-k2-turbo-preview', name: 'K2 Turbo Preview', desc: 'Fast — low latency' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.moonshot.ai/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  zai: {
+    name: 'Z.AI (GLM)', envKey: 'ZAI_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#0ea5e9', icon: '&#x1f916;', category: 'cloud',
+    models: [
+      { id: 'zai/glm-5', name: 'GLM-5', desc: 'Latest — most powerful' },
+      { id: 'zai/glm-4.7', name: 'GLM-4.7', desc: 'Balanced — reliable' },
+      { id: 'zai/glm-4.6', name: 'GLM-4.6', desc: 'Stable — cost efficient' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.z.ai/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  venice: {
+    name: 'Venice AI', envKey: 'VENICE_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#f43f5e', icon: '&#x1f3ad;', category: 'cloud',
+    models: [
+      { id: 'venice/deepseek-v3.2', name: 'DeepSeek V3.2', desc: 'Powerful — open source' },
+      { id: 'venice/qwen3-235b-a22b-thinking-2507', name: 'Qwen3 235B Thinking', desc: 'Reasoning — large' },
+      { id: 'venice/llama-3.3-70b', name: 'Llama 3.3 70B', desc: 'Meta — balanced' },
+      { id: 'venice/venice-uncensored', name: 'Venice Uncensored', desc: 'Uncensored — private' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.venice.ai/api/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  xiaomi: {
+    name: 'Xiaomi MiMo', envKey: 'XIAOMI_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#ff6900', icon: '&#x1f4f1;', category: 'cloud',
+    models: [
+      { id: 'xiaomi/mimo-v2-flash', name: 'MiMo V2 Flash', desc: '262K context — fast' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.xiaomimimo.com/anthropic/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  nvidia: {
+    name: 'NVIDIA', envKey: 'NVIDIA_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#76b900', icon: '&#x1f7e2;', category: 'cloud',
+    models: [
+      { id: 'nvidia/nvidia/llama-3.1-nemotron-70b-instruct', name: 'Nemotron 70B', desc: 'Instruct — 131K context' },
+      { id: 'nvidia/meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', desc: 'Meta — balanced' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://integrate.api.nvidia.com/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  synthetic: {
+    name: 'Synthetic', envKey: 'SYNTHETIC_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#a855f7', icon: '&#x1f9ec;', category: 'cloud',
+    models: [
+      { id: 'synthetic/hf:MiniMaxAI/MiniMax-M2.1', name: 'MiniMax M2.1', desc: 'Via Synthetic' },
+      { id: 'synthetic/hf:deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', desc: 'Open source via Synthetic' },
+      { id: 'synthetic/hf:openai/gpt-oss-120b', name: 'GPT-OSS 120B', desc: 'Open source GPT' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.synthetic.new/anthropic/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  huggingface: {
+    name: 'Hugging Face', envKey: 'HF_TOKEN', configFile: '/etc/config/openai.json',
+    color: '#ff9d00', icon: '&#x1f917;', category: 'cloud',
+    models: [
+      { id: 'huggingface/deepseek-ai/DeepSeek-R1', name: 'DeepSeek R1', desc: 'Reasoning — open source' },
+      { id: 'huggingface/deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', desc: 'Powerful — open source' },
+      { id: 'huggingface/meta-llama/Llama-3.3-70B-Instruct', name: 'Llama 3.3 70B', desc: 'Meta — balanced' },
+      { id: 'huggingface/openai/gpt-oss-120b', name: 'GPT-OSS 120B', desc: 'Open source GPT' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://router.huggingface.co/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  together: {
+    name: 'Together AI', envKey: 'TOGETHER_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#0066ff', icon: '&#x1f91d;', category: 'cloud',
+    models: [
+      { id: 'together/moonshotai/Kimi-K2.5', name: 'Kimi K2.5', desc: 'Latest Moonshot via Together' },
+      { id: 'together/meta-llama/Llama-3.3-70B-Instruct-Turbo', name: 'Llama 3.3 70B Turbo', desc: 'Meta — fast' },
+      { id: 'together/deepseek/DeepSeek-V3.1', name: 'DeepSeek V3.1', desc: 'Open source — powerful' },
+      { id: 'together/deepseek/DeepSeek-R1', name: 'DeepSeek R1', desc: 'Reasoning — open source' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.together.xyz/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+  },
+  // ====== GATEWAY / PROXY ======
+  openrouter: {
+    name: 'OpenRouter', envKey: 'OPENROUTER_API_KEY', configFile: '/etc/config/openai.json',
+    color: '#6d28d9', icon: '&#x1f500;', category: 'gateway',
+    models: [
+      { id: 'openrouter/anthropic/claude-opus-4', name: 'Claude Opus 4', desc: 'Anthropic via OpenRouter' },
+      { id: 'openrouter/openai/gpt-5.2', name: 'GPT-5.2', desc: 'OpenAI via OpenRouter' },
+      { id: 'openrouter/google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', desc: 'Google via OpenRouter' },
+      { id: 'openrouter/deepseek/deepseek-r1', name: 'DeepSeek R1', desc: 'Reasoning via OpenRouter' }
+    ],
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://openrouter.ai/api/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
   }
 };
 
@@ -210,10 +324,11 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .card{background:linear-gradient(135deg,#ffffff 0%,#f9fafb 100%);border-radius:16px;padding:36px;box-shadow:0 10px 40px rgba(0,0,0,.08);margin-bottom:24px;border:1px solid rgba(0,0,0,.06);position:relative;overflow:hidden} .card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#4285f4,#34a853,#fbbc05,#ea4335)}
 .card h2{font-size:20px;margin-bottom:8px;color:#1a1a2e;font-weight:700} .card p{color:#5f6368;font-size:14px;margin-bottom:20px;line-height:1.6}
 .step{display:none} .step.active{display:block}
-.providers{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.provider{padding:22px;background:#f8f9fa;border:2px solid #e8eaed;border-radius:14px;cursor:pointer;text-align:center;transition:all .3s ease}
+.providers{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;max-height:420px;overflow-y:auto;padding-right:4px}
+.providers::-webkit-scrollbar{width:5px} .providers::-webkit-scrollbar-track{background:#f1f1f1;border-radius:4px} .providers::-webkit-scrollbar-thumb{background:#c1c1c1;border-radius:4px}
+.provider{padding:14px 12px;background:#f8f9fa;border:2px solid #e8eaed;border-radius:12px;cursor:pointer;text-align:center;transition:all .3s ease}
 .provider:hover{border-color:#4285f4;transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.12)} .provider.selected{border-color:#4285f4;background:linear-gradient(135deg,#e8f0fe,#e6f4ea);box-shadow:0 4px 20px rgba(66,133,244,.15)}
-.provider .icon{font-size:36px;margin-bottom:10px} .provider .name{font-size:15px;font-weight:700;color:#1a1a2e}
+.provider .icon{font-size:28px;margin-bottom:6px} .provider .name{font-size:13px;font-weight:700;color:#1a1a2e}
 .field{margin-bottom:18px} .field label{display:block;font-size:13px;color:#5f6368;margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .field input{width:100%;padding:12px 16px;background:#f8f9fa;border:2px solid #e8eaed;border-radius:10px;color:#1a1a2e;font-size:15px;outline:none;transition:all .3s ease} .field input:focus{border-color:#4285f4;background:#fff;box-shadow:0 0 0 4px rgba(66,133,244,.1)}
 .btn{padding:12px 28px;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:all .3s ease;box-shadow:0 4px 15px rgba(66,133,244,.3)} .btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.4)} .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
@@ -266,19 +381,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
   <div class="step" id="step2"><div class="card">
     <h2>Buoc 2: Chon nha cung cap AI</h2>
     <p>Chon nha cung cap LLM ma ban muon su dung</p>
-    <div class="providers" style="grid-template-columns:1fr 1fr 1fr">
-      <div class="provider" data-provider="anthropic" onclick="selectProvider(this)">
-        <div class="icon">&#x1f7e0;</div><div class="name">Anthropic</div>
-        <div style="color:#9aa0a6;font-size:12px;margin-top:4px">Claude</div>
-      </div>
-      <div class="provider" data-provider="openai" onclick="selectProvider(this)">
-        <div class="icon">&#x1f7e2;</div><div class="name">OpenAI</div>
-        <div style="color:#9aa0a6;font-size:12px;margin-top:4px">GPT</div>
-      </div>
-      <div class="provider" data-provider="gemini" onclick="selectProvider(this)">
-        <div class="icon">&#x1f535;</div><div class="name">Google</div>
-        <div style="color:#9aa0a6;font-size:12px;margin-top:4px">Gemini</div>
-      </div>
+    <div id="providerGrid" class="providers" style="grid-template-columns:1fr 1fr 1fr">
     </div>
     <div id="modelSection" style="display:none;margin-top:20px">
       <div class="field">
@@ -322,7 +425,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
   <div class="step" id="step5"><div class="card">
     <h2>Buoc 5: Kenh nhan tin (tuy chon)</h2>
     <p>Chon kenh nhan tin de ket noi voi AI. Co the bo qua va cau hinh sau.</p>
-    <div class="providers" id="channelCards">
+    <div class="providers" id="channelCards" style="grid-template-columns:1fr 1fr;max-height:none">
       <div class="provider" data-channel="telegram" onclick="selectChannel(this)">
         <div class="icon">&#x1f4e8;</div><div class="name">Telegram</div>
         <div style="color:#9aa0a6;font-size:12px;margin-top:4px">Bot API</div>
@@ -409,34 +512,33 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 
 <script>
 let selectedProvider=null,selectedModel='',keyVerified=false,configuredDomain='';
-const names={anthropic:'Anthropic',openai:'OpenAI',gemini:'Google Gemini'};
-const models={
-  anthropic:[
-    {id:'anthropic/claude-opus-4-5',name:'Claude Opus 4.5',desc:'Flagship — smartest, best for complex tasks'},
-    {id:'anthropic/claude-sonnet-4-20250514',name:'Claude Sonnet 4',desc:'Balanced — fast and capable'},
-    {id:'anthropic/claude-haiku-3-5-20241022',name:'Claude Haiku 3.5',desc:'Fastest — lightweight, low cost'}
-  ],
-  openai:[
-    {id:'openai/gpt-5.2',name:'GPT-5.2',desc:'Latest — most powerful'},
-    {id:'openai/o3',name:'o3',desc:'Reasoning — best for logic and math'},
-    {id:'openai/gpt-4.1',name:'GPT-4.1',desc:'Balanced — fast and reliable'},
-    {id:'openai/gpt-4.1-mini',name:'GPT-4.1 Mini',desc:'Lightweight — fast, low cost'}
-  ],
-  gemini:[
-    {id:'google/gemini-2.5-pro',name:'Gemini 2.5 Pro',desc:'Flagship — best reasoning and coding'},
-    {id:'google/gemini-2.5-flash',name:'Gemini 2.5 Flash',desc:'Balanced — fast with thinking'},
-    {id:'google/gemini-2.0-flash',name:'Gemini 2.0 Flash',desc:'Speed — low latency, high throughput'},
-    {id:'google/gemini-2.0-flash-lite',name:'Gemini 2.0 Flash Lite',desc:'Lightweight — cost efficient'}
-  ]
-};
+const providerData=${JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,color:v.color,category:v.category||'cloud',models:v.models})))};
+
+// Build provider grid dynamically
+(function(){
+  const grid=document.getElementById('providerGrid');
+  const cats={cloud:{label:'Cloud Providers',items:[]},gateway:{label:'Gateway / Proxy',items:[]}};
+  providerData.forEach(p=>{(cats[p.category]||cats.cloud).items.push(p)});
+  Object.values(cats).forEach(cat=>{
+    if(!cat.items.length)return;
+    const hdr=document.createElement('div');hdr.style.cssText='grid-column:1/-1;font-size:11px;font-weight:800;color:#9aa0a6;padding:8px 0 2px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #e8eaed;margin-bottom:4px';hdr.textContent=cat.label;grid.appendChild(hdr);
+    cat.items.forEach(p=>{
+      const div=document.createElement('div');div.className='provider';div.dataset.provider=p.id;div.onclick=function(){selectProvider(this)};
+      div.innerHTML='<div class="icon" style="color:'+p.color+'">'+p.icon+'</div><div class="name">'+p.name+'</div><div style="color:#9aa0a6;font-size:12px;margin-top:4px">'+p.models.length+' model'+(p.models.length>1?'s':'')+'</div>';
+      grid.appendChild(div);
+    });
+  });
+})();
 
 function selectProvider(el){
   document.querySelectorAll('.provider').forEach(p=>p.classList.remove('selected'));
   el.classList.add('selected');selectedProvider=el.dataset.provider;
+  const prov=providerData.find(p=>p.id===selectedProvider);
+  if(!prov)return;
   // Render model list
   const sel=document.getElementById('modelSelect');
-  sel.innerHTML=models[selectedProvider].map((m,i)=>'<option value="'+m.id+'"'+(i===0?' selected':'')+'>'+m.name+' — '+m.desc+'</option>').join('');
-  selectedModel=models[selectedProvider][0].id;
+  sel.innerHTML=prov.models.map((m,i)=>'<option value="'+m.id+'"'+(i===0?' selected':'')+'>'+m.name+' \\u2014 '+m.desc+'</option>').join('');
+  selectedModel=prov.models[0].id;
   sel.onchange=function(){selectedModel=this.value};
   document.getElementById('modelSection').style.display='block';
   document.getElementById('nextStep2').disabled=false;
@@ -451,8 +553,8 @@ function goStep(n){
     if(s<n)d.classList.add('done');
     if(s===n)d.classList.add('active');
   });
-  if(n===3){document.getElementById('step3desc').textContent='Nhap '+names[selectedProvider]+' API key cua ban';document.getElementById('keyLabel').textContent=names[selectedProvider]+' API Key';document.getElementById('testStatus').className='status';keyVerified=false}
-  if(n===4){document.getElementById('confirmProvider').textContent=names[selectedProvider];const m=models[selectedProvider].find(x=>x.id===selectedModel);document.getElementById('confirmModel').textContent=m?m.name:selectedModel;const k=document.getElementById('apiKey').value;document.getElementById('confirmKey').textContent=k.substring(0,8)+'...'+k.substring(k.length-4)}
+  if(n===3){const prov=providerData.find(p=>p.id===selectedProvider);const pName=prov?prov.name:selectedProvider;document.getElementById('step3desc').textContent='Nhap '+pName+' API key cua ban';document.getElementById('keyLabel').textContent=pName+' API Key';document.getElementById('testStatus').className='status';keyVerified=false}
+  if(n===4){const prov=providerData.find(p=>p.id===selectedProvider);const pName=prov?prov.name:selectedProvider;document.getElementById('confirmProvider').textContent=pName;const m=prov?prov.models.find(x=>x.id===selectedModel):null;document.getElementById('confirmModel').textContent=m?m.name:selectedModel;const k=document.getElementById('apiKey').value;document.getElementById('confirmKey').textContent=k.substring(0,8)+'...'+k.substring(k.length-4)}
   if(n===6){document.getElementById('pairingUrl').textContent=dashboardUrlGlobal}
 }
 async function saveDomain(){
@@ -716,13 +818,23 @@ const server = http.createServer(async (req, res) => {
       fs.writeFileSync('/opt/openclaw.env', envContent, 'utf8');
 
       // 2. Copy config JSON va thay gateway token + model
-      const config = JSON.parse(fs.readFileSync(provider.configFile, 'utf8'));
+      let config;
+      try { config = JSON.parse(fs.readFileSync(provider.configFile, 'utf8')); } catch { config = {}; }
+      config.gateway = config.gateway || {}; config.gateway.auth = config.gateway.auth || {};
       config.gateway.auth.token = gatewayToken;
+      config.gateway.mode = config.gateway.mode || 'local';
+      config.gateway.bind = config.gateway.bind || 'loopback';
+      config.gateway.trustedProxies = config.gateway.trustedProxies || ['127.0.0.1', '::1'];
       // Ghi model da chon
       const model = (body.model || '').trim();
+      config.agents = config.agents || { defaults: { model: {} } };
+      config.agents.defaults = config.agents.defaults || { model: {} };
+      config.agents.defaults.model = config.agents.defaults.model || {};
       if (model) {
         config.agents.defaults.model.primary = model;
       }
+      // Browser config (Chrome noSandbox cho root)
+      config.browser = config.browser || { headless: true, executablePath: '/usr/bin/google-chrome', defaultProfile: 'openclaw', noSandbox: true };
       // Gateway luon bind loopback — Caddy reverse proxy tu localhost
       // Khong can thay doi bind khi dung domain vi Caddy va OpenClaw cung server
       const configDir = '/home/openclaw/.openclaw';
