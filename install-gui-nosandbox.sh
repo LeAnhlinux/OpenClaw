@@ -55,6 +55,7 @@ log "Cau hinh tuong lua..."
 ufw allow 80
 ufw allow 443
 ufw allow 18789/tcp comment 'OpenClaw Gateway'
+ufw allow 9999/tcp comment 'OpenClaw Panel HTTP'
 ufw limit ssh/tcp
 ufw allow ${SETUP_UI_PORT}/tcp comment 'OpenClaw Setup UI (tam thoi)'
 ufw --force enable
@@ -332,17 +333,32 @@ ${DOMAIN} {
     }
     reverse_proxy ${BIND_IP}:${PORT}
 }
+
+${DOMAIN}:9443 {
+    tls {
+        issuer acme {
+            dir https://acme-v02.api.letsencrypt.org/directory
+            profile shortlived
+        }
+    }
+    reverse_proxy ${BIND_IP}:9999
+}
 CADDYEOC
     if [ -n "$EMAIL" ]; then
         sed -i "1iemail ${EMAIL}" /etc/caddy/Caddyfile
     fi
 }
 
+# Firewall: mo 9443 (Panel HTTPS), dong 9999 (Panel HTTP)
+ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null || true
+ufw delete allow 9999/tcp 2>/dev/null || true
+
 systemctl enable caddy
 systemctl restart caddy
 systemctl restart openclaw
 
 echo "Caddy dang proxy https://${DOMAIN} den ${BIND_IP}:${PORT}."
+echo "Panel HTTPS: https://${DOMAIN}:9443"
 echo "Gateway bind da dat la ${BIND_IP}. Ban co the chinh /opt/openclaw.env va chay lai script nay."
 SCRIPT
 
