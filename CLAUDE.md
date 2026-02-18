@@ -14,7 +14,7 @@ Ngoài ra có file **`install.sh`** all-in-one để cài đặt trực tiếp t
 - **Caddy** — Reverse proxy với TLS tự động
 - **Docker** — Môi trường sandbox
 - **systemd** — Quản lý dịch vụ
-- **UFW / fail2ban** — Tường lửa và chống xâm nhập
+- **UFW** — Tường lửa
 
 ## Cấu trúc thư mục
 

@@ -36,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install.sh
 
 ```
  1.  Doi apt lock giai phong
- 2.  Cap nhat he thong + cai packages (git, jq, ufw, fail2ban...)
+ 2.  Cap nhat he thong + cai packages (git, jq, ufw...)
  3.  Cau hinh tuong lua UFW
      ├── Port 80, 443      (HTTP/HTTPS)
      ├── Port 18789        (OpenClaw Gateway)
@@ -69,7 +69,6 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install.sh
 18.  Tai Setup UI (server.js) tu GitHub
      + Tao openclaw-setup.service
 19.  Enable + Start services
-     ├── fail2ban
      ├── openclaw.service    (port 18789)
      ├── caddy.service       (port 80/443)
      └── openclaw-setup.service (port 9999)
@@ -152,8 +151,7 @@ STEP 7: Hoan tat
 ```
 Services dang chay:
 ├── openclaw.service   (port 18789, user: openclaw)
-├── caddy.service      (port 80/443 -> reverse proxy 18789)
-└── fail2ban.service   (chong brute-force SSH)
+└── caddy.service      (port 80/443 -> reverse proxy 18789)
 
 Setup UI: DA TU HUY (port 9999 dong)
 

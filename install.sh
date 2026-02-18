@@ -38,7 +38,7 @@ apt-get -qqy update
 apt-get -qqy -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' full-upgrade
 apt-get -qqy -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' install \
     procps file apt-transport-https ca-certificates curl software-properties-common \
-    git build-essential libsystemd-dev jq unzip docker.io gnupg fail2ban ufw
+    git build-essential libsystemd-dev jq unzip docker.io gnupg ufw
 apt-get -qqy clean
 
 # =============================================================================
@@ -722,9 +722,6 @@ BASHEOF
 # 19. Kich hoat va khoi dong dich vu
 # =============================================================================
 log "Kich hoat va khoi dong dich vu..."
-systemctl enable fail2ban
-systemctl restart fail2ban
-
 systemctl daemon-reload
 systemctl enable openclaw
 systemctl enable caddy

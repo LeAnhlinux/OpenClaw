@@ -1146,11 +1146,9 @@ async function loadUsers(){
   const d=await api('/api/security');
   const el=document.getElementById('securityInfo');
   if(!d.ok){el.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Loi</span></div>';return}
-  el.innerHTML='<div class="info-row"><span class="info-k">Fail2ban</span><span class="info-v"><span class="badge '+(d.fail2ban?'bg-green':'bg-red')+'">'+(d.fail2ban?'Active':'Inactive')+'</span></span></div>'+
-    '<div class="info-row"><span class="info-k">UFW Firewall</span><span class="info-v"><span class="badge '+(d.ufw?'bg-green':'bg-red')+'">'+(d.ufw?'Active':'Inactive')+'</span></span></div>'+
+  el.innerHTML='<div class="info-row"><span class="info-k">UFW Firewall</span><span class="info-v"><span class="badge '+(d.ufw?'bg-green':'bg-red')+'">'+(d.ufw?'Active':'Inactive')+'</span></span></div>'+
     '<div class="info-row"><span class="info-k">SSH</span><span class="info-v">'+(d.sshPort||22)+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Login IP hien tai</span><span class="info-v">'+(d.clientIP||'-')+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Banned IPs</span><span class="info-v">'+(d.bannedIPs||0)+'</span></div>';
+    '<div class="info-row"><span class="info-k">Login IP hien tai</span><span class="info-v">'+(d.clientIP||'-')+'</span></div>';
 }
 async function changePassword(){
   const st=document.getElementById('passStatus'),o=document.getElementById('oldPass').value,n=document.getElementById('newPass').value,c=document.getElementById('confirmPass').value;
@@ -1487,8 +1485,7 @@ const server = http.createServer(async (req, res) => {
       const services = [
         { name: 'OpenClaw Gateway', active: isServiceActive('openclaw') },
         { name: 'Caddy', active: isServiceActive('caddy') },
-        { name: 'Panel', active: isServiceActive('openclaw-panel') },
-        { name: 'Fail2ban', active: isServiceActive('fail2ban') }
+        { name: 'Panel', active: isServiceActive('openclaw-panel') }
       ];
       return json(res, 200, { ok: true, services,
         uptime: safeExec('uptime -p') || '-',
@@ -1674,11 +1671,9 @@ const server = http.createServer(async (req, res) => {
     try {
       return json(res, 200, {
         ok: true,
-        fail2ban: isServiceActive('fail2ban'),
         ufw: !!safeExec("ufw status | grep -q 'Status: active' && echo 1"),
         sshPort: safeExec("grep -E '^Port ' /etc/ssh/sshd_config | awk '{print $2}'") || '22',
-        clientIP: ip,
-        bannedIPs: (safeExec('fail2ban-client status sshd 2>/dev/null | grep "Total banned"') || '').replace(/.*:\s*/, '') || '0'
+        clientIP: ip
       });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }

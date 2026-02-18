@@ -309,9 +309,6 @@ echo "Caddy is now proxying https://${DOMAIN} to ${BIND_IP}:${PORT}."
 echo "Gateway bind set to ${BIND_IP}. You can adjust /opt/openclaw.env and rerun this script if needed."
 EOF
 
-systemctl enable fail2ban
-systemctl restart fail2ban
-
 cat > /etc/caddy/Caddyfile << 'EOF'
 PLACEHOLDER_DOMAIN {
     tls {
