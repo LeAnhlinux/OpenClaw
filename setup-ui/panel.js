@@ -444,6 +444,25 @@ body{font-family:'Segoe UI',Roboto,-apple-system,sans-serif;background:var(--bg)
 .hist-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s}
 .hist-item:hover{border-color:var(--accent);background:rgba(66,133,244,.04)}
 
+/* Doctor */
+.doc-actions{display:flex;gap:10px;flex-wrap:wrap}
+.doc-btn{display:flex;align-items:center;gap:8px;padding:14px 20px;border-radius:10px;cursor:pointer;border:2px solid var(--border);background:var(--card-bg);transition:all .15s;flex:1;min-width:160px}
+.doc-btn:hover{border-color:var(--accent);box-shadow:0 2px 12px rgba(66,133,244,.1);transform:translateY(-1px)}
+.doc-btn.running{opacity:.6;pointer-events:none}
+.doc-btn .db-icon{font-size:24px;width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.doc-btn .db-info{flex:1} .doc-btn .db-title{font-size:13px;font-weight:700;color:var(--text)} .doc-btn .db-desc{font-size:11px;color:var(--text2);margin-top:2px}
+.doc-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:16px}
+.doc-stat{text-align:center;padding:14px 8px;background:var(--bg);border-radius:10px;border:1px solid var(--border)}
+.doc-stat .ds-num{font-size:28px;font-weight:800;line-height:1} .doc-stat .ds-label{font-size:11px;color:var(--text2);margin-top:4px;font-weight:600}
+.doc-checks{display:flex;flex-direction:column;gap:4px;max-height:400px;overflow-y:auto}
+.doc-check{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;font-size:12px;border:1px solid var(--border);background:var(--card-bg)}
+.doc-check.pass{border-left:3px solid #22c55e} .doc-check.warn{border-left:3px solid #f59e0b} .doc-check.fail{border-left:3px solid #ef4444}
+.doc-check .dc-icon{font-size:16px;flex-shrink:0;width:20px;text-align:center} .doc-check .dc-text{flex:1;color:var(--text);font-weight:600} .doc-check .dc-detail{color:var(--text2);font-size:11px;max-width:50%;text-align:right}
+.doc-hist{display:flex;flex-direction:column;gap:6px}
+.doc-hist-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px}
+.doc-hist-item .dh-date{font-weight:700;color:var(--text);min-width:140px} .doc-hist-item .dh-mode{font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;background:#dbeafe;color:#1e40af}
+.doc-hist-item .dh-result{flex:1;text-align:right;font-weight:600}
+
 /* Dark Mode */
 body.dark{--bg:#0f172a;--sidebar-bg:#0a0e1a;--card-bg:#1e293b;--text:#e2e8f0;--text2:#94a3b8;--border:#334155}
 body.dark .prov-item,body.dark .ch-item{background:var(--card-bg);border-color:var(--border)}
@@ -459,6 +478,9 @@ body.dark .info-row{border-color:var(--border)}
 body.dark .hist-item{border-color:var(--border)} body.dark .hist-item:hover{background:rgba(66,133,244,.08)}
 body.dark .log-box{background:#0a0e1a}
 body.dark .qr-box{background:var(--card-bg);border-color:var(--border)}
+body.dark .doc-btn{background:var(--card-bg);border-color:var(--border)} body.dark .doc-stat{background:#1a2438;border-color:var(--border)}
+body.dark .doc-check{background:var(--card-bg);border-color:var(--border)} body.dark .doc-hist-item{border-color:var(--border)}
+body.dark .doc-hist-item .dh-mode{background:#1a2a4a;color:#60a5fa}
 body.dark .status.ok{background:#0a2e1a;border-color:#1a4a2a;color:#4ade80}
 body.dark .status.fail{background:#2e0a0a;border-color:#4a1a1a;color:#f87171}
 body.dark .status.loading{background:#0a1a2e;border-color:#1a2a4a;color:#60a5fa}
@@ -538,6 +560,7 @@ function panelPage() {
     <div class="nav-item" onclick="showTab('backup',this)"><span class="nav-icon">\ud83d\udce6</span>Backup</div>
     <div class="nav-item" onclick="showTab('config',this)"><span class="nav-icon">\ud83d\udd27</span>Config</div>
     <div class="nav-item" onclick="showTab('qr',this)"><span class="nav-icon">\ud83d\udcf1</span>QR Code</div>
+    <div class="nav-item" onclick="showTab('doctor',this)"><span class="nav-icon">\ud83e\ude7a</span>Doctor</div>
     <div class="nav-item" onclick="showTab('update',this)"><span class="nav-icon">\u2b06\ufe0f</span>Update</div>
     <div class="nav-item" onclick="showTab('status',this)"><span class="nav-icon">\ud83d\udfe2</span>Status</div>
   </nav>
@@ -620,6 +643,43 @@ function panelPage() {
         <button class="btn btn-outline" onclick="resetDomainToIP()">Dung IP (tu ky)</button>
       </div>
       <div class="status" id="domainStatus"></div>
+    </div>
+  </div>
+
+  <!-- TAB: Doctor -->
+  <div class="section" id="sec-doctor">
+    <div class="page-title">Chan doan he thong</div>
+    <div class="page-desc">Chay OpenClaw Doctor de kiem tra, sua chua va toi uu hoa he thong.</div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\ud83d\ude80</span> Hanh dong</div>
+      <div class="doc-actions">
+        <div class="doc-btn" id="docBtnScan" onclick="runDoctor('scan')">
+          <div class="db-icon" style="background:#dbeafe;color:#2563eb">\ud83d\udd0d</div>
+          <div class="db-info"><div class="db-title">Scan</div><div class="db-desc">Kiem tra 19 muc, khong sua</div></div>
+        </div>
+        <div class="doc-btn" id="docBtnRepair" onclick="runDoctor('repair')">
+          <div class="db-icon" style="background:#dcfce7;color:#16a34a">\ud83d\udd27</div>
+          <div class="db-info"><div class="db-title">Auto Repair</div><div class="db-desc">Kiem tra + tu dong sua loi</div></div>
+        </div>
+        <div class="doc-btn" id="docBtnDeep" onclick="runDoctor('deep')">
+          <div class="db-icon" style="background:#fef3c7;color:#d97706">\u26a1</div>
+          <div class="db-info"><div class="db-title">Deep Scan</div><div class="db-desc">Scan sau services + gateway</div></div>
+        </div>
+      </div>
+      <div class="status" id="doctorStatus"></div>
+    </div>
+    <div class="card" id="doctorResultCard" style="display:none">
+      <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Ket qua</div>
+      <div class="doc-summary" id="doctorSummary"></div>
+      <div class="doc-checks" id="doctorChecks"></div>
+    </div>
+    <div class="card" id="doctorOutputCard" style="display:none">
+      <div class="card-title"><span class="ct-icon">\ud83d\udcbb</span> Output</div>
+      <div class="log-box" id="doctorLog" style="max-height:420px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> Lich su</div>
+      <div class="doc-hist" id="doctorHistory"><div style="color:var(--text2);font-size:12px;padding:8px">Chua co lich su.</div></div>
     </div>
   </div>
 
@@ -814,7 +874,7 @@ function showTab(name,el){
   document.querySelector('.sidebar').classList.remove('open');
   const loaders={provider:loadProvider,channels:loadChannels,gateway:loadGateway,domain:loadDomain,update:loadUpdate,
     chat:loadChat,analytics:loadAnalytics,history:loadHistory,notify:loadNotify,users:loadUsers,backup:()=>{},config:loadConfigEditor,qr:loadQR,
-    status:()=>{loadStatus();loadLogs()}};
+    doctor:loadDoctor,status:()=>{loadStatus();loadLogs()}};
   if(loaders[name])loaders[name]();
 }
 async function api(path,method,body){
@@ -1145,6 +1205,87 @@ async function loadQR(){
   // Simple QR code using API
   const canvas=document.getElementById('qrCanvas');
   canvas.innerHTML='<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(url)+'" alt="QR" style="border-radius:8px;width:180px;height:180px">';
+}
+
+// === Doctor ===
+let doctorRunning=false;
+function parseDoctorOutput(output){
+  const lines=(output||'').split('\\n');
+  const checks=[];
+  for(const line of lines){
+    const l=line.trim();if(!l)continue;
+    let status='',name='',detail='';
+    if(l.includes('\\u2705')||l.match(/\\[PASS\\]/i)||l.match(/\\[OK\\]/i)||l.match(/\\u2714/)){status='pass';name=l.replace(/[\\u2705\\u2714]/g,'').replace(/\\[(PASS|OK)\\]/gi,'').trim()}
+    else if(l.includes('\\u26a0')||l.match(/\\[WARN\\]/i)||l.includes('\\u26a0\\ufe0f')){status='warn';name=l.replace(/[\\u26a0\\ufe0f]/g,'').replace(/\\[WARN\\]/gi,'').trim()}
+    else if(l.includes('\\u274c')||l.match(/\\[FAIL\\]/i)||l.match(/\\[ERROR\\]/i)){status='fail';name=l.replace(/[\\u274c]/g,'').replace(/\\[(FAIL|ERROR)\\]/gi,'').trim()}
+    if(status){
+      const parts=name.split(/\\s*[—\\-:]\\s*/,2);
+      if(parts.length>1){name=parts[0].trim();detail=parts[1].trim()}
+      checks.push({status,name,detail});
+    }
+  }
+  const pass=checks.filter(c=>c.status==='pass').length;
+  const warn=checks.filter(c=>c.status==='warn').length;
+  const fail=checks.filter(c=>c.status==='fail').length;
+  return {total:checks.length,pass,warn,fail,checks};
+}
+async function loadDoctor(){
+  try{
+    const d=await api('/api/doctor-history');
+    const el=document.getElementById('doctorHistory');
+    if(!d.ok||!d.history||d.history.length===0){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Chua co lich su. Bam Scan de bat dau.</div>';return}
+    let h='';d.history.forEach(item=>{
+      const modeLabel={scan:'Scan',repair:'Repair',deep:'Deep'}[item.mode]||item.mode;
+      const s=item.summary||{};
+      const resultColor=s.fail>0?'var(--danger)':s.warn>0?'var(--warn)':'var(--accent2)';
+      const resultText=s.total>0?(s.pass+' pass, '+s.warn+' warn, '+s.fail+' fail'):(item.duration||'-');
+      h+='<div class="doc-hist-item"><span class="dh-date">'+(item.date||'-')+'</span><span class="dh-mode">'+modeLabel+'</span><span class="dh-result" style="color:'+resultColor+'">'+resultText+'</span></div>';
+    });
+    el.innerHTML=h;
+    // Show last run result
+    if(d.history.length>0&&d.history[0].summary&&d.history[0].summary.total>0){
+      renderDoctorResult(d.history[0].summary,d.history[0].output||'');
+    }
+  }catch{}
+}
+function renderDoctorResult(summary,output){
+  const sc=document.getElementById('doctorResultCard');sc.style.display='block';
+  const sm=document.getElementById('doctorSummary');
+  sm.innerHTML='<div class="doc-stat"><div class="ds-num" style="color:var(--accent)">'+(summary.total||0)+'</div><div class="ds-label">Total</div></div>'
+    +'<div class="doc-stat"><div class="ds-num" style="color:#22c55e">'+(summary.pass||0)+'</div><div class="ds-label">Pass</div></div>'
+    +'<div class="doc-stat"><div class="ds-num" style="color:#f59e0b">'+(summary.warn||0)+'</div><div class="ds-label">Warning</div></div>'
+    +'<div class="doc-stat"><div class="ds-num" style="color:#ef4444">'+(summary.fail||0)+'</div><div class="ds-label">Fail</div></div>';
+  const ch=document.getElementById('doctorChecks');
+  if(summary.checks&&summary.checks.length>0){
+    ch.innerHTML=summary.checks.map(c=>'<div class="doc-check '+c.status+'"><span class="dc-icon">'+(c.status==='pass'?'\\u2705':c.status==='warn'?'\\u26a0\\ufe0f':'\\u274c')+'</span><span class="dc-text">'+c.name+'</span><span class="dc-detail">'+c.detail+'</span></div>').join('');
+  }else ch.innerHTML='';
+  if(output){
+    document.getElementById('doctorOutputCard').style.display='block';
+    document.getElementById('doctorLog').textContent=output;
+  }
+}
+async function runDoctor(mode){
+  if(doctorRunning)return;doctorRunning=true;
+  const st=document.getElementById('doctorStatus');
+  const btns=document.querySelectorAll('.doc-btn');btns.forEach(b=>b.classList.add('running'));
+  const modeLabel={scan:'Scanning...',repair:'Repairing...',deep:'Deep scanning...'}[mode]||'Running...';
+  st.className='status loading';st.textContent=modeLabel+' (co the mat 1-2 phut)';
+  document.getElementById('doctorResultCard').style.display='none';
+  document.getElementById('doctorOutputCard').style.display='none';
+  try{
+    const d=await api('/api/doctor','POST',{mode});
+    btns.forEach(b=>b.classList.remove('running'));doctorRunning=false;
+    if(!d.ok){st.className='status fail';st.textContent=d.error||'Loi khi chay doctor';return}
+    const s=d.summary||{};
+    if(s.fail>0){st.className='status fail';st.textContent='Phat hien '+s.fail+' loi! ('+s.total+' checks, '+d.duration+')'}
+    else if(s.warn>0){st.className='status warn';st.textContent=s.warn+' canh bao. ('+s.total+' checks, '+d.duration+')'}
+    else{st.className='status ok';st.textContent='He thong binh thuong! ('+s.total+' checks, '+d.duration+')'}
+    renderDoctorResult(s,d.output||'');
+    loadDoctor();
+  }catch(e){
+    btns.forEach(b=>b.classList.remove('running'));doctorRunning=false;
+    st.className='status fail';st.textContent='Loi: '+e.message;
+  }
 }
 
 // === Dark Mode ===
@@ -1620,16 +1761,89 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
+  // === Doctor ===
+  const DOCTOR_HISTORY_FILE = '/opt/openclaw-doctor-history.json';
+
+  if (req.method === 'POST' && url.pathname === '/api/doctor') {
+    try {
+      const body = await parseBody(req);
+      const mode = (body.mode || 'scan').replace(/[^a-z]/g, '');
+      const cmds = {
+        scan: 'doctor --non-interactive',
+        repair: 'doctor --repair --yes',
+        deep: 'doctor --deep --yes'
+      };
+      const cmd = cmds[mode] || cmds.scan;
+      const startTime = Date.now();
+
+      // Run openclaw doctor via CLI
+      let output = '';
+      try {
+        output = execSync(
+          `su -l openclaw -c 'cd ${OPENCLAW_DIR} && node ./cli.js ${cmd}' 2>&1`,
+          { timeout: 120000, stdio: 'pipe', maxBuffer: 1024 * 1024 }
+        ).toString();
+      } catch (e) {
+        // Doctor may exit with non-zero on failures — capture output anyway
+        output = (e.stdout || '').toString() + '\n' + (e.stderr || '').toString();
+      }
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+
+      // Parse output into summary
+      const lines = output.split('\n');
+      const checks = [];
+      for (const line of lines) {
+        const l = line.trim(); if (!l) continue;
+        let status = '', name = '', detail = '';
+        if (/[\u2705\u2714]/.test(l) || /\[(PASS|OK)\]/i.test(l)) { status = 'pass'; name = l.replace(/[\u2705\u2714]/g, '').replace(/\[(PASS|OK)\]/gi, '').trim(); }
+        else if (/[\u26a0]/.test(l) || /\[WARN\]/i.test(l)) { status = 'warn'; name = l.replace(/[\u26a0\ufe0f]/g, '').replace(/\[WARN\]/gi, '').trim(); }
+        else if (/[\u274c]/.test(l) || /\[(FAIL|ERROR)\]/i.test(l)) { status = 'fail'; name = l.replace(/[\u274c]/g, '').replace(/\[(FAIL|ERROR)\]/gi, '').trim(); }
+        if (status) {
+          const parts = name.split(/\s*[—\-:]\s*/, 2);
+          if (parts.length > 1) { name = parts[0].trim(); detail = parts[1].trim(); }
+          else { name = parts[0].trim(); detail = ''; }
+          checks.push({ status, name, detail });
+        }
+      }
+      const pass = checks.filter(c => c.status === 'pass').length;
+      const warn = checks.filter(c => c.status === 'warn').length;
+      const fail = checks.filter(c => c.status === 'fail').length;
+      const summary = { total: checks.length, pass, warn, fail, checks };
+
+      // Save to history (keep last 20)
+      try {
+        let history = [];
+        try { history = JSON.parse(fs.readFileSync(DOCTOR_HISTORY_FILE, 'utf8')); } catch {}
+        if (!Array.isArray(history)) history = [];
+        history.unshift({ date: new Date().toISOString().replace('T', ' ').slice(0, 19), mode, summary: { total: checks.length, pass, warn, fail }, duration, output: output.substring(0, 10000) });
+        if (history.length > 20) history = history.slice(0, 20);
+        fs.writeFileSync(DOCTOR_HISTORY_FILE, JSON.stringify(history, null, 2), 'utf8');
+      } catch {}
+
+      return json(res, 200, { ok: true, output, summary, duration });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/doctor-history') {
+    try {
+      let history = [];
+      try { history = JSON.parse(fs.readFileSync(DOCTOR_HISTORY_FILE, 'utf8')); } catch {}
+      if (!Array.isArray(history)) history = [];
+      return json(res, 200, { ok: true, history });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
   json(res, 404, { error: 'Not found' });
 });
 
 // Retry listen voi backoff neu port van bi chiem (vd: Setup UI chua exit hoan toan)
 let retryCount = 0;
-const MAX_RETRIES = 10;
+const MAX_RETRIES = 20;
 
 function startListen() {
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Management Panel] http://0.0.0.0:${PORT}`);
+    console.log(`[Management Panel] OK — http://0.0.0.0:${PORT}`);
     retryCount = 0;
   });
 }
@@ -1637,10 +1851,13 @@ function startListen() {
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE' && retryCount < MAX_RETRIES) {
     retryCount++;
-    console.log(`[Management Panel] Port ${PORT} dang bi chiem. Retry ${retryCount}/${MAX_RETRIES} sau 3 giay...`);
-    setTimeout(startListen, 3000);
+    // Exponential backoff: 2s, 2s, 3s, 3s, 4s, 5s, ... max 10s
+    const delay = Math.min(2000 + Math.floor(retryCount / 2) * 1000, 10000);
+    console.log(`[Management Panel] Port ${PORT} dang bi chiem. Retry ${retryCount}/${MAX_RETRIES} sau ${delay/1000}s...`);
+    setTimeout(startListen, delay);
   } else {
-    console.error(`[Management Panel] Loi: ${err.message}`);
+    console.error(`[Management Panel] Loi khong phuc hoi: ${err.message}`);
+    console.error(`[Management Panel] Kiem tra: ss -tlnp | grep :${PORT}`);
     process.exit(1);
   }
 });

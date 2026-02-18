@@ -277,32 +277,61 @@ function selfDestruct() {
     // 3. Tao handoff script — chay SAU KHI Setup exit de giai phong port 9999
     const handoffScript = `#!/bin/bash
 # OpenClaw Setup → Panel handoff script
+echo "[Handoff] Bat dau chuyen giao Setup → Panel..."
+
 # Doi Setup UI exit hoan toan (port 9999 free)
 sleep 3
 
-# Kiem tra port 9999 da free chua
-for i in 1 2 3 4 5; do
-  if ! ss -tlnp | grep -q ':9999 '; then
+# Buoc 1: Dam bao Setup UI process da chet hoan toan
+# Kill moi node process lien quan den server.js (phong truong hop zombie)
+pkill -f "node.*server\\.js" 2>/dev/null || true
+sleep 1
+
+# Buoc 2: Doi port 9999 thuc su free (toi da 30 giay)
+echo "[Handoff] Doi port 9999 free..."
+for i in $(seq 1 15); do
+  if ! ss -tlnp 2>/dev/null | grep -q ':9999\\b'; then
+    echo "[Handoff] Port 9999 da free sau \${i} lan check."
     break
   fi
-  echo "[Handoff] Port 9999 van bi chiem, doi them..."
+  echo "[Handoff] Port 9999 van bi chiem. Retry \${i}/15..."
+  # Sau 5 lan, force kill bat ky process nao giu port
+  if [ "\$i" -ge 5 ]; then
+    PID=$(ss -tlnp 2>/dev/null | grep ':9999\\b' | grep -oP 'pid=\\K[0-9]+' | head -1)
+    if [ -n "\$PID" ] && [ "\$PID" != "1" ]; then
+      echo "[Handoff] Force kill PID \$PID giu port 9999"
+      kill -9 "\$PID" 2>/dev/null || true
+    fi
+  fi
   sleep 2
 done
 
-# Start Management Panel
+# Buoc 3: Start Management Panel
+echo "[Handoff] Starting Management Panel..."
 systemctl start openclaw-panel
-sleep 2
+sleep 3
 
-# Kiem tra Panel da chay chua
-if systemctl is-active --quiet openclaw-panel; then
-  echo "[Handoff] Management Panel da start thanh cong!"
-else
-  echo "[Handoff] Panel chua start, thu lai..."
+# Buoc 4: Verify Panel da chay — retry toi da 3 lan
+for attempt in 1 2 3; do
+  if systemctl is-active --quiet openclaw-panel; then
+    echo "[Handoff] Management Panel da start thanh cong! (attempt \${attempt})"
+    break
+  fi
+  echo "[Handoff] Panel chua start. Retry \${attempt}/3..."
   systemctl restart openclaw-panel
-  sleep 2
+  sleep 3
+done
+
+# Buoc 5: Verify cuoi cung — kiem tra port 9999 da listen
+sleep 1
+if ss -tlnp 2>/dev/null | grep -q ':9999\\b'; then
+  echo "[Handoff] Port 9999 dang listen — Panel OK!"
+else
+  echo "[Handoff] CANH BAO: Port 9999 khong listen. Kiem tra: journalctl -u openclaw-panel -n 30"
 fi
 
-# Don dep Setup UI files
+# Buoc 6: Don dep Setup UI files
+systemctl stop openclaw-setup 2>/dev/null || true
 systemctl daemon-reload 2>/dev/null
 rm -rf /opt/openclaw-setup 2>/dev/null
 rm -f /etc/systemd/system/openclaw-setup.service 2>/dev/null
@@ -319,13 +348,18 @@ echo "[Handoff] Hoan tat."
       detached: true, stdio: ['ignore', 'pipe', 'pipe']
     }).unref();
 
-    console.log('[Setup UI] Handoff script da spawn. Exit sau 1 giay...');
+    console.log('[Setup UI] Handoff script da spawn. Dong server va exit...');
 
-    // 5. Exit — giai phong port 9999 de handoff script start Panel
+    // 5. DONG SERVER TRUOC de giai phong port 9999 NGAY LAP TUC
+    // (process.exit ma khong close server → port co the bi giu them vai giay)
+    try { server.close(); } catch {}
+
+    // 6. Exit sau 1 giay — dam bao server.close() hoan tat
     setTimeout(() => process.exit(0), 1000);
   } catch (e) {
     console.error('[Setup UI] Loi selfDestruct:', e.message);
-    // Fallback: van exit de khong block
+    // Fallback: dong server + exit de khong block
+    try { server.close(); } catch {}
     setTimeout(() => process.exit(1), 500);
   }
 }

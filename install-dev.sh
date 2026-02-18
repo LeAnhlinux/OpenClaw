@@ -717,6 +717,14 @@ mkdir -p ${PANEL_DIR}
 curl -fsSL "${PANEL_REPO}" -o ${PANEL_DIR}/panel.js || {
     log "Canh bao: Khong tai duoc Management Panel."
 }
+# Verify panel.js da tai thanh cong va co noi dung
+if [ -f "${PANEL_DIR}/panel.js" ] && [ -s "${PANEL_DIR}/panel.js" ]; then
+    chmod 644 ${PANEL_DIR}/panel.js
+    log "Management Panel: ${PANEL_DIR}/panel.js OK ($(wc -l < ${PANEL_DIR}/panel.js) dong)"
+else
+    log "LOI: panel.js khong ton tai hoac rong! Panel se khong hoat dong."
+    log "Thu tai lai: curl -fsSL ${PANEL_REPO} -o ${PANEL_DIR}/panel.js"
+fi
 
 # Tao systemd service cho Management Panel
 cat > /etc/systemd/system/openclaw-panel.service << EOF
