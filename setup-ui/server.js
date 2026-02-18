@@ -249,6 +249,18 @@ const PROVIDERS = {
   }
 };
 
+// --- Channel configs (giong panel.js) ---
+const CHANNELS = {
+  telegram: { name: 'Telegram', icon: '&#x1f4e8;', envKeys: ['TELEGRAM_BOT_TOKEN'], pairCmd: 'telegram', desc: 'Tao bot tai @BotFather', canPair: true },
+  zalo: { name: 'Zalo', icon: '&#x1f4ac;', envKeys: ['ZALO_BOT_TOKEN'], pairCmd: 'zalo', desc: 'Tao bot tai bot.zaloplatforms.com', canPair: true },
+  discord: { name: 'Discord', icon: '&#x1f3ae;', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Tao bot tai discord.com/developers', canPair: true },
+  slack: { name: 'Slack', icon: '&#x1f4bc;', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Tao app tai api.slack.com/apps', canPair: false },
+  whatsapp: { name: 'WhatsApp', icon: '&#x1f4f1;', envKeys: [], pairCmd: null, desc: 'Chay: openclaw whatsapp pair', canPair: false, cliOnly: true },
+  line: { name: 'LINE', icon: '&#x1f7e2;', envKeys: ['LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET'], pairCmd: null, desc: 'Plugin — tao bot tai developers.line.biz', canPair: false },
+  signal: { name: 'Signal', icon: '&#x1f512;', envKeys: [], pairCmd: null, desc: 'Chay: openclaw signal link', canPair: false, cliOnly: true },
+  matrix: { name: 'Matrix', icon: '&#x1f310;', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — cau hinh homeserver + token', canPair: false }
+};
+
 // --- Self-destruct ---
 function selfDestruct() {
   console.log('[Setup UI] Setup hoan tat. Tu huy va kich hoat Management Panel...');
@@ -425,63 +437,21 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
   <div class="step" id="step5"><div class="card">
     <h2>Buoc 5: Kenh nhan tin (tuy chon)</h2>
     <p>Chon kenh nhan tin de ket noi voi AI. Co the bo qua va cau hinh sau.</p>
-    <div class="providers" id="channelCards" style="grid-template-columns:1fr 1fr;max-height:none">
-      <div class="provider" data-channel="telegram" onclick="selectChannel(this)">
-        <div class="icon">&#x1f4e8;</div><div class="name">Telegram</div>
-        <div style="color:#9aa0a6;font-size:12px;margin-top:4px">Bot API</div>
-      </div>
-      <div class="provider" data-channel="zalo" onclick="selectChannel(this)">
-        <div class="icon">&#x1f4ac;</div><div class="name">Zalo</div>
-        <div style="color:#9aa0a6;font-size:12px;margin-top:4px">Bot Platform</div>
-      </div>
-    </div>
-    <!-- Telegram Token Input -->
-    <div id="channelTelegram" style="display:none;margin-top:20px">
-      <div class="field">
-        <label>&#x1f4e8; Telegram Bot Token</label>
-        <input type="text" id="telegramToken" placeholder="123456789:ABCdefghijklmnop">
-        <p style="font-size:12px;color:#9aa0a6;margin-top:4px">Tao bot tai <a href="https://t.me/BotFather" target="_blank" style="color:#4285f4">@BotFather</a> tren Telegram, chay /newbot de lay token</p>
-      </div>
-    </div>
-    <!-- Zalo Token Input -->
-    <div id="channelZalo" style="display:none;margin-top:20px">
-      <div class="field">
-        <label>&#x1f4ac; Zalo Bot Token</label>
-        <input type="text" id="zaloToken" placeholder="12345689:abc-xyz">
-        <p style="font-size:12px;color:#9aa0a6;margin-top:4px">Tao bot tai <a href="https://bot.zaloplatforms.com" target="_blank" style="color:#4285f4">bot.zaloplatforms.com</a> de lay token</p>
-      </div>
-    </div>
+    <div class="providers" id="channelCards" style="grid-template-columns:1fr 1fr;max-height:none"></div>
+    <div id="channelTokenSection" style="display:none;margin-top:20px"></div>
     <div class="status" id="channelStatus"></div>
     <div class="btn-row" id="channelBtnRow">
       <button class="btn btn-outline" onclick="goStep(6)">Bo qua</button>
       <button class="btn" id="channelBtn" style="display:none" onclick="saveChannels()">Luu kenh nhan tin</button>
     </div>
-    <!-- Telegram Pairing Code -->
-    <div id="telegramPairSection" style="display:none;margin-top:24px;border-top:2px solid #e8eaed;padding-top:20px">
-      <h3 style="font-size:16px;color:#1a1a2e;margin-bottom:8px;font-weight:700">&#x1f517; Ghep noi Telegram Bot</h3>
-      <p style="color:#5f6368;font-size:13px;margin-bottom:16px;line-height:1.6">Mo bot Telegram cua ban, gui tin nhan bat ky. Bot se tra ve <strong style="color:#4285f4">ma ghep noi (pairing code)</strong>. Nhap ma do vao ben duoi de ket noi.</p>
-      <div class="field">
-        <label>Ma ghep noi (Pairing Code)</label>
-        <input type="text" id="telegramPairCode" placeholder="Nhap ma ghep noi tu Telegram bot">
-      </div>
-      <div class="status" id="telegramPairStatus"></div>
+    <div id="channelPairSection" style="display:none;margin-top:24px;border-top:2px solid #e8eaed;padding-top:20px">
+      <h3 style="font-size:16px;color:#1a1a2e;margin-bottom:8px;font-weight:700">&#x1f517; Ghep noi <span id="pairChannelName"></span></h3>
+      <p style="color:#5f6368;font-size:13px;margin-bottom:16px;line-height:1.6">Mo <span id="pairChannelName2"></span>, gui tin nhan bat ky toi bot. Bot se tra ve <strong style="color:#4285f4">ma ghep noi (pairing code)</strong>. Nhap ma do vao ben duoi de ket noi.</p>
+      <div class="field"><label>Ma ghep noi (Pairing Code)</label><input type="text" id="pairCode" placeholder="Nhap ma ghep noi tu bot"></div>
+      <div class="status" id="pairCodeStatus"></div>
       <div class="btn-row">
         <button class="btn btn-outline" onclick="skipChannelPair()">Bo qua</button>
-        <button class="btn btn-success" id="telegramPairBtn" onclick="approveTelegramPair()">Ghep noi Telegram</button>
-      </div>
-    </div>
-    <!-- Zalo Pairing Code -->
-    <div id="zaloPairSection" style="display:none;margin-top:24px;border-top:2px solid #e8eaed;padding-top:20px">
-      <h3 style="font-size:16px;color:#1a1a2e;margin-bottom:8px;font-weight:700">&#x1f517; Ghep noi Zalo Bot</h3>
-      <p style="color:#5f6368;font-size:13px;margin-bottom:16px;line-height:1.6">Mo Zalo, tim bot cua ban va gui tin nhan bat ky. Bot se tra ve <strong style="color:#4285f4">ma ghep noi (pairing code)</strong>. Nhap ma do vao ben duoi de ket noi.</p>
-      <div class="field">
-        <label>Ma ghep noi (Pairing Code)</label>
-        <input type="text" id="zaloPairCode" placeholder="Nhap ma ghep noi tu Zalo bot">
-      </div>
-      <div class="status" id="zaloPairStatus"></div>
-      <div class="btn-row">
-        <button class="btn btn-outline" onclick="skipChannelPair()">Bo qua</button>
-        <button class="btn btn-success" id="zaloPairBtn" onclick="approveZaloPair()">Ghep noi Zalo</button>
+        <button class="btn btn-success" id="pairCodeBtn" onclick="approveChannelPair()">Ghep noi</button>
       </div>
     </div>
   </div></div>
@@ -513,6 +483,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 <script>
 let selectedProvider=null,selectedModel='',keyVerified=false,configuredDomain='';
 const providerData=${JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,color:v.color,category:v.category||'cloud',models:v.models})))};
+const channelData=${JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair,cliOnly:v.cliOnly||false})))};
 
 // Build provider grid dynamically
 (function(){
@@ -587,63 +558,64 @@ async function finish(){
   else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Loi khi cau hinh');btn.disabled=false;btn.textContent='Hoan tat cai dat'}}
   catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Hoan tat cai dat'}
 }
-let selectedChannel=null;
+let selectedChannel=null,selectedChannelData=null;
+// Build channel grid dynamically
+(function(){
+  const grid=document.getElementById('channelCards');
+  channelData.forEach(ch=>{
+    const div=document.createElement('div');div.className='provider';div.dataset.channel=ch.id;div.onclick=function(){selectChannel(this)};
+    div.innerHTML='<div class="icon">'+ch.icon+'</div><div class="name">'+ch.name+'</div><div style="color:#9aa0a6;font-size:12px;margin-top:4px">'+ch.desc.substring(0,30)+'</div>';
+    grid.appendChild(div);
+  });
+})();
 function selectChannel(el){
   document.querySelectorAll('#channelCards .provider').forEach(p=>p.classList.remove('selected'));
   el.classList.add('selected');selectedChannel=el.dataset.channel;
-  // An tat ca input, chi hien kenh duoc chon
-  document.getElementById('channelTelegram').style.display=selectedChannel==='telegram'?'block':'none';
-  document.getElementById('channelZalo').style.display=selectedChannel==='zalo'?'block':'none';
-  document.getElementById('channelBtn').style.display='inline-block';
+  selectedChannelData=channelData.find(c=>c.id===selectedChannel);
+  const sec=document.getElementById('channelTokenSection');
+  if(selectedChannelData.cliOnly){
+    sec.innerHTML='<div style="padding:14px 18px;border-radius:10px;background:#fff8e1;border:1px solid #ffe082;color:#e65100;font-size:13px;font-weight:500">'+selectedChannelData.name+' chi ho tro qua CLI. '+selectedChannelData.desc+'</div>';
+    sec.style.display='block';document.getElementById('channelBtn').style.display='none';
+  }else{
+    let h='';selectedChannelData.envKeys.forEach(k=>{h+='<div class="field"><label>'+selectedChannelData.icon+' '+k+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+k+'"><p style="font-size:12px;color:#9aa0a6;margin-top:4px">'+selectedChannelData.desc+'</p></div>'});
+    sec.innerHTML=h;sec.style.display='block';document.getElementById('channelBtn').style.display='inline-block';
+  }
 }
 async function saveChannels(){
+  if(!selectedChannelData)return;
   const btn=document.getElementById('channelBtn'),st=document.getElementById('channelStatus');
-  const tg=selectedChannel==='telegram'?document.getElementById('telegramToken').value.trim():'';
-  const zl=selectedChannel==='zalo'?document.getElementById('zaloToken').value.trim():'';
-  if(!tg&&!zl){st.className='status fail';st.textContent='Vui long nhap token cua kenh da chon';return}
+  const tokens={};let hasToken=false;
+  selectedChannelData.envKeys.forEach(k=>{const el=document.getElementById('chfield-'+k);if(el&&el.value.trim()){tokens[k]=el.value.trim();hasToken=true}});
+  if(!hasToken){st.className='status fail';st.textContent='Vui long nhap token cua kenh da chon';return}
   btn.disabled=true;btn.textContent='Dang luu...';st.className='status loading';st.textContent='Dang cau hinh kenh nhan tin...';
-  try{const r=await fetch('/api/channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegram:tg,zalo:zl})});const d=await r.json();
-  if(d.ok){st.className='status ok';st.textContent='\\u2705 Da luu kenh nhan tin!';
-    if(tg||zl){
-      // Hien thi phan pairing code tuong ung
+  try{const r=await fetch('/api/channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:selectedChannel,tokens})});const d=await r.json();
+  if(d.ok){st.className='status ok';st.textContent='\\u2705 Da luu '+selectedChannelData.name+'!';
+    if(selectedChannelData.canPair){
       setTimeout(()=>{
-        st.className='status';
-        document.getElementById('channelBtnRow').style.display='none';
-        document.getElementById('channelCards').style.display='none';
-        document.getElementById('channelTelegram').style.display='none';
-        document.getElementById('channelZalo').style.display='none';
-        if(tg) document.getElementById('telegramPairSection').style.display='block';
-        if(zl) document.getElementById('zaloPairSection').style.display='block';
+        st.className='status';document.getElementById('channelBtnRow').style.display='none';
+        document.getElementById('channelCards').style.display='none';document.getElementById('channelTokenSection').style.display='none';
+        document.getElementById('pairChannelName').textContent=selectedChannelData.name;
+        document.getElementById('pairChannelName2').textContent=selectedChannelData.name;
+        document.getElementById('pairCodeBtn').textContent='Ghep noi '+selectedChannelData.name;
+        document.getElementById('channelPairSection').style.display='block';
       },1500);
-    } else {
-      setTimeout(()=>{goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal},1500);
-    }
-  }
-  else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Loi khi luu');btn.disabled=false;btn.textContent='Luu kenh nhan tin'}}
+    }else{setTimeout(()=>{goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal},1500)}
+  }else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Loi khi luu');btn.disabled=false;btn.textContent='Luu kenh nhan tin'}}
   catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Luu kenh nhan tin'}
 }
 function skipChannelPair(){
   goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal;
 }
-async function approveTelegramPair(){
-  const btn=document.getElementById('telegramPairBtn'),st=document.getElementById('telegramPairStatus');
-  const code=document.getElementById('telegramPairCode').value.trim();
+async function approveChannelPair(){
+  if(!selectedChannelData||!selectedChannelData.canPair)return;
+  const btn=document.getElementById('pairCodeBtn'),st=document.getElementById('pairCodeStatus');
+  const code=document.getElementById('pairCode').value.trim();
   if(!code){st.className='status fail';st.textContent='Vui long nhap ma ghep noi';return}
-  btn.disabled=true;btn.textContent='Dang ghep noi...';st.className='status loading';st.textContent='Dang ket noi Telegram bot...';
-  try{const r=await fetch('/api/telegram-pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});const d=await r.json();
-  if(d.ok){st.className='status ok';st.textContent='\\u2705 Ghep noi Telegram thanh cong!';setTimeout(()=>{goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal},1500)}
-  else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Khong the ghep noi');btn.disabled=false;btn.textContent='Ghep noi Telegram'}}
-  catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Ghep noi Telegram'}
-}
-async function approveZaloPair(){
-  const btn=document.getElementById('zaloPairBtn'),st=document.getElementById('zaloPairStatus');
-  const code=document.getElementById('zaloPairCode').value.trim();
-  if(!code){st.className='status fail';st.textContent='Vui long nhap ma ghep noi';return}
-  btn.disabled=true;btn.textContent='Dang ghep noi...';st.className='status loading';st.textContent='Dang ket noi Zalo bot...';
-  try{const r=await fetch('/api/zalo-pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});const d=await r.json();
-  if(d.ok){st.className='status ok';st.textContent='\\u2705 Ghep noi Zalo thanh cong!';setTimeout(()=>{goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal},1500)}
-  else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Khong the ghep noi');btn.disabled=false;btn.textContent='Ghep noi Zalo'}}
-  catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Ghep noi Zalo'}
+  btn.disabled=true;btn.textContent='Dang ghep noi...';st.className='status loading';st.textContent='Dang ket noi '+selectedChannelData.name+' bot...';
+  try{const r=await fetch('/api/channel-pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:selectedChannel,code})});const d=await r.json();
+  if(d.ok){st.className='status ok';st.textContent='\\u2705 Ghep noi '+selectedChannelData.name+' thanh cong!';setTimeout(()=>{goStep(6);document.getElementById('pairingUrl').textContent=dashboardUrlGlobal},1500)}
+  else{st.className='status fail';st.textContent='\\u274c '+(d.error||'Khong the ghep noi');btn.disabled=false;btn.textContent='Ghep noi '+selectedChannelData.name}}
+  catch(x){st.className='status fail';st.textContent='\\u274c Loi ket noi server';btn.disabled=false;btn.textContent='Ghep noi '+selectedChannelData.name}
 }
 async function doPairing(){
   const btn=document.getElementById('pairBtn'),st=document.getElementById('pairStatus');
@@ -863,23 +835,22 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 500, { ok: false, error: `Loi: ${e.message}` }); }
   }
 
-  // --- API: Channels (luu token kenh nhan tin) ---
+  // --- API: Channels (luu token kenh nhan tin — generic) ---
   if (req.method === 'POST' && url.pathname === '/api/channels') {
     if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Chua dang nhap' });
     try {
       const body = await parseBody(req);
+      const ch = CHANNELS[body.channel];
+      if (!ch) return json(res, 400, { ok: false, error: 'Channel khong hop le' });
+
       let envContent = fs.readFileSync('/opt/openclaw.env', 'utf8');
 
-      // Telegram
-      if (body.telegram) {
-        envContent = envContent.replace(/^#?\s*TELEGRAM_BOT_TOKEN=.*$/m, '').trim();
-        envContent += `\nTELEGRAM_BOT_TOKEN=${body.telegram}`;
-      }
-
-      // Zalo
-      if (body.zalo) {
-        envContent = envContent.replace(/^#?\s*ZALO_BOT_TOKEN=.*$/m, '').trim();
-        envContent += `\nZALO_BOT_TOKEN=${body.zalo}`;
+      // Ghi tung env key cua channel
+      for (const [key, val] of Object.entries(body.tokens || {})) {
+        if (ch.envKeys.includes(key) && val) {
+          envContent = envContent.replace(new RegExp(`^#?\\s*${key}=.*$`, 'm'), '').trim();
+          envContent += `\n${key}=${val}`;
+        }
       }
 
       envContent = envContent.trim() + '\n';
@@ -895,44 +866,19 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // --- API: Telegram Pair (ghep noi Telegram bot bang pairing code) ---
-  if (req.method === 'POST' && url.pathname === '/api/telegram-pair') {
+  // --- API: Channel Pair (generic — ghep noi bat ky kenh co canPair) ---
+  if (req.method === 'POST' && url.pathname === '/api/channel-pair') {
     if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Chua dang nhap' });
     try {
       const body = await parseBody(req);
-      const code = (body.code || '').trim();
+      const ch = CHANNELS[body.channel];
+      if (!ch || !ch.canPair) return json(res, 400, { ok: false, error: 'Kenh khong ho tro pairing qua web' });
+      const code = (body.code || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
       if (!code) return json(res, 400, { ok: false, error: 'Thieu ma ghep noi' });
 
-      // Chay lenh pairing approve telegram <code>
       try {
         execSync(
-          `/opt/openclaw-cli.sh pairing approve telegram ${code.replace(/[^a-zA-Z0-9_-]/g, '')}`,
-          { timeout: 15000, stdio: 'pipe' }
-        );
-        return json(res, 200, { ok: true });
-      } catch (e) {
-        const stderr = e.stderr ? e.stderr.toString() : '';
-        const stdout = e.stdout ? e.stdout.toString() : '';
-        const errMsg = stderr || stdout || e.message;
-        return json(res, 200, { ok: false, error: `Khong the ghep noi: ${errMsg.substring(0, 200)}` });
-      }
-    } catch (e) {
-      return json(res, 500, { ok: false, error: `Loi: ${e.message}` });
-    }
-  }
-
-  // --- API: Zalo Pair (ghep noi Zalo bot bang pairing code) ---
-  if (req.method === 'POST' && url.pathname === '/api/zalo-pair') {
-    if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Chua dang nhap' });
-    try {
-      const body = await parseBody(req);
-      const code = (body.code || '').trim();
-      if (!code) return json(res, 400, { ok: false, error: 'Thieu ma ghep noi' });
-
-      // Chay lenh pairing approve zalo <code>
-      try {
-        execSync(
-          `/opt/openclaw-cli.sh pairing approve zalo ${code.replace(/[^a-zA-Z0-9_-]/g, '')}`,
+          `/opt/openclaw-cli.sh pairing approve ${ch.pairCmd} ${code}`,
           { timeout: 15000, stdio: 'pipe' }
         );
         return json(res, 200, { ok: true });
