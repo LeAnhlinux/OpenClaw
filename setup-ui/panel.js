@@ -617,9 +617,19 @@ function panelPage() {
 
   <!-- TAB: Gateway -->
   <div class="section" id="sec-gateway">
-    <div class="page-title">Gateway Token</div>
-    <div class="page-desc">Token xac thuc de truy cap dashboard va API.</div>
+    <div class="page-title">Gateway</div>
+    <div class="page-desc">Token xac thuc, ghep noi thiet bi va quan ly dashboard.</div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd11</span> Thong tin</div><div id="gatewayInfo" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd17</span> Ghep noi Dashboard</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">Mo dashboard link ben duoi trong <strong>tab moi</strong>, doi trang tai xong, roi quay lai day bam <strong>Ghep noi</strong> de approve.</p>
+      <div id="pairDashboardUrl" style="padding:10px 14px;background:#f0f4ff;border:1.5px solid var(--accent);border-radius:8px;font-family:monospace;font-size:12px;cursor:pointer;color:var(--accent);margin-bottom:12px;word-break:break-all" onclick="window.open(this.textContent,'_blank')"></div>
+      <div class="btn-row">
+        <button class="btn btn-success" id="pairDeviceBtn" onclick="pairDevice()">Ghep noi thiet bi</button>
+        <button class="btn btn-outline" onclick="loadDevices()">Lam moi</button>
+      </div>
+      <div class="status" id="pairDeviceStatus"></div>
+    </div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Thiet bi da ghep noi</div><div id="deviceList" class="info-grid"><div style="color:var(--text2);font-size:12px;padding:8px">Dang tai...</div></div></div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Thay doi token</div>
       <div class="field"><label>Token tu nhap (tuy chon)</label><input type="text" id="customToken" placeholder="De trong de tao ngau nhien"></div>
       <div class="btn-row">
@@ -970,7 +980,34 @@ async function pairChannel(){
 // === Gateway ===
 async function loadGateway(){
   const d=await api('/api/current-config'),el=document.getElementById('gatewayInfo'),host=d.domain||d.serverIP||'localhost';
-  el.innerHTML='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:10px">'+d.token+'</span></div><div class="info-row"><span class="info-k">Dashboard</span><span class="info-v"><a href="https://'+host+'?token='+d.token+'" target="_blank" style="color:var(--accent);text-decoration:none">https://'+host+'</a></span></div>';
+  const dashUrl='https://'+host+'?token='+d.token;
+  el.innerHTML='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:10px">'+d.token+'</span></div><div class="info-row"><span class="info-k">Dashboard</span><span class="info-v"><a href="'+dashUrl+'" target="_blank" style="color:var(--accent);text-decoration:none">https://'+host+'</a></span></div>';
+  document.getElementById('pairDashboardUrl').textContent=dashUrl;
+  loadDevices();
+}
+async function loadDevices(){
+  try{
+    const d=await api('/api/devices');
+    const el=document.getElementById('deviceList');
+    if(!d.ok){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">'+(d.error||'Loi')+'</div>';return}
+    if(!d.devices||d.devices.length===0){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Chua co thiet bi nao duoc ghep noi.</div>';return}
+    let h='';d.devices.forEach(dev=>{
+      const badge=dev.status==='paired'?'bg-green':dev.status==='pending'?'bg-blue':'bg-red';
+      const label=dev.status==='paired'?'Paired':dev.status==='pending'?'Pending':dev.status;
+      h+='<div class="info-row"><span class="info-k" style="max-width:50%;word-break:break-all">'+(dev.name||dev.uuid||'Unknown')+'</span><span class="info-v"><span class="badge '+badge+'">'+label+'</span></span></div>';
+    });
+    el.innerHTML=h;
+  }catch{document.getElementById('deviceList').innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Loi tai danh sach.</div>'}
+}
+async function pairDevice(){
+  const st=document.getElementById('pairDeviceStatus'),btn=document.getElementById('pairDeviceBtn');
+  btn.disabled=true;btn.textContent='Dang tim yeu cau...';st.className='status loading';st.textContent='Dang kiem tra pending requests...';
+  try{
+    const d=await api('/api/pair','POST',{});
+    if(d.ok){st.className='status ok';st.textContent='Ghep noi thanh cong!';loadDevices()}
+    else{st.className='status fail';st.textContent=d.error||'Khong the ghep noi'}
+    btn.disabled=false;btn.textContent='Ghep noi thiet bi';
+  }catch(e){st.className='status fail';st.textContent='Loi: '+e.message;btn.disabled=false;btn.textContent='Ghep noi thiet bi'}
 }
 async function generateToken(){
   const st=document.getElementById('gatewayStatus');st.className='status loading';st.textContent='Dang tao...';
@@ -1409,6 +1446,51 @@ const server = http.createServer(async (req, res) => {
       if (!code) return json(res, 400, { ok: false, error: 'Thieu ma' });
       try { execSync(`/opt/openclaw-cli.sh pairing approve ${ch.pairCmd} ${code}`, { timeout: 15000, stdio: 'pipe' }); return json(res, 200, { ok: true }); }
       catch (e) { return json(res, 200, { ok: false, error: (e.stderr || e.stdout || '').toString().substring(0, 200) || e.message }); }
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Device Pair — tim va approve pending pairing request
+  if (req.method === 'POST' && url.pathname === '/api/pair') {
+    try {
+      const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+      if (!gatewayToken) return json(res, 400, { ok: false, error: 'Chua co gateway token' });
+      let output = '';
+      try {
+        output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString();
+      } catch (e) { output = (e.stdout || '').toString(); }
+      const pendingSection = output.match(/Pending[\s\S]*?(?=Paired|$)/i);
+      if (!pendingSection) return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Mo dashboard truoc roi thu lai.' });
+      const uuids = pendingSection[0].match(/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/g);
+      if (!uuids || uuids.length === 0) return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Mo dashboard truoc roi thu lai.' });
+      if (uuids.length > 1) return json(res, 200, { ok: false, error: `Tim thay ${uuids.length} yeu cau. Thu lai sau.` });
+      execSync(`/opt/openclaw-cli.sh devices approve "${uuids[0]}" --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: 'Loi ghep noi: ' + e.message }); }
+  }
+
+  // Device List
+  if (req.method === 'GET' && url.pathname === '/api/devices') {
+    try {
+      const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+      if (!gatewayToken) return json(res, 200, { ok: true, devices: [] });
+      let output = '';
+      try {
+        output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString();
+      } catch (e) { output = (e.stdout || '').toString(); }
+      const devices = [];
+      // Parse paired devices
+      const pairedSection = output.match(/Paired[\s\S]*?(?=Pending|$)/i);
+      if (pairedSection) {
+        const uuids = pairedSection[0].match(/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/g);
+        if (uuids) uuids.forEach(u => devices.push({ uuid: u, name: u.substring(0, 8) + '...', status: 'paired' }));
+      }
+      // Parse pending devices
+      const pendingSection = output.match(/Pending[\s\S]*?(?=Paired|$)/i);
+      if (pendingSection) {
+        const uuids = pendingSection[0].match(/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/g);
+        if (uuids) uuids.forEach(u => devices.push({ uuid: u, name: u.substring(0, 8) + '... (cho duyet)', status: 'pending' }));
+      }
+      return json(res, 200, { ok: true, devices });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
