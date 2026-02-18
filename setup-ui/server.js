@@ -276,70 +276,42 @@ function selfDestruct() {
 
     // 3. Tao handoff script — chay SAU KHI Setup exit de giai phong port 9999
     const handoffScript = `#!/bin/bash
-# OpenClaw Setup → Panel handoff script
-echo "[Handoff] Bat dau chuyen giao Setup → Panel..."
+# OpenClaw Setup → Panel handoff (fast)
+echo "[Handoff] Start..."
 
-# Doi Setup UI exit hoan toan (port 9999 free)
-sleep 3
-
-# Buoc 1: Dam bao Setup UI process da chet hoan toan
-# Kill moi node process lien quan den server.js (phong truong hop zombie)
+# Kill Setup UI ngay — force giai phong port 9999
 pkill -f "node.*server\\.js" 2>/dev/null || true
-sleep 1
 
-# Buoc 2: Doi port 9999 thuc su free (toi da 30 giay)
-echo "[Handoff] Doi port 9999 free..."
-for i in $(seq 1 15); do
-  if ! ss -tlnp 2>/dev/null | grep -q ':9999\\b'; then
-    echo "[Handoff] Port 9999 da free sau \${i} lan check."
-    break
-  fi
-  echo "[Handoff] Port 9999 van bi chiem. Retry \${i}/15..."
-  # Sau 5 lan, force kill bat ky process nao giu port
-  if [ "\$i" -ge 5 ]; then
-    PID=$(ss -tlnp 2>/dev/null | grep ':9999\\b' | grep -oP 'pid=\\K[0-9]+' | head -1)
-    if [ -n "\$PID" ] && [ "\$PID" != "1" ]; then
-      echo "[Handoff] Force kill PID \$PID giu port 9999"
-      kill -9 "\$PID" 2>/dev/null || true
-    fi
-  fi
-  sleep 2
+# Doi port 9999 free — check nhanh moi 0.3s, toi da 5s
+for i in \$(seq 1 16); do
+  ss -tlnp 2>/dev/null | grep -q ':9999\\b' || break
+  [ "\$i" -ge 10 ] && {
+    PID=\$(ss -tlnp 2>/dev/null | grep ':9999\\b' | grep -oP 'pid=\\K[0-9]+' | head -1)
+    [ -n "\$PID" ] && [ "\$PID" != "1" ] && kill -9 "\$PID" 2>/dev/null
+  }
+  sleep 0.3
 done
 
-# Buoc 3: Start Management Panel
-echo "[Handoff] Starting Management Panel..."
+# Start Panel
 systemctl start openclaw-panel
-sleep 3
+sleep 1
 
-# Buoc 4: Verify Panel da chay — retry toi da 3 lan
-for attempt in 1 2 3; do
-  if systemctl is-active --quiet openclaw-panel; then
-    echo "[Handoff] Management Panel da start thanh cong! (attempt \${attempt})"
-    break
-  fi
-  echo "[Handoff] Panel chua start. Retry \${attempt}/3..."
-  systemctl restart openclaw-panel
-  sleep 3
+# Verify — retry 2 lan
+for attempt in 1 2; do
+  systemctl is-active --quiet openclaw-panel && { echo "[Handoff] Panel OK!"; break; }
+  systemctl restart openclaw-panel; sleep 1
 done
 
-# Buoc 5: Verify cuoi cung — kiem tra port 9999 da listen
-sleep 1
-if ss -tlnp 2>/dev/null | grep -q ':9999\\b'; then
-  echo "[Handoff] Port 9999 dang listen — Panel OK!"
-else
-  echo "[Handoff] CANH BAO: Port 9999 khong listen. Kiem tra: journalctl -u openclaw-panel -n 30"
-fi
+# Don dep (background — khong can doi)
+{
+  systemctl stop openclaw-setup 2>/dev/null
+  rm -rf /opt/openclaw-setup 2>/dev/null
+  rm -f /etc/systemd/system/openclaw-setup.service 2>/dev/null
+  systemctl daemon-reload 2>/dev/null
+  rm -f /opt/openclaw-handoff.sh 2>/dev/null
+} &
 
-# Buoc 6: Don dep Setup UI files
-systemctl stop openclaw-setup 2>/dev/null || true
-systemctl daemon-reload 2>/dev/null
-rm -rf /opt/openclaw-setup 2>/dev/null
-rm -f /etc/systemd/system/openclaw-setup.service 2>/dev/null
-systemctl daemon-reload 2>/dev/null
-
-# Tu xoa
-rm -f /opt/openclaw-handoff.sh 2>/dev/null
-echo "[Handoff] Hoan tat."
+echo "[Handoff] Done."
 `;
     fs.writeFileSync('/opt/openclaw-handoff.sh', handoffScript, { mode: 0o755 });
 
@@ -350,12 +322,9 @@ echo "[Handoff] Hoan tat."
 
     console.log('[Setup UI] Handoff script da spawn. Dong server va exit...');
 
-    // 5. DONG SERVER TRUOC de giai phong port 9999 NGAY LAP TUC
-    // (process.exit ma khong close server → port co the bi giu them vai giay)
+    // 5. DONG SERVER + EXIT ngay de giai phong port 9999
     try { server.close(); } catch {}
-
-    // 6. Exit sau 1 giay — dam bao server.close() hoan tat
-    setTimeout(() => process.exit(0), 1000);
+    setTimeout(() => process.exit(0), 300);
   } catch (e) {
     console.error('[Setup UI] Loi selfDestruct:', e.message);
     // Fallback: dong server + exit de khong block
@@ -1060,9 +1029,9 @@ const server = http.createServer(async (req, res) => {
     if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Chua dang nhap' });
     if (finalizing) return json(res, 200, { ok: true, message: 'Dang chuyen giao...' });
     finalizing = true;
-    console.log('[Setup UI] /api/finalize — se chuyen giao sang Panel sau 8 giay...');
+    console.log('[Setup UI] /api/finalize — se chuyen giao sang Panel sau 2 giay...');
     json(res, 200, { ok: true });
-    setTimeout(() => selfDestruct(), 8000);
+    setTimeout(() => selfDestruct(), 2000);
     return;
   }
 
