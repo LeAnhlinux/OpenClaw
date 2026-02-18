@@ -2090,7 +2090,7 @@ const server = http.createServer(async (req, res) => {
       let output = '';
       try {
         output = execSync(
-          `su -l openclaw -c 'cd ${OPENCLAW_DIR} && node ./cli.js ${cmd}' 2>&1`,
+          `su -l openclaw -c 'cd ${OPENCLAW_DIR} && node dist/index.js ${cmd}' 2>&1`,
           { timeout: 120000, stdio: 'pipe', maxBuffer: 1024 * 1024 }
         ).toString();
       } catch (e) {
