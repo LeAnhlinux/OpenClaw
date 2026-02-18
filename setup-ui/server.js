@@ -344,9 +344,13 @@ echo "[Handoff] Hoan tat."
     fs.writeFileSync('/opt/openclaw-handoff.sh', handoffScript, { mode: 0o755 });
 
     // 4. Spawn detached handoff script — tiep tuc chay sau khi Setup exit
+    // QUAN TRONG: stdio phai la 'ignore' (KHONG DUOC dung 'pipe')
+    // Neu dung 'pipe', khi parent process exit → pipe broken → child nhan SIGPIPE → chet!
+    const logFd = fs.openSync('/var/log/openclaw-handoff.log', 'a');
     spawn('/bin/bash', ['/opt/openclaw-handoff.sh'], {
-      detached: true, stdio: ['ignore', 'pipe', 'pipe']
+      detached: true, stdio: ['ignore', logFd, logFd]
     }).unref();
+    try { fs.closeSync(logFd); } catch {}
 
     console.log('[Setup UI] Handoff script da spawn. Dong server va exit...');
 
