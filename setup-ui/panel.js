@@ -1124,7 +1124,7 @@ async function applyProvider(){
 async function loadChannels(){
   const d=await api('/api/current-config');
   const el=document.getElementById('currentChannels');
-  let h='';if(d.channels&&d.channels.length>0)d.channels.forEach(c=>{h+='<div class="info-row"><span class="info-k">'+esc(c.name)+'</span><span class="info-v" style="display:flex;align-items:center;gap:8px"><span class="badge bg-green">Active</span><button onclick="disableChannel(\''+esc(c.id)+'\')" style="background:none;border:1px solid #fecaca;color:#ef4444;padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .2s" onmouseover="this.style.background=\'#fef2f2\'" onmouseout="this.style.background=\'none\'">Tat</button></span></div>'});
+  let h='';if(d.channels&&d.channels.length>0)d.channels.forEach(c=>{h+='<div class="info-row"><span class="info-k">'+esc(c.name)+'</span><span class="info-v" style="display:flex;align-items:center;gap:8px"><span class="badge bg-green">Active</span><button onclick="disableChannel(\\x27'+esc(c.id)+'\\x27)" style="background:none;border:1px solid #fecaca;color:#ef4444;padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .2s" onmouseover="this.style.background=\\x27#fef2f2\\x27" onmouseout="this.style.background=\\x27none\\x27">Tat</button></span></div>'});
   else h='<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co kenh nao</span></div>';
   el.innerHTML=h;
   const list=document.getElementById('channelList');list.innerHTML='';
