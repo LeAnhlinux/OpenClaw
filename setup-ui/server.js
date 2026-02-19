@@ -272,7 +272,7 @@ const PROVIDERS = {
 // --- Channel configs (giong panel.js) ---
 const CHANNELS = {
   telegram: { name: 'Telegram', icon: '&#x1f4e8;', envKeys: ['TELEGRAM_BOT_TOKEN'], pairCmd: 'telegram', desc: 'Tao bot tai @BotFather', canPair: true },
-  zalo: { name: 'Zalo', icon: '&#x1f4ac;', envKeys: ['ZALO_BOT_TOKEN'], pairCmd: 'zalo', desc: 'Tao bot tai bot.zaloplatforms.com', canPair: true },
+  zalo: { name: 'Zalo', icon: '&#x1f4ac;', envKeys: ['ZALO_BOT_TOKEN'], pairCmd: null, desc: 'Tao bot tai bot.zaloplatforms.com', canPair: false },
   discord: { name: 'Discord', icon: '&#x1f3ae;', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Tao bot tai discord.com/developers', canPair: true },
   slack: { name: 'Slack', icon: '&#x1f4bc;', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Tao app tai api.slack.com/apps', canPair: false },
   whatsapp: { name: 'WhatsApp', icon: '&#x1f4f1;', envKeys: [], pairCmd: null, desc: 'Chay: openclaw whatsapp pair', canPair: false, cliOnly: true },
