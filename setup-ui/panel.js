@@ -683,7 +683,7 @@ document.getElementById('f').addEventListener('submit',async e=>{
 // --- Panel HTML ---
 function panelPage() {
   const provJSON = JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,color:v.color,icon:v.icon,models:v.models,category:v.category||'cloud',extraEnvKeys:v.extraEnvKeys||[]})));
-  const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair,cliOnly:v.cliOnly||false})));
+  const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair,cliOnly:v.cliOnly||false,hasQrPair:v.hasQrPair||false})));
 
   return `<!DOCTYPE html><html lang="vi"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1124,7 +1124,7 @@ async function applyProvider(){
 async function loadChannels(){
   const d=await api('/api/current-config');
   const el=document.getElementById('currentChannels');
-  let h='';if(d.channels&&d.channels.length>0)d.channels.forEach(c=>{h+='<div class="info-row"><span class="info-k">'+esc(c.name)+'</span><span class="info-v"><span class="badge bg-green">Active</span></span></div>'});
+  let h='';if(d.channels&&d.channels.length>0)d.channels.forEach(c=>{h+='<div class="info-row"><span class="info-k">'+esc(c.name)+'</span><span class="info-v" style="display:flex;align-items:center;gap:8px"><span class="badge bg-green">Active</span><button onclick="disableChannel(\''+esc(c.id)+'\')" style="background:none;border:1px solid #fecaca;color:#ef4444;padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .2s" onmouseover="this.style.background=\'#fef2f2\'" onmouseout="this.style.background=\'none\'">Tat</button></span></div>'});
   else h='<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co kenh nao</span></div>';
   el.innerHTML=h;
   const list=document.getElementById('channelList');list.innerHTML='';
@@ -1157,6 +1157,11 @@ async function saveChannel(){
   st.className='status loading';st.textContent='Dang luu...';
   const d=await api('/api/channels','POST',data);st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu! Restart thanh cong.':d.error||'Loi';
   if(d.ok)setTimeout(loadChannels,1500);
+}
+async function disableChannel(chId){
+  if(!confirm('Tat kenh '+chId+'? Token se bi xoa va dich vu restart.'))return;
+  const d=await api('/api/channel-disable','POST',{channel:chId});
+  if(d.ok){setTimeout(loadChannels,1500)}else{alert(d.error||'Loi tat kenh')}
 }
 function showPairForm(){document.getElementById('pairForm').style.display='block'}
 async function pairChannel(){
@@ -1900,6 +1905,22 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req); const ch = CHANNELS[body.channel];
       if (!ch) return json(res, 400, { ok: false, error: 'Channel khong hop le' });
       for (const [key, val] of Object.entries(body.tokens || {})) { if (ch.envKeys.includes(key) && val) setEnvValue(key, val); }
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Channel Disable (tat kenh — xoa token env vars)
+  if (req.method === 'POST' && url.pathname === '/api/channel-disable') {
+    try {
+      const body = await parseBody(req); const ch = CHANNELS[body.channel];
+      if (!ch) return json(res, 400, { ok: false, error: 'Channel khong hop le' });
+      // Xoa tat ca env keys cua channel (dat thanh comment)
+      ch.envKeys.forEach(k => { setEnvValue(k, '#disabled'); });
+      // Neu la zaloFree, logout openzca
+      if (body.channel === 'zaloFree') {
+        try { execSync(OPENZCA_CMD('auth logout'), { timeout: 10000, stdio: 'pipe' }); } catch {}
+      }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
