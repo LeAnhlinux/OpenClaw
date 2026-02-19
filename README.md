@@ -26,6 +26,12 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-gu
 curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install.sh | bash
 ```
 
+### Phien ban Dev (co Docker Sandbox + dev tools)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-dev.sh | bash
+```
+
 > Yeu cau: Ubuntu 24.04 LTS, toi thieu 1 vCPU / 2GB RAM
 
 ---
@@ -40,6 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install.sh
  3.  Cau hinh tuong lua UFW
      ├── Port 80, 443      (HTTP/HTTPS)
      ├── Port 18789        (OpenClaw Gateway)
+     ├── Port 9999         (Panel HTTP - mac dinh)
      ├── Port 22           (SSH - rate limit)
      └── Port 9999         (Setup UI - tam thoi)
  4.  Cai dat Node.js 22 + pnpm
@@ -89,7 +96,10 @@ STEP 1: Ten mien & SSL (tuy chon)
   |  Co domain -> Nhap domain + email
   |    -> Kiem tra DNS (A record tro ve IP server)
   |    -> Cau hinh Caddy voi Let's Encrypt ACME
+  |    -> Them Panel HTTPS proxy (:9443)
+  |    -> Firewall: mo 9443, dong 9999
   |  Khong co -> Bo qua (dung IP + self-signed cert)
+  |    -> Panel truy cap qua HTTP :9999
   v
 STEP 2: Chon AI Provider + Model
   |  ○ Anthropic (Claude Opus 4.5 / Sonnet 4 / Haiku 3.5)
@@ -112,51 +122,65 @@ STEP 5: Kenh nhan tin (tuy chon)
   |  Chon kenh:
   |  ├── Telegram Bot
   |  │   -> Nhap Bot Token (tu @BotFather)
-  |  │   -> Luu (POST /api/channels)
-  |  │   -> Hien form Pairing Code
-  |  │   -> Gui tin nhan cho bot -> nhan code
-  |  │   -> Nhap code -> Ghep noi
-  |  │      (POST /api/telegram-pair)
-  |  │      -> openclaw pairing approve telegram <code>
-  |  │
+  |  │   -> Luu -> Ghep noi
   |  └── Zalo Bot
-  |      -> Nhap Bot Token (tu bot.zaloplatforms.com)
-  |      -> Luu (POST /api/channels)
-  |      -> Hien form Pairing Code
-  |      -> Gui tin nhan cho bot -> nhan code
-  |      -> Nhap code -> Ghep noi
-  |         (POST /api/zalo-pair)
-  |         -> openclaw pairing approve zalo <code>
+  |      -> Nhap Bot Token
+  |      -> Luu -> Ghep noi
   v
 STEP 6: Ghep noi Dashboard
   |  -> Hien link dashboard (https://<host>?token=<token>)
   |  -> User mo link trong tab moi
   |  -> Quay lai bam "Ghep noi"
   |     (POST /api/pair)
-  |     -> devices list -> tim pending UUID -> devices approve
+  |     -> devices list --json -> tim pending requestId -> devices approve
   v
-STEP 7: Hoan tat
-     -> Hien dashboard URL
-     -> selfDestruct() sau 5 giay:
-        ├── ufw deny 9999
-        ├── Disable + xoa openclaw-setup.service
-        ├── Xoa /opt/openclaw-setup/
+STEP 7: Hoan tat -> Chuyen giao sang Management Panel
+     -> selfDestruct():
+        ├── Enable openclaw-panel, disable openclaw-setup
+        ├── server.close() -> giai phong port 9999
+        ├── systemctl start openclaw-panel
+        ├── systemd-run: don dep file setup
         └── process.exit(0)
+     -> Chuyen giao mat ~3 giay
 
  => Setup UI TU DONG XOA VINH VIEN sau khi hoan tat
 ```
 
-### Phase 3: He thong san sang
+### Phase 3: Management Panel
+
+Sau khi setup xong, Panel quan ly chay thuong truc:
 
 ```
-Services dang chay:
-├── openclaw.service   (port 18789, user: openclaw)
-└── caddy.service      (port 80/443 -> reverse proxy 18789)
+Truy cap Panel:
+├── Co domain:  https://<domain>:9443     (HTTPS qua Caddy)
+└── Khong domain: http://<IP>:9999        (HTTP truc tiep)
 
-Setup UI: DA TU HUY (port 9999 dong)
+Dang nhap: Xac thuc PAM (root password)
 
-Truy cap Dashboard:
-└── https://<IP-hoac-domain>?token=<gateway-token>
+Cac tab quan ly:
+├── AI Provider     — Doi provider, model, API key
+├── Fallback        — Cau hinh chuoi provider du phong
+│   ├── Fallback chain (keo tha doi thu tu uu tien)
+│   ├── Them/xoa provider voi API key rieng
+│   └── Cai dat: rate limit / phut, cooldown khi loi
+├── Kenh nhan tin   — Quan ly Telegram, Zalo tokens
+├── Gateway         — Token, ghep noi thiet bi, revoke
+│   ├── Thong tin gateway token + dashboard URL
+│   ├── Ghep noi thiet bi moi (approve pending requests)
+│   ├── Danh sach thiet bi (platform, IP, mode, trang thai)
+│   ├── Nut Revoke de huy ghep noi tung thiet bi
+│   └── Tao/doi gateway token
+├── Domain & SSL    — Cau hinh ten mien + Let's Encrypt
+│   ├── Set domain -> Caddy + Panel HTTPS :9443
+│   └── Reset IP   -> Panel HTTP :9999
+├── Chat            — Test AI chat truc tiep
+├── Cap nhat        — Update phien ban OpenClaw
+├── Doctor          — Chan doan he thong (scan/repair/deep)
+├── Backup/Restore  — Sao luu va khoi phuc cau hinh
+│   ├── Download file backup JSON
+│   └── Upload file backup de restore
+├── Trang thai      — Xem services, logs, restart
+└── Giao dien       — Chuyen dark/light mode
 ```
 
 ---
@@ -168,8 +192,10 @@ clawdbot-24-04/
 ├── install.sh                    # Script cai dat CLI (khong co Web UI)
 ├── install-gui.sh                # Script cai dat + Web Setup UI (co Docker sandbox)
 ├── install-gui-nosandbox.sh      # Script cai dat + Web Setup UI (khong Docker)
+├── install-dev.sh                # Script cai dat + Web Setup UI (dev + Docker sandbox)
 ├── setup-ui/
-│   └── server.js                 # Setup UI web server (Node.js, port 9999)
+│   ├── server.js                 # Setup UI web server (one-time wizard, port 9999)
+│   └── panel.js                  # Management Panel server (persistent, port 9999)
 ├── template.json                 # Template build Packer cho DigitalOcean
 ├── files/
 │   ├── etc/
@@ -199,49 +225,33 @@ clawdbot-24-04/
 | `/opt/openclaw.env` | Bien moi truong (API keys, tokens, version) |
 | `/home/openclaw/.openclaw/openclaw.json` | Config chinh (provider, model, gateway, browser) |
 | `/etc/config/*.json` | Config templates (dung khi setup) |
-| `/etc/caddy/Caddyfile` | Cau hinh reverse proxy |
+| `/etc/caddy/Caddyfile` | Cau hinh reverse proxy (gateway + panel) |
+| `/opt/openclaw-fallback.json` | Cau hinh fallback chain + rate limit |
+| `/opt/openclaw-doctor-history.json` | Lich su chan doan Doctor |
 
-### Config JSON mau (sau khi setup)
+### Caddyfile khi co domain
 
-```json
-{
-  "agents": {
-    "defaults": {
-      "model": {
-        "primary": "anthropic/claude-opus-4-5"
-      },
-      "maxConcurrent": 4,
-      "subagents": {
-        "maxConcurrent": 8
-      }
-    }
-  },
-  "gateway": {
-    "mode": "local",
-    "bind": "loopback",
-    "auth": {
-      "token": "<gateway-token>"
-    },
-    "trustedProxies": ["127.0.0.1", "::1"]
-  },
-  "browser": {
-    "headless": true,
-    "executablePath": "/usr/bin/google-chrome",
-    "defaultProfile": "openclaw",
-    "noSandbox": true
-  }
+```
+domain.com {
+    tls { issuer acme { ... } }
+    reverse_proxy 127.0.0.1:18789    # Gateway
+}
+
+domain.com:9443 {
+    tls { issuer acme { ... } }
+    reverse_proxy 127.0.0.1:9999     # Panel
 }
 ```
 
-### Browser Tool
+### Caddyfile khi dung IP
 
-OpenClaw co browser tool de AI co the duyet web. Cau hinh mac dinh:
-
-- **Google Chrome** cai san tai `/usr/bin/google-chrome`
-- **Headless mode**: bat (khong can man hinh)
-- **Profile**: `openclaw` (CDP managed - khong can Chrome extension)
-- **noSandbox**: bat (can thiet cho user non-root tren server)
-- **CDP port**: 18792 (noi bo, khong can mo firewall)
+```
+<IP> {
+    tls internal
+    reverse_proxy 127.0.0.1:18789    # Gateway
+}
+# Panel truy cap truc tiep: http://<IP>:9999
+```
 
 ### Ports su dung
 
@@ -249,10 +259,18 @@ OpenClaw co browser tool de AI co the duyet web. Cau hinh mac dinh:
 |------|---------|---------|
 | 22 | SSH | Rate-limited boi UFW |
 | 80 | Caddy (HTTP) | Redirect sang HTTPS |
-| 443 | Caddy (HTTPS) | Reverse proxy -> 18789 |
-| 9999 | Setup UI | Tam thoi, tu dong xoa sau setup |
+| 443 | Caddy (HTTPS) | Reverse proxy -> Gateway 18789 |
+| 9443 | Caddy (HTTPS) | Reverse proxy -> Panel 9999 (khi co domain) |
+| 9999 | Management Panel | HTTP truc tiep (khi khong co domain) |
 | 18789 | OpenClaw Gateway | Bind loopback, phia sau Caddy |
 | 18792 | Chrome CDP | Noi bo, browser tool |
+
+### Logic port Panel
+
+| Truong hop | Panel truy cap | Firewall |
+|-----------|----------------|----------|
+| Co domain | `https://<domain>:9443` | Mo 9443, dong 9999 |
+| Khong domain (IP) | `http://<IP>:9999` | Mo 9999, dong 9443 |
 
 ---
 
@@ -307,8 +325,39 @@ openclaw pairing approve zalo <code>
 
 # Devices (dashboard pairing)
 openclaw devices list --token=<gateway-token>
-openclaw devices approve <uuid> --token=<gateway-token>
+openclaw devices list --token=<gateway-token> --json
+openclaw devices approve <requestId> --token=<gateway-token>
+openclaw devices revoke --device <deviceId> --role operator --token=<gateway-token>
+
+# Doctor (chan doan he thong)
+openclaw doctor --non-interactive
+openclaw doctor --repair --yes
+openclaw doctor --deep --yes
 ```
+
+---
+
+## Multi-Provider Fallback
+
+Panel ho tro cau hinh chuoi provider du phong:
+
+```
+Primary Provider (vd: Anthropic Claude)
+  |  Goi API that bai / rate limit
+  v
+Fallback #1 (vd: OpenAI GPT-4.1)
+  |  Goi API that bai / rate limit
+  v
+Fallback #2 (vd: Google Gemini 2.5 Pro)
+  |  ...
+  v
+Tra loi loi neu tat ca provider deu that bai
+```
+
+- Moi provider co **rate limit rieng** (so request/phut)
+- Khi provider loi, **cooldown** tu dong (mac dinh 300 giay)
+- Cau hinh luu tai `/opt/openclaw-fallback.json`
+- Ho tro: Anthropic (native), Google Gemini (native), OpenAI-compatible
 
 ---
 
@@ -317,10 +366,13 @@ openclaw devices approve <uuid> --token=<gateway-token>
 - **Khong commit API key** hoac token that; chi su dung gia tri placeholder
 - **Gateway token** tu dong tao (64 ky tu hex) khi cai dat
 - **Caddy** tu dong xu ly TLS (Let's Encrypt khi co domain, self-signed khi dung IP)
-- **Setup UI tu huy** vinh vien sau khi setup xong (xoa file + dong port 9999)
+- **Setup UI tu huy** vinh vien sau khi setup xong, chuyen giao sang Management Panel (~3 giay)
+- **Panel HTTPS**: co domain -> port 9443, khong domain -> port 9999 HTTP
+- **Device approve** can dung `requestId` (UUID), khong phai `deviceId` (64-char hex)
+- **Device revoke** chi thu hoi token, device van nam trong danh sach voi trang thai "Da huy"
 - **trustedProxies** phai co ca `127.0.0.1` va `::1` (Caddy co the ket noi qua IPv6 loopback)
-- **Browser tool** can `defaultProfile: "openclaw"` de dung CDP mode (mac dinh la `"chrome"` = extension relay, khong hoat dong tren headless server)
-- Wrapper `/usr/local/bin/openclaw` chay bang `su - openclaw` de doc dung config tu `/home/openclaw/.openclaw/`
+- **Browser tool** can `defaultProfile: "openclaw"` de dung CDP mode
+- Wrapper `/usr/local/bin/openclaw` chay bang `su - openclaw` de doc dung config
 
 ---
 
