@@ -274,9 +274,7 @@ const CHANNELS = {
   telegram: { name: 'Telegram', icon: '&#x1f4e8;', envKeys: ['TELEGRAM_BOT_TOKEN'], pairCmd: 'telegram', desc: 'Tao bot tai @BotFather', canPair: true },
   discord: { name: 'Discord', icon: '&#x1f3ae;', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Tao bot tai discord.com/developers', canPair: true },
   slack: { name: 'Slack', icon: '&#x1f4bc;', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Tao app tai api.slack.com/apps', canPair: false },
-  whatsapp: { name: 'WhatsApp', icon: '&#x1f4f1;', envKeys: [], pairCmd: null, desc: 'Chay: openclaw whatsapp pair', canPair: false, cliOnly: true },
   line: { name: 'LINE', icon: '&#x1f7e2;', envKeys: ['LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET'], pairCmd: null, desc: 'Plugin — tao bot tai developers.line.biz', canPair: false },
-  signal: { name: 'Signal', icon: '&#x1f512;', envKeys: [], pairCmd: null, desc: 'Chay: openclaw signal link', canPair: false, cliOnly: true },
   matrix: { name: 'Matrix', icon: '&#x1f310;', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — cau hinh homeserver + token', canPair: false }
 };
 
@@ -531,7 +529,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 <script>
 let selectedProvider=null,selectedModel='',keyVerified=false,configuredDomain='';
 const providerData=${JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,color:v.color,category:v.category||'cloud',models:v.models})))};
-const channelData=${JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair,cliOnly:v.cliOnly||false})))};
+const channelData=${JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair})))};
 
 // Build provider grid dynamically
 (function(){
@@ -621,13 +619,8 @@ function selectChannel(el){
   el.classList.add('selected');selectedChannel=el.dataset.channel;
   selectedChannelData=channelData.find(c=>c.id===selectedChannel);
   const sec=document.getElementById('channelTokenSection');
-  if(selectedChannelData.cliOnly){
-    sec.innerHTML='<div style="padding:14px 18px;border-radius:10px;background:#fff8e1;border:1px solid #ffe082;color:#e65100;font-size:13px;font-weight:500">'+selectedChannelData.name+' chi ho tro qua CLI. '+selectedChannelData.desc+'</div>';
-    sec.style.display='block';document.getElementById('channelBtn').style.display='none';
-  }else{
-    let h='';selectedChannelData.envKeys.forEach(k=>{h+='<div class="field"><label>'+selectedChannelData.icon+' '+k+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+k+'"><p style="font-size:12px;color:#9aa0a6;margin-top:4px">'+selectedChannelData.desc+'</p></div>'});
-    sec.innerHTML=h;sec.style.display='block';document.getElementById('channelBtn').style.display='inline-block';
-  }
+  let h='';selectedChannelData.envKeys.forEach(k=>{h+='<div class="field"><label>'+selectedChannelData.icon+' '+k+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+k+'"><p style="font-size:12px;color:#9aa0a6;margin-top:4px">'+selectedChannelData.desc+'</p></div>'});
+  sec.innerHTML=h;sec.style.display='block';document.getElementById('channelBtn').style.display='inline-block';
 }
 async function saveChannels(){
   if(!selectedChannelData)return;

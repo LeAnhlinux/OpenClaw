@@ -4,7 +4,7 @@
   <img src="https://tino.vn/assets/logo/logo-mobile-light.png" alt="Logo" height="48">
 </p>
 
-Script cai dat all-in-one de deploy **OpenClaw** — AI assistant gateway tu host tren bat ky Ubuntu 24.04 VM nao. Tich hop nhieu nen tang nhan tin (Telegram, Discord, Slack, WhatsApp) voi cac nha cung cap LLM (Anthropic Claude, OpenAI, Google Gemini).
+Script cai dat all-in-one de deploy **OpenClaw** — AI assistant gateway tu host tren bat ky Ubuntu 24.04 VM nao. Tich hop nhieu nen tang nhan tin (Telegram, Discord, Slack) voi cac nha cung cap LLM (Anthropic Claude, OpenAI, Google Gemini).
 
 ## Cai dat nhanh
 
@@ -68,8 +68,7 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-de
      + Copy anthropic.json -> openclaw.json (mac dinh)
 15.  Build OpenClaw (pnpm install + build + ui)
      + Tao /usr/local/bin/openclaw wrapper
-16.  Cai dat Homebrew + wacli
-17.  Tao gateway token (random 64 hex)
+16.  Tao gateway token (random 64 hex)
 18.  Tai Setup UI (server.js) tu GitHub
      + Tao openclaw-setup.service
 18b. Tai Management Panel (panel.js) tu GitHub

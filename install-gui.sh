@@ -698,14 +698,6 @@ log "Build sandbox image..."
 cd /opt/openclaw
 bash scripts/sandbox-setup.sh || log "Canh bao: Sandbox image build that bai, se duoc build khi su dung lan dau"
 
-# =============================================================================
-# 16. Cai dat Homebrew + wacli
-# =============================================================================
-log "Cai dat Homebrew va wacli..."
-su - openclaw -c "mkdir -p ~/homebrew && curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C ~/homebrew"
-su - openclaw -c "~/homebrew/bin/brew install steipete/tap/wacli"
-su - openclaw -c "~/homebrew/bin/brew link wacli"
-
 # Cau hinh npm prefix
 mkdir -p /home/openclaw/.npm
 chown -R openclaw:openclaw /home/openclaw/.npm

@@ -475,7 +475,7 @@ cat <<EOF
 Chao mung den OpenClaw - Tro ly AI ca nhan cua ban
 
 OpenClaw la tro ly AI tu host, tra loi ban tren cac kenh ban dang dung
-(WhatsApp, Telegram, Slack, Discord, va nhieu hon nua).
+(Telegram, Slack, Discord, va nhieu hon nua).
 
 🌐 Truy cap Dashboard & Gateway:
   Dashboard URL: https://$myip?token=$gateway_token
@@ -696,14 +696,6 @@ su - openclaw -c "cd /opt/openclaw && pnpm ui:build"
 log "Build sandbox image..."
 cd /opt/openclaw
 bash scripts/sandbox-setup.sh || log "Canh bao: Sandbox image build that bai, se duoc build khi su dung lan dau"
-
-# =============================================================================
-# 16. Cai dat Homebrew + wacli
-# =============================================================================
-log "Cai dat Homebrew va wacli..."
-su - openclaw -c "mkdir -p ~/homebrew && curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C ~/homebrew"
-su - openclaw -c "~/homebrew/bin/brew install steipete/tap/wacli"
-su - openclaw -c "~/homebrew/bin/brew link wacli"
 
 # Cau hinh npm prefix
 mkdir -p /home/openclaw/.npm

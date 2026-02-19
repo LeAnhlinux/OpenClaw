@@ -365,9 +365,5 @@ bash scripts/sandbox-setup.sh || echo "Warning: Sandbox image build failed, will
 # Enable but don't start the service yet (will start after onboot configuration)
 systemctl enable openclaw
 
-su - openclaw -c "mkdir -p ~/homebrew && curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C ~/homebrew"
-su - openclaw -c "~/homebrew/bin/brew install steipete/tap/wacli"
-su - openclaw -c "~/homebrew/bin/brew link wacli"
-
 chown -R openclaw /home/openclaw/.npm
 su - openclaw -c "npm config set prefix /home/openclaw/.npm"

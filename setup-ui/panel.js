@@ -418,9 +418,7 @@ const CHANNELS = {
   telegram: { name: 'Telegram', icon: '\ud83d\udce8', envKeys: ['TELEGRAM_BOT_TOKEN'], pairCmd: 'telegram', desc: 'Tao bot tai @BotFather', canPair: true },
   discord: { name: 'Discord', icon: '\ud83c\udfae', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Tao bot tai discord.com/developers', canPair: true },
   slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Tao app tai api.slack.com/apps', canPair: false },
-  whatsapp: { name: 'WhatsApp', icon: '\ud83d\udcf1', envKeys: [], pairCmd: null, desc: 'Chay: openclaw whatsapp pair', canPair: false, cliOnly: true },
   line: { name: 'LINE', icon: '\ud83d\udfe2', envKeys: ['LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET'], pairCmd: null, desc: 'Plugin — tao bot tai developers.line.biz', canPair: false },
-  signal: { name: 'Signal', icon: '\ud83d\udd12', envKeys: [], pairCmd: null, desc: 'Chay: openclaw signal link', canPair: false, cliOnly: true },
   matrix: { name: 'Matrix', icon: '\ud83c\udf10', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — cau hinh homeserver + token', canPair: false }
 };
 
@@ -681,7 +679,7 @@ document.getElementById('f').addEventListener('submit',async e=>{
 // --- Panel HTML ---
 function panelPage() {
   const provJSON = JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,color:v.color,icon:v.icon,models:v.models,category:v.category||'cloud',extraEnvKeys:v.extraEnvKeys||[]})));
-  const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair,cliOnly:v.cliOnly||false})));
+  const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair})));
 
   return `<!DOCTYPE html><html lang="vi"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1134,11 +1132,9 @@ async function loadChannels(){
       selectedChannel=c;document.querySelectorAll('.ch-item').forEach(i=>i.classList.remove('selected'));div.classList.add('selected');
       const fields=document.getElementById('channelFields'),pb=document.getElementById('pairChannelBtn');
       document.getElementById('pairForm').style.display='none';document.getElementById('channelStatus').className='status';
-      if(c.cliOnly){fields.innerHTML='<div class="status warn" style="display:block">'+esc(c.name)+' chi ho tro qua CLI. '+esc(c.desc)+'</div>';pb.style.display='none'}
-      else{fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+esc(k)+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+esc(k)+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none';
-        // Pre-fill current values
-        if(isActive)(async()=>{const cfg=await api('/api/channel-values','POST',{channel:c.id});if(cfg.ok&&cfg.values)Object.entries(cfg.values).forEach(([k,v])=>{const el=document.getElementById('chfield-'+k);if(el&&v)el.value=v})})();
-      }
+      fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+esc(k)+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+esc(k)+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none';
+      // Pre-fill current values
+      if(isActive)(async()=>{const cfg=await api('/api/channel-values','POST',{channel:c.id});if(cfg.ok&&cfg.values)Object.entries(cfg.values).forEach(([k,v])=>{const el=document.getElementById('chfield-'+k);if(el&&v)el.value=v})})();
       document.getElementById('channelConfig').style.display='block';
     };
     list.appendChild(div);

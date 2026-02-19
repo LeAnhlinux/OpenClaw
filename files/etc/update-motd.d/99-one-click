@@ -11,7 +11,7 @@ cat <<EOF
 Welcome to OpenClaw - Your Personal AI Assistant
 
 OpenClaw is a personal AI assistant you run on your own devices. It answers you
-on the channels you already use (WhatsApp, Telegram, Slack, Discord, and more).
+on the channels you already use (Telegram, Slack, Discord, and more).
 
 🌐 Control UI & Gateway Access:
   Dashboard URL: https://$myip?token=$gateway_token
