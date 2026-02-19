@@ -2120,39 +2120,101 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // === Conversations ===
+  // === Conversations (reads from real OpenClaw session files) ===
+  const SESSIONS_DIR = '/home/openclaw/.openclaw/agents/main/sessions';
+  const SESSIONS_INDEX = SESSIONS_DIR + '/sessions.json';
+
+  // Helper: extract text from message content (string or array of {type,text})
+  function extractMsgText(content) {
+    if (typeof content === 'string') return content;
+    if (Array.isArray(content)) return content.filter(c => c && c.type === 'text').map(c => c.text || '').join(' ');
+    return '';
+  }
+  // Helper: clean user message prefix like "[Thu 2026-02-19 08:44 GMT+7]" or "[Telegram ...]"
+  function cleanUserMsg(text) {
+    return text.replace(/^\[(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s[^\]]*\]\s*/i, '').replace(/^\[Telegram\s[^\]]*\]\s*/i, '').replace(/^\[Zalo\s[^\]]*\]\s*/i, '').replace(/\n\[message_id:[^\]]*\]\s*$/i, '').trim();
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/conversations') {
     try {
-      const convDir = '/home/openclaw/.openclaw/conversations';
-      let conversations = [];
-      try {
-        if (fs.existsSync(convDir)) {
-          const files = fs.readdirSync(convDir).filter(f => f.endsWith('.json')).sort().reverse().slice(0, 50);
-          files.forEach((f, i) => {
+      let sessionsData = {}; try { sessionsData = JSON.parse(fs.readFileSync(SESSIONS_INDEX, 'utf8')); } catch {}
+      const conversations = [];
+
+      Object.entries(sessionsData).forEach(([key, sess]) => {
+        if (!sess || !sess.sessionFile) return;
+        try {
+          const channel = sess.deliveryContext?.channel || sess.origin?.surface || 'unknown';
+          const label = sess.origin?.label || '';
+          const sf = sess.sessionFile;
+          if (!fs.existsSync(sf)) return;
+
+          const lines = fs.readFileSync(sf, 'utf8').split('\n').filter(Boolean);
+          let msgCount = 0, firstUserMsg = '', firstTs = '', lastTs = '';
+          for (const line of lines) {
             try {
-              const data = JSON.parse(fs.readFileSync(`${convDir}/${f}`, 'utf8'));
-              const msgs = data.messages || data.conversation || [];
-              const firstMsg = msgs.find(m => m.role === 'user');
-              conversations.push({
-                id: f.replace('.json', ''), title: (firstMsg?.content || '').substring(0, 60) || 'Hoi thoai',
-                date: data.createdAt || data.timestamp || f.replace('.json', '').slice(0, 10),
-                messageCount: msgs.length, channel: data.channel || data.platform || ''
-              });
+              const d = JSON.parse(line);
+              if (d.type === 'message') {
+                const role = d.message?.role;
+                if (role === 'user' || role === 'assistant') {
+                  msgCount++;
+                  if (!firstTs) firstTs = d.timestamp || '';
+                  lastTs = d.timestamp || lastTs;
+                  if (role === 'user' && !firstUserMsg) {
+                    firstUserMsg = cleanUserMsg(extractMsgText(d.message?.content));
+                  }
+                }
+              }
             } catch {}
+          }
+          if (msgCount === 0) return;
+
+          const dateStr = (lastTs || firstTs || '').replace('T', ' ').substring(0, 19);
+          conversations.push({
+            id: sess.sessionId || key,
+            title: firstUserMsg.substring(0, 60) || label || 'Hoi thoai',
+            date: dateStr,
+            messageCount: msgCount,
+            channel,
+            label
           });
-        }
-      } catch {}
+        } catch {}
+      });
+
+      // Sort by date descending
+      conversations.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       return json(res, 200, { ok: true, conversations });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
   if (req.method === 'GET' && url.pathname.startsWith('/api/conversations/')) {
     try {
       const id = url.pathname.replace('/api/conversations/', '').replace(/[^a-zA-Z0-9_.-]/g, '');
-      const convDir = '/home/openclaw/.openclaw/conversations';
-      const fpath = `${convDir}/${id}.json`;
-      if (!fs.existsSync(fpath)) return json(res, 404, { ok: false, error: 'Not found' });
-      const data = JSON.parse(fs.readFileSync(fpath, 'utf8'));
-      return json(res, 200, { ok: true, messages: data.messages || data.conversation || [] });
+      // Find session file by sessionId
+      let sessionsData = {}; try { sessionsData = JSON.parse(fs.readFileSync(SESSIONS_INDEX, 'utf8')); } catch {}
+      let sessionFile = '';
+      for (const sess of Object.values(sessionsData)) {
+        if (sess?.sessionId === id && sess.sessionFile) { sessionFile = sess.sessionFile; break; }
+      }
+      // Fallback: try direct path
+      if (!sessionFile) { const tryPath = `${SESSIONS_DIR}/${id}.jsonl`; if (fs.existsSync(tryPath)) sessionFile = tryPath; }
+      if (!sessionFile || !fs.existsSync(sessionFile)) return json(res, 404, { ok: false, error: 'Not found' });
+
+      const lines = fs.readFileSync(sessionFile, 'utf8').split('\n').filter(Boolean);
+      const messages = [];
+      for (const line of lines) {
+        try {
+          const d = JSON.parse(line);
+          if (d.type === 'message') {
+            const role = d.message?.role;
+            if (role === 'user') {
+              messages.push({ role: 'user', content: cleanUserMsg(extractMsgText(d.message?.content)) });
+            } else if (role === 'assistant') {
+              const text = extractMsgText(d.message?.content);
+              if (text) messages.push({ role: 'assistant', content: text });
+            }
+          }
+        } catch {}
+      }
+      return json(res, 200, { ok: true, messages });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
