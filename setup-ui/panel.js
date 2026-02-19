@@ -20,6 +20,9 @@ const CONFIG_FILE = '/home/openclaw/.openclaw/openclaw.json';
 const CONFIG_DIR = '/etc/config';
 const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
+const PANEL_VERSION = '2026.02.19';
+const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
+const PANEL_FILE = '/opt/openclaw-panel/panel.js';
 
 const sessions = {};
 const loginAttempts = {};
@@ -464,7 +467,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 
 /* Cards */
 .card{background:linear-gradient(135deg,#ffffff 0%,#f9fafb 100%);border-radius:var(--radius);padding:32px;box-shadow:0 10px 40px rgba(0,0,0,.08);border:1px solid rgba(0,0,0,.06);margin-bottom:24px;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:.6}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:.85}
 .card-title{font-size:17px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:10px}
 .card-title .ct-icon{font-size:20px}
 
@@ -515,7 +518,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .dev-meta{font-size:12px;color:var(--text2)}
 
 /* Status */
-.status{padding:14px 18px;border-radius:10px;font-size:13px;margin-top:14px;display:none;font-weight:600}
+.status{padding:14px 18px;border-radius:10px;font-size:13px;margin-top:14px;display:none;font-weight:600;transition:all .3s ease}
 .status.ok{display:block;background:#e6f4ea;border:1px solid #34a853;color:#1e8e3e}
 .status.fail{display:block;background:#fce8e6;border:1px solid #ea4335;color:#c5221f}
 .status.loading{display:block;background:#e8f0fe;border:1px solid #4285f4;color:#1967d2}
@@ -523,7 +526,8 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 
 /* Info rows */
 .info-grid{display:grid;gap:0}
-.info-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f0f1f3}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f0f1f3;transition:background .15s ease}
+.info-row:hover{background:rgba(66,133,244,.03);padding:12px 8px;margin:0 -8px;border-radius:6px}
 .info-row:last-child{border:none}
 .info-k{font-size:13px;color:var(--text2);font-weight:600} .info-v{font-size:13px;font-weight:700;color:var(--text);text-align:right;max-width:65%;word-break:break-all}
 .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.3px}
@@ -627,9 +631,31 @@ body.dark .status.ok{background:#0a2e1a;border-color:#1a4a2a;color:#4ade80}
 body.dark .status.fail{background:#2e0a0a;border-color:#4a1a1a;color:#f87171}
 body.dark .status.loading{background:#0a1a2e;border-color:#1a2a4a;color:#60a5fa}
 body.dark .status.warn{background:#2e1a0a;border-color:#4a2a1a;color:#fbbf24}
+body.dark .info-row:hover{background:rgba(66,133,244,.05)}
+
+/* Animations */
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.section.active{animation:fadeIn .25s ease}
+
+/* Button Loading Spinner */
+.btn-loading{position:relative;color:transparent!important;pointer-events:none}
+.btn-loading::after{content:'';position:absolute;width:16px;height:16px;top:50%;left:50%;margin:-8px 0 0 -8px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+
+/* Scrollbar */
+.log-box::-webkit-scrollbar,.chat-msgs::-webkit-scrollbar{width:5px}
+.log-box::-webkit-scrollbar-track,.chat-msgs::-webkit-scrollbar-track{background:transparent}
+.log-box::-webkit-scrollbar-thumb,.chat-msgs::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px}
+body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1)}
+
+/* Empty State */
+.empty-state{text-align:center;padding:32px 20px;color:var(--text2)}
+.empty-state .empty-icon{font-size:36px;margin-bottom:12px;opacity:.5}
+.empty-state .empty-text{font-size:14px;line-height:1.6}
 
 /* Responsive */
-.hamburger{display:none;position:fixed;top:12px;left:12px;z-index:20;background:var(--sidebar-bg);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:18px;cursor:pointer}
+.hamburger{display:none;position:fixed;top:12px;left:12px;z-index:20;background:var(--sidebar-bg);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:18px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);backdrop-filter:blur(8px)}
+.hamburger:active{transform:scale(.92)}
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%);transition:transform .25s} .sidebar.open{transform:translateX(0)}
   .main{margin-left:0;padding:20px 16px;padding-top:56px}
@@ -653,6 +679,14 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .field input{width:100%;padding:12px 16px;background:#f8f9fa;border:2px solid #e8eaed;border-radius:10px;color:#1a1a2e;font-size:15px;outline:none;transition:all .3s ease} .field input:focus{border-color:#4285f4;background:#fff;box-shadow:0 0 0 4px rgba(66,133,244,.1)}
 .btn{width:100%;padding:14px;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:all .3s ease;box-shadow:0 4px 15px rgba(66,133,244,.3)} .btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.4)} .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 .err{padding:10px 14px;border-radius:8px;font-size:13px;margin-top:14px;display:none;font-weight:500;background:#fce8e6;border:1px solid #f5c6cb;color:#ea4335} .err.show{display:block}
+@media(prefers-color-scheme:dark){
+  body{background:linear-gradient(135deg,#0f172a 0%,#1a2438 50%,#1e1a2e 100%);color:#e2e8f0}
+  .card{background:linear-gradient(135deg,#1e293b,#1a2438);border-color:#334155}
+  .field input{background:#0f172a;border-color:#334155;color:#e2e8f0}
+  .field input:focus{background:#0f172a;border-color:#4285f4;box-shadow:0 0 0 4px rgba(66,133,244,.2)}
+  .field label{color:#94a3b8} .logo p{color:#94a3b8}
+  .err{background:#2e0a0a;border-color:#4a1a1a;color:#f87171}
+}
 </style></head><body>
 <div class="wrap">
   <div class="logo"><h1>OpenClaw</h1><p>Management Panel</p></div>
@@ -911,14 +945,21 @@ function panelPage() {
   <!-- TAB: Update -->
   <div class="section" id="sec-update">
     <div class="page-title">Cap nhat</div>
-    <div class="page-desc">Cap nhat phien ban OpenClaw tu GitHub.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udce6</span> Phien ban</div><div id="updateInfo" class="info-grid"></div>
+    <div class="page-desc">Cap nhat OpenClaw Gateway va Management Panel.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udce6</span> OpenClaw Gateway</div><div id="updateInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-outline" onclick="checkUpdate()">Kiem tra ban moi</button>
-        <button class="btn btn-primary" id="doUpdateBtn" style="display:none" onclick="doUpdate()">Cap nhat</button>
+        <button class="btn btn-primary" id="doUpdateBtn" style="display:none" onclick="doUpdate()">Cap nhat Gateway</button>
       </div>
       <div class="status" id="updateStatus"></div>
       <div id="updateLog" style="display:none;margin-top:14px"><div class="log-box" id="updateLogBox"></div></div>
+    </div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udda5\ufe0f</span> Management Panel</div><div id="panelUpdateInfo" class="info-grid"></div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-outline" onclick="checkPanelUpdate()">Kiem tra Panel moi</button>
+        <button class="btn btn-primary" id="doPanelUpdateBtn" style="display:none" onclick="doPanelUpdate()">Cap nhat Panel</button>
+      </div>
+      <div class="status" id="panelUpdateStatus"></div>
     </div>
   </div>
 
@@ -1075,6 +1116,7 @@ function panelPage() {
 
 <script>
 let selectedProvider=null,selectedChannel=null,availVersions=[];
+const PANEL_VER='${PANEL_VERSION}';
 const providers=${provJSON};
 const channels=${chJSON};
 
@@ -1359,6 +1401,7 @@ async function loadUpdate(){
   const d=await api('/api/current-config'),el=document.getElementById('updateInfo');
   el.innerHTML='<div class="info-row"><span class="info-k">Phien ban</span><span class="info-v">'+esc(d.version||'N/A')+'</span></div>';
   document.getElementById('doUpdateBtn').style.display='none';document.getElementById('updateLog').style.display='none';
+  loadPanelUpdate();
 }
 async function checkUpdate(){
   const st=document.getElementById('updateStatus');st.className='status loading';st.textContent='Dang kiem tra...';
@@ -1379,6 +1422,38 @@ async function doUpdate(){
   document.getElementById('updateLogBox').textContent+=d.log||'';if(d.ok)loadUpdate();
 }
 
+// === Panel Update ===
+function loadPanelUpdate(){
+  const el=document.getElementById('panelUpdateInfo');
+  el.innerHTML='<div class="info-row"><span class="info-k">Panel version</span><span class="info-v">'+esc(PANEL_VER)+'</span></div>';
+  document.getElementById('doPanelUpdateBtn').style.display='none';
+}
+async function checkPanelUpdate(){
+  const st=document.getElementById('panelUpdateStatus');st.className='status loading';st.textContent='Dang kiem tra...';
+  const d=await api('/api/panel-update-check');
+  if(d.ok){
+    document.getElementById('panelUpdateInfo').innerHTML=
+      '<div class="info-row"><span class="info-k">Hien tai</span><span class="info-v">'+esc(d.current||'-')+'</span></div>'+
+      '<div class="info-row"><span class="info-k">Moi nhat</span><span class="info-v">'+esc(d.latest||'-')+'</span></div>';
+    if(d.updateAvailable){st.className='status ok';st.textContent='Co ban moi: '+d.latest;document.getElementById('doPanelUpdateBtn').style.display='inline-flex'}
+    else{st.className='status ok';st.textContent='Panel da la ban moi nhat!'}
+  }else{st.className='status fail';st.textContent=d.error||'Loi'}
+}
+async function doPanelUpdate(){
+  if(!confirm('Cap nhat Panel? Trang se tu reload sau khi cap nhat.'))return;
+  const st=document.getElementById('panelUpdateStatus');
+  st.className='status loading';st.textContent='Dang cap nhat Panel...';
+  document.getElementById('doPanelUpdateBtn').style.display='none';
+  try{
+    const d=await api('/api/panel-update','POST');
+    if(d.ok){st.className='status ok';st.textContent='Thanh cong! Dang reload...';setTimeout(()=>{window.location.reload()},3000)}
+    else{st.className='status fail';st.textContent=d.error||'Loi cap nhat';document.getElementById('doPanelUpdateBtn').style.display='inline-flex'}
+  }catch(e){
+    st.className='status ok';st.textContent='Panel dang restart... Reload sau 5 giay.';
+    setTimeout(()=>{window.location.reload()},5000);
+  }
+}
+
 // === Status ===
 async function loadStatus(){
   const d=await api('/api/status'),el=document.getElementById('statusInfo');
@@ -1388,7 +1463,8 @@ async function loadStatus(){
   h+='<div class="info-row"><span class="info-k">RAM</span><span class="info-v">'+esc(d.memory||'-')+'</span></div>';
   h+='<div class="info-row"><span class="info-k">Disk</span><span class="info-v">'+esc(d.disk||'-')+'</span></div>';
   h+='<div class="info-row"><span class="info-k">CPU</span><span class="info-v">'+esc(d.cpu||'-')+'</span></div>';
-  h+='<div class="info-row"><span class="info-k">Version</span><span class="info-v">'+esc(d.version||'-')+'</span></div>';
+  h+='<div class="info-row"><span class="info-k">Gateway</span><span class="info-v">'+esc(d.version||'-')+'</span></div>';
+  h+='<div class="info-row"><span class="info-k">Panel</span><span class="info-v">'+esc(d.panelVersion||'-')+'</span></div>';
   const st_tok=d.token||'-';const st_masked=st_tok.length>16?st_tok.substring(0,6)+'...'+st_tok.substring(st_tok.length-6):st_tok;
   h+='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:9px">'+esc(st_masked)+'</span></div>';
   el.innerHTML=h;
@@ -1868,7 +1944,7 @@ const server = http.createServer(async (req, res) => {
       }
       let domain = '';
       try { const c = fs.readFileSync(CADDYFILE, 'utf8'); const m = c.match(/^([a-z0-9][a-z0-9.-]+\.[a-z]{2,})\s*\{/m); if (m) domain = m[1]; } catch {}
-      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getEnvValue('OPENCLAW_GATEWAY_TOKEN'), version: getEnvValue('OPENCLAW_VERSION'), serverIP: getServerIP() });
+      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getEnvValue('OPENCLAW_GATEWAY_TOKEN'), version: getEnvValue('OPENCLAW_VERSION'), panelVersion: PANEL_VERSION, serverIP: getServerIP() });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -2187,6 +2263,46 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 500, { ok: false, error: e.message, log: e.message }); }
   }
 
+  // Panel Update Check
+  if (req.method === 'GET' && url.pathname === '/api/panel-update-check') {
+    try {
+      const localVersion = PANEL_VERSION;
+      const remoteHead = safeExec(`curl -sL --max-time 10 -r 0-500 "${PANEL_UPDATE_URL}"`, 15000);
+      const m = remoteHead.match(/PANEL_VERSION\s*=\s*['"]([^'"]+)['"]/);
+      const remoteVersion = m ? m[1] : null;
+      if (!remoteVersion) return json(res, 200, { ok: true, current: localVersion, latest: null, updateAvailable: false, error: 'Khong doc duoc phien ban tu server' });
+      return json(res, 200, { ok: true, current: localVersion, latest: remoteVersion, updateAvailable: remoteVersion !== localVersion });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Panel Update
+  if (req.method === 'POST' && url.pathname === '/api/panel-update') {
+    try {
+      const tmpFile = PANEL_FILE + '.new';
+      let log = '';
+      log += 'Downloading latest panel.js...\n';
+      const dlResult = safeExec(`curl -fsSL --max-time 30 -o "${tmpFile}" "${PANEL_UPDATE_URL}" && echo "OK"`, 45000);
+      if (!dlResult.includes('OK')) { try { fs.unlinkSync(tmpFile); } catch {} return json(res, 500, { ok: false, error: 'Tai panel.js that bai', log }); }
+      log += 'Validating...\n';
+      const stat = fs.statSync(tmpFile);
+      if (stat.size < 1000) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'File tai ve qua nho (' + stat.size + ' bytes)', log }); }
+      const head = fs.readFileSync(tmpFile, 'utf8').substring(0, 300);
+      if (!head.includes('#!/usr/bin/env node') || !head.includes('OpenClaw')) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'File khong hop le', log }); }
+      log += 'Backup panel cu...\n';
+      try { fs.copyFileSync(PANEL_FILE, PANEL_FILE + '.bak'); } catch {}
+      log += 'Thay the panel.js...\n';
+      fs.renameSync(tmpFile, PANEL_FILE);
+      log += 'Restart panel service...\n';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, log, message: 'Cap nhat thanh cong! Panel dang restart...' }));
+      setTimeout(() => {
+        try { execSync('systemctl restart openclaw-panel', { timeout: 15000 }); }
+        catch { try { fs.copyFileSync(PANEL_FILE + '.bak', PANEL_FILE); execSync('systemctl restart openclaw-panel', { timeout: 15000 }); } catch {} }
+      }, 500);
+      return;
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
   // Status
   if (req.method === 'GET' && url.pathname === '/api/status') {
     try {
@@ -2201,6 +2317,7 @@ const server = http.createServer(async (req, res) => {
         disk: safeExec("df -h / | awk 'NR==2{print $3\"/\"$2\" (\"$5\" used)\"}'") || '-',
         cpu: safeExec("top -bn1 | grep 'Cpu(s)' | awk '{print $2\"%\"}'") || safeExec("nproc") + ' cores',
         version: getEnvValue('OPENCLAW_VERSION') || '-',
+        panelVersion: PANEL_VERSION,
         token: getEnvValue('OPENCLAW_GATEWAY_TOKEN') || '-'
       });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
