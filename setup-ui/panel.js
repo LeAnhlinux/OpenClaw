@@ -37,13 +37,16 @@ function recordFailedLogin(ip) {
   loginAttempts[ip].count++;
   if (loginAttempts[ip].count >= MAX_LOGIN_ATTEMPTS) loginAttempts[ip].blockedUntil = Date.now() + BLOCK_DURATION;
 }
+function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function verifyPassword(username, password) {
   try {
+    if (!/^[a-zA-Z0-9_-]{1,32}$/.test(username)) return false;
     const out = execSync(`echo '${password.replace(/'/g, "'\\''")}' | su -c 'echo __AUTH_OK__' ${username} 2>/dev/null`, { timeout: 5000, stdio: 'pipe' }).toString();
     return out.includes('__AUTH_OK__');
   } catch { return false; }
 }
 function createSession() { const t = crypto.randomBytes(32).toString('hex'); sessions[t] = { created: Date.now() }; return t; }
+setInterval(() => { const now = Date.now(); for (const [k, s] of Object.entries(sessions)) { if (now - s.created > SESSION_TTL) delete sessions[k]; } for (const [k, a] of Object.entries(loginAttempts)) { if (a.blockedUntil && now > a.blockedUntil) delete loginAttempts[k]; } }, 5 * 60 * 1000);
 function isValidSession(req) {
   const m = (req.headers.cookie || '').match(/panel_session=([a-f0-9]{64})/);
   if (!m) return false; const s = sessions[m[1]]; if (!s) return false;
@@ -687,8 +690,11 @@ function panelPage() {
     <div class="nav-item" onclick="showTab('status',this)"><span class="nav-icon">\ud83d\udfe2</span>Status</div>
   </nav>
   <div class="sidebar-footer" style="display:flex;align-items:center;justify-content:space-between">
-    <span>OpenClaw Panel v2.0</span>
-    <button onclick="toggleDark()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:16px" title="Dark Mode">\ud83c\udf19</button>
+    <span>OpenClaw Panel</span>
+    <div style="display:flex;gap:8px">
+      <button onclick="toggleDark()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:16px" title="Dark/Light">\ud83c\udf19</button>
+      <button onclick="doLogout()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:14px" title="Dang xuat">\ud83d\udeaa</button>
+    </div>
   </div>
 </div>
 
@@ -1018,20 +1024,23 @@ function showTab(name,el){
   const loaders={provider:loadProvider,fallback:loadFallback,channels:loadChannels,gateway:loadGateway,domain:loadDomain,update:loadUpdate,
     chat:loadChat,analytics:loadAnalytics,history:loadHistory,users:loadUsers,backup:()=>{},config:loadConfigEditor,qr:loadQR,
     doctor:loadDoctor,status:()=>{loadStatus();loadLogs()}};
-  if(loaders[name])loaders[name]();
+  if(loaders[name]){if(el)el.style.opacity='.6';Promise.resolve(loaders[name]()).finally(()=>{if(el)el.style.opacity='1'})}
 }
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 async function api(path,method,body){
   const o={method:method||'GET',headers:{'Content-Type':'application/json'}};
   if(body)o.body=JSON.stringify(body);
-  return (await fetch(path,o)).json();
+  try{const r=await fetch(path,o);if(r.status===401){location.href='/';return{ok:false,error:'Phien het han'}}return await r.json()}catch(e){return{ok:false,error:'Loi ket noi: '+e.message}}
 }
+async function doLogout(){await api('/api/logout','POST');location.href='/'}
+function toggleTokenVis(){const el=document.getElementById('tokenDisplay');if(!el||!window._gwToken)return;window._gwTokenVis=!window._gwTokenVis;if(window._gwTokenVis)el.textContent=window._gwToken;else{const t=window._gwToken;el.textContent=t.substring(0,8)+'\\u2022'.repeat(8)+t.substring(t.length-8)}}
 
 // === Provider ===
 async function loadProvider(){
   const d=await api('/api/current-config');
   const el=document.getElementById('currentProvider');
   el.innerHTML=d.provider
-    ?'<div class="info-row"><span class="info-k">Provider</span><span class="info-v">'+d.providerName+'</span></div><div class="info-row"><span class="info-k">Model</span><span class="info-v">'+d.model+'</span></div>'
+    ?'<div class="info-row"><span class="info-k">Provider</span><span class="info-v">'+esc(d.providerName)+'</span></div><div class="info-row"><span class="info-k">Model</span><span class="info-v">'+esc(d.model)+'</span></div>'
     :'<div class="info-row"><span class="info-v" style="color:var(--warn)">Chua cau hinh</span></div>';
   const list=document.getElementById('providerList');list.innerHTML='';
   const cats={cloud:{label:'\\u2601\\ufe0f Cloud Providers',items:[]},gateway:{label:'\\ud83d\\udd00 Gateway / Proxy',items:[]},local:{label:'\\ud83d\\udda5\\ufe0f Self-hosted',items:[]}};
@@ -1075,7 +1084,7 @@ async function applyProvider(){
 async function loadChannels(){
   const d=await api('/api/current-config');
   const el=document.getElementById('currentChannels');
-  let h='';if(d.channels&&d.channels.length>0)d.channels.forEach(c=>{h+='<div class="info-row"><span class="info-k">'+c.name+'</span><span class="info-v"><span class="badge bg-green">Active</span></span></div>'});
+  let h='';if(d.channels&&d.channels.length>0)d.channels.forEach(c=>{h+='<div class="info-row"><span class="info-k">'+esc(c.name)+'</span><span class="info-v"><span class="badge bg-green">Active</span></span></div>'});
   else h='<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co kenh nao</span></div>';
   el.innerHTML=h;
   const list=document.getElementById('channelList');list.innerHTML='';
@@ -1087,8 +1096,11 @@ async function loadChannels(){
       selectedChannel=c;document.querySelectorAll('.ch-item').forEach(i=>i.classList.remove('selected'));div.classList.add('selected');
       const fields=document.getElementById('channelFields'),pb=document.getElementById('pairChannelBtn');
       document.getElementById('pairForm').style.display='none';document.getElementById('channelStatus').className='status';
-      if(c.cliOnly){fields.innerHTML='<div class="status warn" style="display:block">'+c.name+' chi ho tro qua CLI. '+c.desc+'</div>';pb.style.display='none'}
-      else{fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+k+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+k+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none'}
+      if(c.cliOnly){fields.innerHTML='<div class="status warn" style="display:block">'+esc(c.name)+' chi ho tro qua CLI. '+esc(c.desc)+'</div>';pb.style.display='none'}
+      else{fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+esc(k)+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+esc(k)+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none';
+        // Pre-fill current values
+        if(isActive)(async()=>{const cfg=await api('/api/channel-values','POST',{channel:c.id});if(cfg.ok&&cfg.values)Object.entries(cfg.values).forEach(([k,v])=>{const el=document.getElementById('chfield-'+k);if(el&&v)el.value=v})})();
+      }
       document.getElementById('channelConfig').style.display='block';
     };
     list.appendChild(div);
@@ -1113,8 +1125,10 @@ async function pairChannel(){
 // === Gateway ===
 async function loadGateway(){
   const d=await api('/api/current-config'),el=document.getElementById('gatewayInfo'),host=d.domain||d.serverIP||'localhost';
-  const dashUrl='https://'+host+'?token='+d.token;
-  el.innerHTML='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:10px">'+d.token+'</span></div><div class="info-row"><span class="info-k">Dashboard</span><span class="info-v"><a href="'+dashUrl+'" target="_blank" style="color:var(--accent);text-decoration:none">https://'+host+'</a></span></div>';
+  const dashUrl='https://'+esc(host)+'?token='+esc(d.token);
+  const maskedToken=d.token?(d.token.substring(0,8)+'\\u2022'.repeat(8)+d.token.substring(d.token.length-8)):'';
+  el.innerHTML='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:10px"><span id="tokenDisplay">'+esc(maskedToken)+'</span> <button onclick="toggleTokenVis()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--accent)" title="Hien/An">\\ud83d\\udc41</button></span></div><div class="info-row"><span class="info-k">Dashboard</span><span class="info-v"><a href="'+dashUrl+'" target="_blank" style="color:var(--accent);text-decoration:none">https://'+esc(host)+'</a></span></div>';
+  window._gwToken=d.token;window._gwTokenVis=false;
   document.getElementById('pairDashboardUrl').textContent=dashUrl;
   loadDevices();
 }
@@ -1128,11 +1142,11 @@ async function loadDevices(){
       const badge=dev.status==='paired'?'bg-green':dev.status==='pending'?'bg-blue':'bg-red';
       const label=dev.status==='paired'?'Da ghep':dev.status==='revoked'?'Da huy':'Cho duyet';
       const modeIcon=dev.mode==='cli'?'\\uD83D\\uDDA5\\uFE0F':'\\uD83C\\uDF10';
-      const info=dev.platform+(dev.ip?' &middot; '+dev.ip:'')+(dev.mode?' &middot; '+modeIcon+' '+dev.mode:'');
+      const info=esc(dev.platform)+(dev.ip?' &middot; '+esc(dev.ip):'')+(dev.mode?' &middot; '+modeIcon+' '+esc(dev.mode):'');
       h+='<div class="dev-item">';
-      h+='<div class="dev-info"><div class="dev-name">'+(dev.name||dev.uuid||'Unknown')+' <span class="badge '+badge+'" style="font-size:10px;padding:2px 8px;vertical-align:middle">'+label+'</span></div>';
+      h+='<div class="dev-info"><div class="dev-name">'+esc(dev.name||dev.uuid||'Unknown')+' <span class="badge '+badge+'" style="font-size:10px;padding:2px 8px;vertical-align:middle">'+label+'</span></div>';
       h+='<div class="dev-meta">'+info+'</div></div>';
-      if(dev.status==='paired'){h+='<button class="btn btn-sm btn-danger" data-did="'+dev.uuid+'" data-role="'+(dev.role||'operator')+'" onclick="revokeDevice(this.dataset.did,this.dataset.role,this)">Revoke</button>'}
+      if(dev.status==='paired'){h+='<button class="btn btn-sm btn-danger" data-did="'+esc(dev.uuid)+'" data-role="'+esc(dev.role||'operator')+'" onclick="revokeDevice(this.dataset.did,this.dataset.role,this)">Revoke</button>'}
       h+='</div>';
     });
     el.innerHTML=h;
@@ -1158,8 +1172,9 @@ async function pairDevice(){
   }catch(e){st.className='status fail';st.textContent='Loi: '+e.message;btn.disabled=false;btn.textContent='Ghep noi thiet bi'}
 }
 async function generateToken(){
+  if(!confirm('Tao token moi se lam mat ket noi tat ca thiet bi hien tai. Ban chac chan?'))return;
   const st=document.getElementById('gatewayStatus');st.className='status loading';st.textContent='Dang tao...';
-  const d=await api('/api/gateway-token','POST',{action:'generate'});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Token moi: '+d.token:d.error||'Loi';if(d.ok)loadGateway();
+  const d=await api('/api/gateway-token','POST',{action:'generate'});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Token moi da tao! Tat ca thiet bi can ghep noi lai.':d.error||'Loi';if(d.ok)loadGateway();
 }
 async function applyCustomToken(){
   const st=document.getElementById('gatewayStatus'),t=document.getElementById('customToken').value.trim();
@@ -1172,7 +1187,7 @@ async function applyCustomToken(){
 // === Domain ===
 async function loadDomain(){
   const d=await api('/api/current-config'),el=document.getElementById('domainInfo');
-  el.innerHTML='<div class="info-row"><span class="info-k">Domain/IP</span><span class="info-v">'+(d.domain||d.serverIP)+'</span></div><div class="info-row"><span class="info-k">SSL</span><span class="info-v">'+(d.domain?"Let\\'s Encrypt":'Self-signed')+'</span></div>';
+  el.innerHTML='<div class="info-row"><span class="info-k">Domain/IP</span><span class="info-v">'+esc(d.domain||d.serverIP)+'</span></div><div class="info-row"><span class="info-k">SSL</span><span class="info-v">'+(d.domain?"Let\\'s Encrypt":'Self-signed')+'</span></div>';
 }
 async function saveDomain(){
   const st=document.getElementById('domainStatus'),dm=document.getElementById('domainInput').value.trim(),em=document.getElementById('domainEmail').value.trim();
@@ -1181,6 +1196,7 @@ async function saveDomain(){
   const d=await api('/api/domain','POST',{domain:dm,email:em});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'SSL da cau hinh cho '+dm+'!':d.error||'Loi';if(d.ok)setTimeout(loadDomain,1500);
 }
 async function resetDomainToIP(){
+  if(!confirm('Chuyen ve IP se xoa cau hinh SSL. Ban chac chan?'))return;
   const st=document.getElementById('domainStatus');st.className='status loading';st.textContent='Chuyen ve IP...';
   const d=await api('/api/domain','POST',{resetToIP:true});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da chuyen ve IP!':d.error||'Loi';if(d.ok)setTimeout(loadDomain,1500);
 }
@@ -1188,7 +1204,7 @@ async function resetDomainToIP(){
 // === Update ===
 async function loadUpdate(){
   const d=await api('/api/current-config'),el=document.getElementById('updateInfo');
-  el.innerHTML='<div class="info-row"><span class="info-k">Phien ban</span><span class="info-v">'+(d.version||'N/A')+'</span></div>';
+  el.innerHTML='<div class="info-row"><span class="info-k">Phien ban</span><span class="info-v">'+esc(d.version||'N/A')+'</span></div>';
   document.getElementById('doUpdateBtn').style.display='none';document.getElementById('updateLog').style.display='none';
 }
 async function checkUpdate(){
@@ -1200,7 +1216,9 @@ async function checkUpdate(){
   }else{st.className='status fail';st.textContent=d.error||'Loi'}
 }
 async function doUpdate(){
-  const st=document.getElementById('updateStatus'),v=availVersions.length>0?availVersions[0]:'latest';
+  const v=availVersions.length>0?availVersions[0]:'latest';
+  if(!confirm('Cap nhat len '+v+'? OpenClaw se tam dung trong qua trinh nay.'))return;
+  const st=document.getElementById('updateStatus');
   st.className='status loading';st.textContent='Dang cap nhat '+v+'...';
   document.getElementById('updateLog').style.display='block';document.getElementById('updateLogBox').textContent='Bat dau...\\n';
   const d=await api('/api/update','POST',{version:v});
@@ -1212,13 +1230,14 @@ async function doUpdate(){
 async function loadStatus(){
   const d=await api('/api/status'),el=document.getElementById('statusInfo');
   if(!d.ok){el.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--danger)">Loi</span></div>';return}
-  let h='';(d.services||[]).forEach(s=>{h+='<div class="info-row"><span class="info-k">'+s.name+'</span><span class="info-v"><span class="badge '+(s.active?'bg-green':'bg-red')+'">'+(s.active?'Running':'Stopped')+'</span></span></div>'});
-  h+='<div class="info-row" style="border-top:2px solid #f0f1f3;margin-top:4px;padding-top:12px"><span class="info-k">Uptime</span><span class="info-v">'+(d.uptime||'-')+'</span></div>';
-  h+='<div class="info-row"><span class="info-k">RAM</span><span class="info-v">'+(d.memory||'-')+'</span></div>';
-  h+='<div class="info-row"><span class="info-k">Disk</span><span class="info-v">'+(d.disk||'-')+'</span></div>';
-  h+='<div class="info-row"><span class="info-k">CPU</span><span class="info-v">'+(d.cpu||'-')+'</span></div>';
-  h+='<div class="info-row"><span class="info-k">Version</span><span class="info-v">'+(d.version||'-')+'</span></div>';
-  h+='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:9px">'+(d.token||'-')+'</span></div>';
+  let h='';(d.services||[]).forEach(s=>{h+='<div class="info-row"><span class="info-k">'+esc(s.name)+'</span><span class="info-v"><span class="badge '+(s.active?'bg-green':'bg-red')+'">'+(s.active?'Running':'Stopped')+'</span></span></div>'});
+  h+='<div class="info-row" style="border-top:2px solid #f0f1f3;margin-top:4px;padding-top:12px"><span class="info-k">Uptime</span><span class="info-v">'+esc(d.uptime||'-')+'</span></div>';
+  h+='<div class="info-row"><span class="info-k">RAM</span><span class="info-v">'+esc(d.memory||'-')+'</span></div>';
+  h+='<div class="info-row"><span class="info-k">Disk</span><span class="info-v">'+esc(d.disk||'-')+'</span></div>';
+  h+='<div class="info-row"><span class="info-k">CPU</span><span class="info-v">'+esc(d.cpu||'-')+'</span></div>';
+  h+='<div class="info-row"><span class="info-k">Version</span><span class="info-v">'+esc(d.version||'-')+'</span></div>';
+  const st_tok=d.token||'-';const st_masked=st_tok.length>16?st_tok.substring(0,6)+'...'+st_tok.substring(st_tok.length-6):st_tok;
+  h+='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:9px">'+esc(st_masked)+'</span></div>';
   el.innerHTML=h;
 }
 async function loadLogs(){const d=await api('/api/logs');document.getElementById('logsBox').textContent=d.ok?d.logs:'Loi'}
@@ -1296,20 +1315,26 @@ async function loadChat(){
   const d=await api('/api/current-config');
   document.getElementById('chatProviderLabel').textContent=d.providerName?(d.providerName+' — '+d.model):'AI Chat';
 }
+let chatSending=false;
 async function sendChat(){
+  if(chatSending)return;
   const inp=document.getElementById('chatInput'),msg=inp.value.trim();if(!msg)return;
-  inp.value='';const box=document.getElementById('chatMsgs');
+  chatSending=true;inp.value='';inp.disabled=true;
+  const sendBtn=document.querySelector('.chat-input button');if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='Dang gui...'}
+  const box=document.getElementById('chatMsgs');
   const userDiv=document.createElement('div');userDiv.className='chat-msg user';userDiv.textContent=msg;box.appendChild(userDiv);
   chatHistory.push({role:'user',content:msg});
   const aiDiv=document.createElement('div');aiDiv.className='chat-msg ai';aiDiv.textContent='Dang suy nghi...';box.appendChild(aiDiv);
   box.scrollTop=box.scrollHeight;
   const t0=Date.now();
   try{const d=await api('/api/chat','POST',{message:msg,history:chatHistory.slice(-20)});
-    if(d.ok){aiDiv.innerHTML=d.reply.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>')+'<div class="meta">'+(d.tokens?d.tokens+' tokens | ':'')+((Date.now()-t0)/1000).toFixed(1)+'s'+(d.model?' | '+d.model:'')+'</div>';
+    if(d.ok){aiDiv.innerHTML=esc(d.reply).replace(/\\n/g,'<br>')+'<div class="meta">'+(d.tokens?d.tokens+' tokens | ':'')+((Date.now()-t0)/1000).toFixed(1)+'s'+(d.model?' | '+esc(d.model):'')+'</div>';
       chatHistory.push({role:'assistant',content:d.reply});
       document.getElementById('chatMeta').textContent='Messages: '+chatHistory.length;
     }else{aiDiv.textContent='Loi: '+(d.error||'Khong the ket noi');}
   }catch(e){aiDiv.textContent='Loi: '+e.message;}
+  chatSending=false;inp.disabled=false;inp.focus();
+  if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Gui'}
   box.scrollTop=box.scrollHeight;
 }
 function clearChat(){chatHistory=[];document.getElementById('chatMsgs').innerHTML='<div class="chat-msg ai">Chat da xoa. Hay gui tin nhan moi.</div>';document.getElementById('chatMeta').textContent=''}
@@ -1319,10 +1344,10 @@ async function loadAnalytics(){
   const d=await api('/api/analytics');
   const ov=document.getElementById('analyticsOverview');
   if(!d.ok){ov.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co du lieu</span></div>';return}
-  ov.innerHTML='<div class="info-row"><span class="info-k">Tong request</span><span class="info-v">'+d.totalRequests+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Tong token</span><span class="info-v">'+(d.totalTokens||0).toLocaleString()+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Hom nay</span><span class="info-v">'+d.todayRequests+' req</span></div>'+
-    '<div class="info-row"><span class="info-k">Provider</span><span class="info-v">'+(d.provider||'-')+'</span></div>';
+  ov.innerHTML='<div class="info-row"><span class="info-k">Tong request</span><span class="info-v">'+esc(String(d.totalRequests))+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Tong token</span><span class="info-v">'+esc(String((d.totalTokens||0).toLocaleString()))+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Hom nay</span><span class="info-v">'+esc(String(d.todayRequests))+' req</span></div>'+
+    '<div class="info-row"><span class="info-k">Provider</span><span class="info-v">'+esc(d.provider||'-')+'</span></div>';
   const chart=document.getElementById('analyticsChart'),list=document.getElementById('analyticsList');
   chart.innerHTML='';list.innerHTML='';
   if(d.daily&&d.daily.length>0){
@@ -1344,7 +1369,7 @@ async function loadHistory(){
   el.innerHTML='';
   d.conversations.forEach((c,i)=>{
     const div=document.createElement('div');div.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s';
-    div.innerHTML='<span style="font-size:18px">\\ud83d\\udcac</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+(c.title||'Hoi thoai #'+(i+1))+'</div><div style="font-size:11px;color:var(--text2)">'+(c.date||'')+' \\u2014 '+(c.messageCount||0)+' tin nhan'+(c.channel?' \\u2014 '+c.channel:'')+'</div></div>';
+    div.innerHTML='<span style="font-size:18px">\\ud83d\\udcac</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(c.title||'Hoi thoai #'+(i+1))+'</div><div style="font-size:11px;color:var(--text2)">'+esc(c.date||'')+' \\u2014 '+(c.messageCount||0)+' tin nhan'+(c.channel?' \\u2014 '+esc(c.channel):'')+'</div></div>';
     div.onmouseover=()=>{div.style.borderColor='var(--accent)'};div.onmouseout=()=>{div.style.borderColor='var(--border)'};
     div.onclick=()=>showConversation(c.id,c.title||'Hoi thoai #'+(i+1));
     el.appendChild(div);
@@ -1369,8 +1394,8 @@ async function loadUsers(){
   const el=document.getElementById('securityInfo');
   if(!d.ok){el.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Loi</span></div>';return}
   el.innerHTML='<div class="info-row"><span class="info-k">UFW Firewall</span><span class="info-v"><span class="badge '+(d.ufw?'bg-green':'bg-red')+'">'+(d.ufw?'Active':'Inactive')+'</span></span></div>'+
-    '<div class="info-row"><span class="info-k">SSH</span><span class="info-v">'+(d.sshPort||22)+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Login IP hien tai</span><span class="info-v">'+(d.clientIP||'-')+'</span></div>';
+    '<div class="info-row"><span class="info-k">SSH</span><span class="info-v">'+esc(String(d.sshPort||22))+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Login IP hien tai</span><span class="info-v">'+esc(d.clientIP||'-')+'</span></div>';
 }
 async function changePassword(){
   const st=document.getElementById('passStatus'),o=document.getElementById('oldPass').value,n=document.getElementById('newPass').value,c=document.getElementById('confirmPass').value;
@@ -1440,15 +1465,71 @@ async function saveConfigFile(type){
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu! Restart OK.':d.error||'Loi';
 }
 
-// === QR Code ===
+// === QR Code (local SVG generation — no external API) ===
+function makeQR(text){
+  // Minimal QR Code generator — alphanumeric mode, version auto
+  // Uses a simple encoding: converts text to a data URL then renders as squares
+  const size=180;
+  // Create QR using canvas-free approach: encode as a grid pattern
+  const mods=qrEncode(text);
+  if(!mods||!mods.length)return '<div style="color:var(--danger);font-size:13px">QR Error</div>';
+  const n=mods.length,cellSize=Math.floor(size/n),pad=Math.floor((size-cellSize*n)/2);
+  let svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">';
+  svg+='<rect width="'+size+'" height="'+size+'" fill="#fff"/>';
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(mods[y][x])svg+='<rect x="'+(pad+x*cellSize)+'" y="'+(pad+y*cellSize)+'" width="'+cellSize+'" height="'+cellSize+'" fill="#000"/>';
+  svg+='</svg>';return svg;
+}
+// Minimal QR encoder (version 1-6, byte mode, error correction L)
+function qrEncode(text){
+  const data=[];for(let i=0;i<text.length;i++)data.push(text.charCodeAt(i));
+  // Version selection
+  const caps=[0,17,32,53,78,106,134];
+  let ver=1;for(;ver<=6;ver++)if(data.length<=caps[ver])break;
+  if(ver>6)ver=6;
+  const size=ver*4+17;
+  const grid=Array.from({length:size},()=>Array(size).fill(null));
+  const mask=Array.from({length:size},()=>Array(size).fill(false));
+  // Finder patterns
+  function finderPattern(r,c){for(let y=-1;y<=7;y++)for(let x=-1;x<=7;x++){const ry=r+y,cx=c+x;if(ry>=0&&ry<size&&cx>=0&&cx<size){if(y===-1||y===7||x===-1||x===7)grid[ry][cx]=0;else if(y>=0&&y<=6&&x>=0&&x<=6){if(y===0||y===6||x===0||x===6)grid[ry][cx]=1;else if(y>=2&&y<=4&&x>=2&&x<=4)grid[ry][cx]=1;else grid[ry][cx]=0;}mask[ry][cx]=true;}}}
+  finderPattern(0,0);finderPattern(0,size-7);finderPattern(size-7,0);
+  // Timing patterns
+  for(let i=8;i<size-8;i++){if(grid[6][i]===null){grid[6][i]=i%2===0?1:0;mask[6][i]=true}if(grid[i][6]===null){grid[i][6]=i%2===0?1:0;mask[i][6]=true}}
+  // Alignment (ver>=2)
+  if(ver>=2){const pos=[6,ver*4+10];for(const ay of pos)for(const ax of pos){if(mask[ay]&&mask[ay][ax])continue;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const ry=ay+dy,cx=ax+dx;if(ry>=0&&ry<size&&cx>=0&&cx<size&&!mask[ry][cx]){grid[ry][cx]=(Math.abs(dy)===2||Math.abs(dx)===2||(!dy&&!dx))?1:0;mask[ry][cx]=true;}}}}
+  // Format info area
+  for(let i=0;i<9;i++){if(i<size&&!mask[8]){if(!mask[8][i]){grid[8][i]=0;mask[8][i]=true;}if(i<8&&!mask[i]){if(!mask[i][8]){grid[i][8]=0;mask[i][8]=true;}}}
+  if(i<8){const ri=size-1-i;if(ri>=0&&ri<size&&!mask[ri][8]){grid[ri][8]=0;mask[ri][8]=true;}if(8<size&&i<size-8&&!mask[8][size-1-i]){grid[8][size-1-i]=0;mask[8][size-1-i]=true;}}}
+  grid[size-8][8]=1;mask[size-8][8]=true;
+  // Encode data
+  const totalBits=caps[ver]*8;const bits=[];
+  bits.push(0,1,0,0);// byte mode
+  const lenBits=ver<=9?8:16;const len=data.length;for(let i=lenBits-1;i>=0;i--)bits.push((len>>i)&1);
+  for(const b of data)for(let i=7;i>=0;i--)bits.push((b>>i)&1);
+  // Terminator + padding
+  const termLen=Math.min(4,totalBits-bits.length);for(let i=0;i<termLen;i++)bits.push(0);
+  while(bits.length%8!==0)bits.push(0);
+  const pads=[0xEC,0x11];let pi=0;while(bits.length<totalBits){const p=pads[pi%2];for(let i=7;i>=0;i--)bits.push((p>>i)&1);pi++;}
+  // Place data
+  let bitIdx=0;let upward=true;for(let col=size-1;col>=1;col-=2){if(col===6)col=5;
+    const rows=upward?Array.from({length:size},(_,i)=>size-1-i):Array.from({length:size},(_,i)=>i);
+    for(const row of rows){for(let c=0;c<2;c++){const x=col-c;if(!mask[row][x]){grid[row][x]=bitIdx<bits.length?bits[bitIdx]:0;bitIdx++;}}}upward=!upward;}
+  // Mask pattern 0: (row+col)%2==0
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){if(!mask[y][x]){grid[y][x]^=((y+x)%2===0)?1:0;}}
+  // Format info (mask 0, EC level L = 01)
+  const fmtBits=[1,1,1,0,0,1,0,0,1,0,1,0,1,0,1];
+  for(let i=0;i<6;i++)grid[8][i]=fmtBits[i];grid[8][7]=fmtBits[6];grid[8][8]=fmtBits[7];grid[7][8]=fmtBits[8];
+  for(let i=0;i<6;i++)grid[5-i][8]=fmtBits[9+i];
+  for(let i=0;i<8;i++)grid[8][size-8+i]=fmtBits[i];
+  for(let i=0;i<7;i++)grid[size-1-i][8]=fmtBits[8+i];
+  return grid;
+}
 async function loadQR(){
   const d=await api('/api/current-config');
   const host=d.domain||d.serverIP||'localhost',token=d.token||'';
   const url='https://'+host+'?token='+token;
   document.getElementById('qrUrl').textContent=url;
-  // Simple QR code using API
   const canvas=document.getElementById('qrCanvas');
-  canvas.innerHTML='<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data='+encodeURIComponent(url)+'" alt="QR" style="border-radius:8px;width:180px;height:180px">';
+  canvas.innerHTML=makeQR(url);
 }
 
 // === Doctor ===
@@ -1483,7 +1564,7 @@ async function loadDoctor(){
       const s=item.summary||{};
       const resultColor=s.fail>0?'var(--danger)':s.warn>0?'var(--warn)':'var(--accent2)';
       const resultText=s.total>0?(s.pass+' pass, '+s.warn+' warn, '+s.fail+' fail'):(item.duration||'-');
-      h+='<div class="doc-hist-item"><span class="dh-date">'+(item.date||'-')+'</span><span class="dh-mode">'+modeLabel+'</span><span class="dh-result" style="color:'+resultColor+'">'+resultText+'</span></div>';
+      h+='<div class="doc-hist-item"><span class="dh-date">'+esc(item.date||'-')+'</span><span class="dh-mode">'+esc(modeLabel)+'</span><span class="dh-result" style="color:'+resultColor+'">'+esc(resultText)+'</span></div>';
     });
     el.innerHTML=h;
     // Show last run result
@@ -1501,7 +1582,7 @@ function renderDoctorResult(summary,output){
     +'<div class="doc-stat"><div class="ds-num" style="color:#ef4444">'+(summary.fail||0)+'</div><div class="ds-label">Fail</div></div>';
   const ch=document.getElementById('doctorChecks');
   if(summary.checks&&summary.checks.length>0){
-    ch.innerHTML=summary.checks.map(c=>'<div class="doc-check '+c.status+'"><span class="dc-icon">'+(c.status==='pass'?'\\u2705':c.status==='warn'?'\\u26a0\\ufe0f':'\\u274c')+'</span><span class="dc-text">'+c.name+'</span><span class="dc-detail">'+c.detail+'</span></div>').join('');
+    ch.innerHTML=summary.checks.map(c=>'<div class="doc-check '+c.status+'"><span class="dc-icon">'+(c.status==='pass'?'\\u2705':c.status==='warn'?'\\u26a0\\ufe0f':'\\u274c')+'</span><span class="dc-text">'+esc(c.name)+'</span><span class="dc-detail">'+esc(c.detail)+'</span></div>').join('');
   }else ch.innerHTML='';
   if(output){
     document.getElementById('doctorOutputCard').style.display='block';
@@ -1539,6 +1620,13 @@ function toggleDark(){
 }
 (function(){try{if(localStorage.getItem('oc-dark')==='1')document.body.classList.add('dark')}catch{}})();
 
+// Mobile: close sidebar on outside click
+document.addEventListener('click',function(e){if(window.innerWidth<=768){const sb=document.querySelector('.sidebar');const hb=document.querySelector('.hamburger');if(sb&&sb.classList.contains('open')&&!sb.contains(e.target)&&e.target!==hb)sb.classList.remove('open')}});
+// Auto-refresh status tab every 30s
+let statusInterval=null;
+const origShowTab=showTab;
+showTab=function(name,el){origShowTab(name,el);if(statusInterval){clearInterval(statusInterval);statusInterval=null}if(name==='status')statusInterval=setInterval(()=>{loadStatus();loadLogs()},30000)};
+
 showTab('provider',document.querySelector('.nav-item'));
 </script></body></html>`;
 }
@@ -1573,6 +1661,14 @@ const server = http.createServer(async (req, res) => {
         return json(res, 401, { ok: false, error: `Sai mat khau. Con ${Math.max(0, rem)} lan.` });
       }
     } catch { return json(res, 400, { ok: false, error: 'Request loi' }); }
+  }
+
+  // Logout
+  if (req.method === 'POST' && url.pathname === '/api/logout') {
+    const m = (req.headers.cookie || '').match(/panel_session=([a-f0-9]{64})/);
+    if (m && sessions[m[1]]) delete sessions[m[1]];
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': 'panel_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0' });
+    return res.end(JSON.stringify({ ok: true }));
   }
 
   // Auth check
@@ -1704,6 +1800,17 @@ const server = http.createServer(async (req, res) => {
       for (const [key, val] of Object.entries(body.tokens || {})) { if (ch.envKeys.includes(key) && val) setEnvValue(key, val); }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Channel Values (pre-fill for active channels)
+  if (req.method === 'POST' && url.pathname === '/api/channel-values') {
+    try {
+      const body = await parseBody(req); const ch = CHANNELS[body.channel];
+      if (!ch) return json(res, 400, { ok: false, error: 'Channel khong hop le' });
+      const values = {};
+      ch.envKeys.forEach(k => { const v = getEnvValue(k); if (v && !v.startsWith('#')) values[k] = v.substring(0, 4) + '***' + v.substring(v.length - 4); });
+      return json(res, 200, { ok: true, values });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -2014,6 +2121,7 @@ const server = http.createServer(async (req, res) => {
       if (data.config?.gateway?.auth?.token) data.config.gateway.auth.token = '***REDACTED***';
       try { const env = fs.readFileSync(ENV_FILE, 'utf8'); data.env = env.replace(/^(.*(?:KEY|TOKEN|SECRET|PASSWORD).*)=(.+)$/gm, '$1=***REDACTED***'); } catch { data.env = ''; }
       try { data.caddyfile = fs.readFileSync(CADDYFILE, 'utf8'); } catch { data.caddyfile = ''; }
+      try { data.fallback = JSON.parse(fs.readFileSync(FALLBACK_FILE, 'utf8')); if (data.fallback?.chain) data.fallback.chain.forEach(c => { if (c.apiKey) c.apiKey = '***REDACTED***'; }); } catch { data.fallback = null; }
       return json(res, 200, { ok: true, data });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
@@ -2038,6 +2146,10 @@ const server = http.createServer(async (req, res) => {
           const m = line.match(/^([A-Z_]+)=(.+)$/);
           if (m && !m[2].includes('REDACTED')) setEnvValue(m[1], m[2]);
         }
+      }
+      // Restore fallback config (keep existing API keys for redacted entries)
+      if (d.fallback && typeof d.fallback === 'object') {
+        try { const existing = getFallbackConfig(); if (d.fallback.chain) d.fallback.chain.forEach(c => { if (c.apiKey === '***REDACTED***') { const ex = existing.chain?.find(e => e.provider === c.provider); if (ex?.apiKey) c.apiKey = ex.apiKey; else delete c.apiKey; } }); saveFallbackConfig(d.fallback); } catch {}
       }
       // Restore Caddyfile
       if (d.caddyfile) { fs.writeFileSync(CADDYFILE, d.caddyfile, 'utf8'); restartService('caddy'); }
