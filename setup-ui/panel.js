@@ -22,6 +22,7 @@ const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
 const PANEL_VERSION = '2026.02.19.1';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
+const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
 
 const sessions = {};
@@ -2288,7 +2289,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/panel-update-check') {
     try {
       const localVersion = PANEL_VERSION;
-      const remoteHead = safeExec(`curl -sL --max-time 10 -r 0-1500 "${PANEL_UPDATE_URL}"`, 15000);
+      const remoteHead = safeExec(`curl -sL --max-time 10 -H "Accept: application/vnd.github.raw" -r 0-1500 "${PANEL_CHECK_URL}"`, 15000);
       const m = remoteHead.match(/PANEL_VERSION\s*=\s*['"]([^'"]+)['"]/);
       const remoteVersion = m ? m[1] : null;
       if (!remoteVersion) return json(res, 200, { ok: true, current: localVersion, latest: null, updateAvailable: false, error: 'Unable to read version from server' });
