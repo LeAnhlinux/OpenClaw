@@ -4,7 +4,7 @@
   <img src="https://tino.vn/assets/logo/logo-mobile-light.png" alt="Logo" height="48">
 </p>
 
-Script cai dat all-in-one de deploy **OpenClaw** — AI assistant gateway tu host tren bat ky Ubuntu 24.04 VM nao. Tich hop nhieu nen tang nhan tin (Telegram, Zalo) voi cac nha cung cap LLM (Anthropic Claude, OpenAI, Google Gemini).
+Script cai dat all-in-one de deploy **OpenClaw** — AI assistant gateway tu host tren bat ky Ubuntu 24.04 VM nao. Tich hop nhieu nen tang nhan tin (Telegram, Discord, Slack, WhatsApp) voi cac nha cung cap LLM (Anthropic Claude, OpenAI, Google Gemini).
 
 ## Cai dat nhanh
 
@@ -114,8 +114,7 @@ STEP 4: Xac nhan cau hinh
   |  -> Restart openclaw
   v
 STEP 5: Kenh nhan tin (tuy chon)
-  |  ├── Telegram Bot -> Nhap Bot Token -> Ghep noi
-  |  └── Zalo Bot     -> Nhap Bot Token -> Ghep noi
+  |  └── Telegram Bot -> Nhap Bot Token -> Ghep noi
   v
 STEP 6: Ghep noi Dashboard
   |  -> Mo link dashboard trong tab moi
@@ -149,7 +148,7 @@ Cac tab quan ly:
 │   ├── Fallback chain (thu tu uu tien)
 │   ├── Them/xoa provider voi API key rieng
 │   └── Rate limit / phut + cooldown khi loi
-├── Kenh nhan tin   — Quan ly Telegram, Zalo tokens
+├── Kenh nhan tin   — Quan ly Telegram, Discord, Slack tokens
 ├── Gateway         — Token, thiet bi, ghep noi
 │   ├── Thong tin gateway token + dashboard URL
 │   ├── Ghep noi thiet bi (approve pending requestId)
@@ -313,10 +312,6 @@ openclaw browser open https://example.com
 # Kenh nhan tin - pairing
 openclaw pairing list telegram
 openclaw pairing approve telegram <code>
-
-# Zalo (Free) — ket noi qua QR code (zca-cli)
-/opt/openclaw-zalo-pair.sh
-# hoac: su - openclaw -c "zca auth login"
 
 # Devices (dashboard pairing)
 openclaw devices list --token=<gateway-token>

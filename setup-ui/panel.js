@@ -416,8 +416,6 @@ const PROVIDERS = {
 // --- Channel configs ---
 const CHANNELS = {
   telegram: { name: 'Telegram', icon: '\ud83d\udce8', envKeys: ['TELEGRAM_BOT_TOKEN'], pairCmd: 'telegram', desc: 'Tao bot tai @BotFather', canPair: true },
-  zalo: { name: 'Zalo OA', icon: '\ud83d\udcac', envKeys: ['ZALO_BOT_TOKEN'], pairCmd: null, desc: 'Zalo Official Account — tao bot tai bot.zaloplatforms.com', canPair: false },
-  zaloFree: { name: 'Zalo (Free)', icon: '\ud83d\udcac', envKeys: [], pairCmd: null, desc: 'Ket noi Zalo ca nhan mien phi qua QR code (zca-cli)', canPair: false, hasQrPair: true },
   discord: { name: 'Discord', icon: '\ud83c\udfae', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Tao bot tai discord.com/developers', canPair: true },
   slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Tao app tai api.slack.com/apps', canPair: false },
   whatsapp: { name: 'WhatsApp', icon: '\ud83d\udcf1', envKeys: [], pairCmd: null, desc: 'Chay: openclaw whatsapp pair', canPair: false, cliOnly: true },
@@ -683,7 +681,7 @@ document.getElementById('f').addEventListener('submit',async e=>{
 // --- Panel HTML ---
 function panelPage() {
   const provJSON = JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,color:v.color,icon:v.icon,models:v.models,category:v.category||'cloud',extraEnvKeys:v.extraEnvKeys||[]})));
-  const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair,cliOnly:v.cliOnly||false,hasQrPair:v.hasQrPair||false})));
+  const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair,cliOnly:v.cliOnly||false})));
 
   return `<!DOCTYPE html><html lang="vi"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1136,12 +1134,7 @@ async function loadChannels(){
       selectedChannel=c;document.querySelectorAll('.ch-item').forEach(i=>i.classList.remove('selected'));div.classList.add('selected');
       const fields=document.getElementById('channelFields'),pb=document.getElementById('pairChannelBtn');
       document.getElementById('pairForm').style.display='none';document.getElementById('channelStatus').className='status';
-      if(c.hasQrPair){
-        fields.innerHTML='<div style="text-align:center;padding:16px 0"><p style="margin-bottom:14px;color:var(--text2);font-size:14px;line-height:1.6">Ket noi Zalo ca nhan mien phi — scan QR code bang ung dung Zalo tren dien thoai.<br><span style="font-size:12px;opacity:.7">Su dung <a href="https://zca-cli.dev" target="_blank" style="color:var(--accent)">zca-cli</a> — khong can tao Zalo Official Account.</span></p><button class="btn btn-primary" onclick="startZaloQR()" id="zaloQrBtn">Tao QR Code</button><div id="zaloQrArea" style="margin-top:16px"></div><div id="zaloQrStatus" class="status" style="margin-top:10px"></div></div>';
-        pb.style.display='none';
-        // Check if already logged in
-        (async()=>{const st=await api('/api/zalo-qr-status');if(st.ok&&st.loggedIn){const s=document.getElementById('zaloQrStatus');if(s){s.className='status ok';s.textContent='Da ket noi Zalo ('+(st.name||'default')+')'}}})();
-      } else if(c.cliOnly){fields.innerHTML='<div class="status warn" style="display:block">'+esc(c.name)+' chi ho tro qua CLI. '+esc(c.desc)+'</div>';pb.style.display='none'}
+      if(c.cliOnly){fields.innerHTML='<div class="status warn" style="display:block">'+esc(c.name)+' chi ho tro qua CLI. '+esc(c.desc)+'</div>';pb.style.display='none'}
       else{fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+esc(k)+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+esc(k)+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none';
         // Pre-fill current values
         if(isActive)(async()=>{const cfg=await api('/api/channel-values','POST',{channel:c.id});if(cfg.ok&&cfg.values)Object.entries(cfg.values).forEach(([k,v])=>{const el=document.getElementById('chfield-'+k);if(el&&v)el.value=v})})();
@@ -1170,48 +1163,6 @@ async function pairChannel(){
   st.className='status loading';st.textContent='Dang ghep noi...';
   const d=await api('/api/channel-pair','POST',{channel:selectedChannel.id,code});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Ghep noi thanh cong!':d.error||'Loi';
-}
-
-// === Zalo Free (zca-cli) QR Pairing ===
-let zaloQrPolling=false;
-async function startZaloQR(){
-  const area=document.getElementById('zaloQrArea'),st=document.getElementById('zaloQrStatus'),btn=document.getElementById('zaloQrBtn');
-  if(!area||!st||!btn)return;
-  btn.disabled=true;btn.textContent='Dang tao QR...';
-  st.className='status loading';st.textContent='Dang tao QR code...';
-  area.innerHTML='';
-  try{
-    const d=await api('/api/zalo-qr','POST');
-    if(d.ok&&d.qrDataUrl){
-      area.innerHTML='<img src="'+esc(d.qrDataUrl)+'" style="max-width:256px;border-radius:12px;border:2px solid var(--border);background:#fff;padding:8px">';
-      st.className='status ok';st.textContent='Mo Zalo tren dien thoai > Scan QR code nay. Dang cho...';
-      pollZaloLogin();
-    } else {
-      st.className='status fail';st.textContent=d.error||'Loi tao QR code';
-    }
-  }catch(e){st.className='status fail';st.textContent='Loi: '+e.message}
-  btn.disabled=false;btn.textContent='Tao lai QR Code';
-}
-async function pollZaloLogin(){
-  if(zaloQrPolling)return;zaloQrPolling=true;
-  const st=document.getElementById('zaloQrStatus');
-  try{
-    for(let i=0;i<30;i++){
-      await new Promise(r=>setTimeout(r,3000));
-      const d=await api('/api/zalo-qr-status');
-      if(d.ok&&d.loggedIn){
-        st.className='status ok';st.textContent='Da ket noi Zalo! Dang kich hoat plugin...';
-        document.getElementById('zaloQrArea').innerHTML='';
-        // Enable zalouser plugin + restart gateway
-        await api('/api/zalo-activate','POST');
-        st.textContent='Da ket noi Zalo thanh cong! ('+(d.name||'default')+')';
-        setTimeout(loadChannels,3000);
-        zaloQrPolling=false;return;
-      }
-    }
-    st.className='status warn';st.textContent='Het thoi gian cho (90s). Bam "Tao lai QR Code" de thu lai.';
-  }catch(e){}
-  zaloQrPolling=false;
 }
 
 // === Gateway ===
@@ -1920,15 +1871,6 @@ const server = http.createServer(async (req, res) => {
       if (!ch) return json(res, 400, { ok: false, error: 'Channel khong hop le' });
       // Xoa tat ca env keys cua channel (dat thanh comment)
       ch.envKeys.forEach(k => { setEnvValue(k, '#disabled'); });
-      // Neu la zaloFree, logout zca + disable plugin
-      if (body.channel === 'zaloFree') {
-        try { execSync(ZCA_CMD('auth logout'), { timeout: 10000, stdio: 'pipe' }); } catch {}
-        // Disable zalouser plugin in openclaw.json
-        try {
-          const ocCfg = JSON.parse(fs.readFileSync('/home/openclaw/.openclaw/openclaw.json', 'utf8'));
-          if (ocCfg.plugins?.entries?.zalouser) { delete ocCfg.plugins.entries.zalouser; fs.writeFileSync('/home/openclaw/.openclaw/openclaw.json', JSON.stringify(ocCfg, null, 2)); }
-        } catch {}
-      }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -1954,71 +1896,6 @@ const server = http.createServer(async (req, res) => {
       if (!code) return json(res, 400, { ok: false, error: 'Thieu ma' });
       try { execSync(`/opt/openclaw-cli.sh pairing approve ${ch.pairCmd} ${code}`, { timeout: 15000, stdio: 'pipe' }); return json(res, 200, { ok: true }); }
       catch (e) { return json(res, 200, { ok: false, error: (e.stderr || e.stdout || '').toString().substring(0, 200) || e.message }); }
-    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
-  }
-
-  // === Zalo Free (zca-cli) QR Pairing ===
-  const ZCA_BIN = '/home/openclaw/.local/bin/zca';
-  const ZCA_CMD = (args) => `su - openclaw -c "export PATH=/home/openclaw/.local/bin:/home/openclaw/.npm/bin:$PATH && zca ${args}"`;
-  const ZCA_QR_PATH = '/tmp/zca-qr.png';
-
-  if (req.method === 'POST' && url.pathname === '/api/zalo-qr') {
-    try {
-      // Check if zca is installed
-      if (!fs.existsSync(ZCA_BIN)) return json(res, 200, { ok: false, error: 'zca chua duoc cai dat. Chay: su - openclaw -c "curl -fsSL https://get.zca-cli.dev/install.sh | bash"' });
-      // Remove old QR file
-      try { fs.unlinkSync(ZCA_QR_PATH); } catch {}
-      // Spawn zca in background — it waits for scan, we just need the QR file
-      const { spawn } = require('child_process');
-      const zcaProc = spawn('su', ['-', 'openclaw', '-c', `export PATH=/home/openclaw/.local/bin:/home/openclaw/.npm/bin:$PATH && zca auth login --qr-path ${ZCA_QR_PATH}`], { stdio: 'pipe', detached: true });
-      zcaProc.unref(); // Don't wait for process to exit
-      // Poll for QR file to appear (up to 15s, check every 500ms)
-      let found = false;
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 500));
-        if (fs.existsSync(ZCA_QR_PATH)) {
-          // Wait a tiny bit more for file to finish writing
-          await new Promise(r => setTimeout(r, 300));
-          const qrData = fs.readFileSync(ZCA_QR_PATH);
-          if (qrData.length > 100) { // Valid PNG
-            const qrBase64 = 'data:image/png;base64,' + qrData.toString('base64');
-            return json(res, 200, { ok: true, qrDataUrl: qrBase64 });
-          }
-        }
-      }
-      // Check if already logged in (zca may have exited with message)
-      return json(res, 200, { ok: false, error: 'Khong tao duoc QR sau 15s. Thu lai hoac kiem tra zca auth status.' });
-    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
-  }
-
-  if (req.method === 'GET' && url.pathname === '/api/zalo-qr-status') {
-    try {
-      if (!fs.existsSync(ZCA_BIN)) return json(res, 200, { ok: true, loggedIn: false, error: 'zca chua cai' });
-      let output = '';
-      try {
-        output = execSync(ZCA_CMD('auth status'), { timeout: 10000, stdio: 'pipe' }).toString();
-      } catch (e) { output = ((e.stdout || '') + (e.stderr || '')).toString(); }
-      // zca auth status outputs:
-      // "ℹ Profile: default" + "✔ Logged in as ..." (logged in)
-      // "ℹ Profile: default" + "⚠ Not logged in on profile ..." (not logged in)
-      const loggedIn = output.includes('Logged in as') && !output.includes('Not logged in');
-      const nameMatch = output.match(/Logged in as[:\s]+(.+)/);
-      const profileName = nameMatch ? nameMatch[1].trim() : 'default';
-      return json(res, 200, { ok: true, loggedIn, name: profileName });
-    } catch (e) { return json(res, 200, { ok: true, loggedIn: false }); }
-  }
-
-  // === Zalo Activate — enable zalouser plugin + restart gateway ===
-  if (req.method === 'POST' && url.pathname === '/api/zalo-activate') {
-    try {
-      const cfgPath = '/home/openclaw/.openclaw/openclaw.json';
-      const ocCfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-      if (!ocCfg.plugins) ocCfg.plugins = {};
-      if (!ocCfg.plugins.entries) ocCfg.plugins.entries = {};
-      ocCfg.plugins.entries.zalouser = { enabled: true };
-      fs.writeFileSync(cfgPath, JSON.stringify(ocCfg, null, 2));
-      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
-      return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 

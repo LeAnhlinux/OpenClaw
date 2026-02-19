@@ -371,16 +371,3 @@ su - openclaw -c "~/homebrew/bin/brew link wacli"
 
 chown -R openclaw /home/openclaw/.npm
 su - openclaw -c "npm config set prefix /home/openclaw/.npm"
-
-# Cai dat zca-cli (Zalo CLI mien phi)
-su - openclaw -c "curl -fsSL https://get.zca-cli.dev/install.sh | bash" || echo "Warning: zca-cli install failed"
-
-# Tao helper script cho Zalo QR pairing
-cat > /opt/openclaw-zalo-pair.sh << 'EOFZALO'
-#!/bin/bash
-echo "=== Ket noi Zalo (Free) qua QR Code ==="
-echo "Mo Zalo tren dien thoai > Scan QR code de ket noi"
-echo ""
-su - openclaw -c "export PATH=/home/openclaw/.local/bin:\$PATH && zca auth login"
-EOFZALO
-chmod +x /opt/openclaw-zalo-pair.sh
