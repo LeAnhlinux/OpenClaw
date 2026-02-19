@@ -1215,10 +1215,12 @@ async function loadAgents(){
     h+='</div>';
   });
   el.innerHTML=h;
-  // Populate model dropdown
+  // Populate model dropdown (only active providers with API key)
   const modelSel=document.getElementById('newAgentModel');
   modelSel.innerHTML='<option value="">-- Chon model --</option>';
-  providers.forEach(p=>{p.models.forEach(m=>{modelSel.innerHTML+='<option value="'+m.id+'">'+esc(p.name)+' — '+esc(m.name)+'</option>'})});
+  const ap=d.activeProviders||[];
+  if(ap.length){ap.forEach(p=>{p.models.forEach(m=>{modelSel.innerHTML+='<option value="'+m.id+'">'+esc(p.name)+' — '+esc(m.name)+'</option>'})})}
+  else{modelSel.innerHTML='<option value="">Chua cau hinh AI Provider nao</option>'}
   // Populate channel binding dropdown
   const bindSel=document.getElementById('newAgentBind');
   bindSel.innerHTML='<option value="">-- Khong bind --</option>';
@@ -1972,7 +1974,13 @@ const server = http.createServer(async (req, res) => {
       const config = getConfig();
       const defaultModel = config?.agents?.defaults?.model?.primary || '';
       agents = (Array.isArray(agents) ? agents : []).map(a => ({ ...a, model: a.model || defaultModel, identity: a.identity || {} }));
-      return json(res, 200, { ok: true, agents });
+      // Collect active providers (have API key set)
+      const activeProviders = [];
+      for (const [k, p] of Object.entries(PROVIDERS)) {
+        const key = getEnvValue(p.envKey);
+        if (key && !key.startsWith('#')) activeProviders.push({ id: k, name: p.name, icon: p.icon, models: p.models });
+      }
+      return json(res, 200, { ok: true, agents, activeProviders });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
