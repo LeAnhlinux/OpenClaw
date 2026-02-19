@@ -418,11 +418,11 @@ const PROVIDERS = {
 
 // --- Channel configs ---
 const CHANNELS = {
-  telegram: { name: 'Telegram', icon: '\ud83d\udce8', envKeys: ['TELEGRAM_BOT_TOKEN'], pairCmd: 'telegram', desc: 'Tao bot tai @BotFather', canPair: true },
-  discord: { name: 'Discord', icon: '\ud83c\udfae', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Tao bot tai discord.com/developers', canPair: true },
-  slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Tao app tai api.slack.com/apps', canPair: false },
-  line: { name: 'LINE', icon: '\ud83d\udfe2', envKeys: ['LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET'], pairCmd: null, desc: 'Plugin — tao bot tai developers.line.biz', canPair: false },
-  matrix: { name: 'Matrix', icon: '\ud83c\udf10', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — cau hinh homeserver + token', canPair: false }
+  telegram: { name: 'Telegram', icon: '\ud83d\udce8', envKeys: ['TELEGRAM_BOT_TOKEN'], pairCmd: 'telegram', desc: 'Create bot at @BotFather', canPair: true },
+  discord: { name: 'Discord', icon: '\ud83c\udfae', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Create bot at discord.com/developers', canPair: true },
+  slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Create app at api.slack.com/apps', canPair: false },
+  line: { name: 'LINE', icon: '\ud83d\udfe2', envKeys: ['LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET'], pairCmd: null, desc: 'Plugin — create bot at developers.line.biz', canPair: false },
+  matrix: { name: 'Matrix', icon: '\ud83c\udf10', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — configure homeserver + token', canPair: false }
 };
 
 // --- CSS ---
@@ -693,8 +693,8 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
   <div class="card">
     <form id="f">
       <div class="field"><label>Username</label><input type="text" id="u" value="root" autocomplete="username"></div>
-      <div class="field"><label>Password</label><input type="password" id="p" placeholder="Nhap mat khau root" autocomplete="current-password" autofocus></div>
-      <button type="submit" class="btn" id="b">Dang nhap</button>
+      <div class="field"><label>Password</label><input type="password" id="p" placeholder="Enter root password" autocomplete="current-password" autofocus></div>
+      <button type="submit" class="btn" id="b">Login</button>
       <div class="err" id="e"></div>
     </form>
   </div>
@@ -702,11 +702,11 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 <script>
 document.getElementById('f').addEventListener('submit',async e=>{
   e.preventDefault();const b=document.getElementById('b'),err=document.getElementById('e');
-  b.disabled=true;b.textContent='Dang xac thuc...';err.className='err';
+  b.disabled=true;b.textContent='Authenticating...';err.className='err';
   try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('u').value,password:document.getElementById('p').value})});
   const d=await r.json();if(d.ok)window.location.href='/panel';else{err.className='err show';err.textContent=d.error}}
-  catch(x){err.className='err show';err.textContent='Loi ket noi'}
-  b.disabled=false;b.textContent='Dang nhap'});
+  catch(x){err.className='err show';err.textContent='Connection error'}
+  b.disabled=false;b.textContent='Login'});
 </script></body></html>`;
 }
 
@@ -773,18 +773,18 @@ function panelPage() {
   <!-- TAB: Provider -->
   <div class="section active" id="sec-provider">
     <div class="page-title">AI Provider</div>
-    <div class="page-desc">Chon nha cung cap AI, model va nhap API key.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udccc</span> Hien tai</div><div id="currentProvider" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Thay doi Provider</div>
+    <div class="page-desc">Select AI provider, model and enter API key.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udccc</span> Current</div><div id="currentProvider" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Change Provider</div>
       <div class="prov-list" id="providerList"></div>
       <div id="providerConfig" style="display:none" class="config-pane">
         <div class="field"><label>Model</label><select id="provModel"></select></div>
-        <div class="field"><label>API Key</label><input type="password" id="provKey" placeholder="Nhap API key"></div>
+        <div class="field"><label>API Key</label><input type="password" id="provKey" placeholder="Enter API key"></div>
         <div id="provExtraFields"></div>
         <div class="btn-row">
-          <button class="btn btn-outline" onclick="testProviderKey()">Kiem tra key</button>
-          <button class="btn btn-outline" onclick="saveProviderKey()" style="border-color:var(--accent2);color:var(--accent2)">Luu Key</button>
-          <button class="btn btn-primary" onclick="applyProvider()">Ap dung & Doi model</button>
+          <button class="btn btn-outline" onclick="testProviderKey()">Test Key</button>
+          <button class="btn btn-outline" onclick="saveProviderKey()" style="border-color:var(--accent2);color:var(--accent2)">Save Key</button>
+          <button class="btn btn-primary" onclick="applyProvider()">Apply & Switch Model</button>
         </div>
         <div class="status" id="provStatus"></div>
       </div>
@@ -794,24 +794,24 @@ function panelPage() {
   <!-- TAB: Fallback -->
   <div class="section" id="sec-fallback">
     <div class="page-title">Multi-Provider Fallback</div>
-    <div class="page-desc">Cau hinh provider du phong — tu dong chuyen khi primary down.</div>
+    <div class="page-desc">Configure fallback provider — auto switch when primary is down.</div>
     <div class="card">
       <div class="card-title"><span class="ct-icon">\u26d3\ufe0f</span> Fallback Chain</div>
-      <div id="fbChain" class="fb-chain"><div class="muted">Dang tai...</div></div>
+      <div id="fbChain" class="fb-chain"><div class="muted">Loading...</div></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u2795</span> Them Fallback Provider</div>
-      <div class="field"><label>Provider</label><select id="fbProvider" onchange="onFbProviderChange()"><option value="">-- Chon provider --</option></select></div>
+      <div class="card-title"><span class="ct-icon">\u2795</span> Add Fallback Provider</div>
+      <div class="field"><label>Provider</label><select id="fbProvider" onchange="onFbProviderChange()"><option value="">-- Select provider --</option></select></div>
       <div class="field"><label>Model</label><select id="fbModel"></select></div>
-      <div class="field"><label>API Key</label><input type="password" id="fbApiKey" placeholder="Nhap API key cho provider nay"></div>
-      <div class="btn-row"><button class="btn btn-primary" onclick="addFallbackProvider()">Them vao Chain</button></div>
+      <div class="field"><label>API Key</label><input type="password" id="fbApiKey" placeholder="Enter API key for this provider"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="addFallbackProvider()">Add to Chain</button></div>
       <div class="status" id="fbAddStatus"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u2699\ufe0f</span> Cai dat</div>
-      <div class="field"><label>Rate limit (request/phut)</label><input type="number" id="fbRateLimit" value="60" min="1" max="1000"></div>
-      <div class="field"><label>Cooldown khi fail (giay)</label><input type="number" id="fbCooldown" value="300" min="10" max="3600"></div>
-      <div class="btn-row"><button class="btn btn-primary" onclick="saveFallbackSettings()">Luu cai dat</button></div>
+      <div class="card-title"><span class="ct-icon">\u2699\ufe0f</span> Settings</div>
+      <div class="field"><label>Rate limit (requests/min)</label><input type="number" id="fbRateLimit" value="60" min="1" max="1000"></div>
+      <div class="field"><label>Cooldown on fail (seconds)</label><input type="number" id="fbCooldown" value="300" min="10" max="3600"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="saveFallbackSettings()">Save Settings</button></div>
       <div class="status" id="fbSettingsStatus"></div>
     </div>
   </div>
@@ -819,46 +819,46 @@ function panelPage() {
   <!-- TAB: Agents -->
   <div class="section" id="sec-agents">
     <div class="page-title">Multi-Agent Management</div>
-    <div class="page-desc">Quan ly cac agent — moi agent co workspace, model va routing rieng.</div>
+    <div class="page-desc">Manage agents — each agent has its own workspace, model and routing.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83e\udd16</span> Danh sach Agents</div>
-      <div id="agentList" class="fb-chain"><div class="muted">Dang tai...</div></div>
+      <div class="card-title"><span class="ct-icon">\ud83e\udd16</span> Agent List</div>
+      <div id="agentList" class="fb-chain"><div class="muted">Loading...</div></div>
     </div>
     <div class="card" id="agentIdentityCard" style="display:none">
       <div class="card-title"><span class="ct-icon">\u270f\ufe0f</span> Identity — <span id="agentIdentityName"></span></div>
-      <div class="field"><label>Ten hien thi</label><input type="text" id="agentIdName" placeholder="VD: Support Bot"></div>
-      <div class="field"><label>Emoji</label><input type="text" id="agentIdEmoji" placeholder="VD: \ud83e\udd16"></div>
-      <div class="field"><label>Theme</label><input type="text" id="agentIdTheme" placeholder="VD: professional, casual"></div>
-      <div class="btn-row"><button class="btn btn-outline" onclick="cancelEditIdentity()">Huy</button> <button class="btn btn-primary" onclick="saveAgentIdentity()">Luu Identity</button></div>
+      <div class="field"><label>Display Name</label><input type="text" id="agentIdName" placeholder="e.g. Support Bot"></div>
+      <div class="field"><label>Emoji</label><input type="text" id="agentIdEmoji" placeholder="e.g. \ud83e\udd16"></div>
+      <div class="field"><label>Theme</label><input type="text" id="agentIdTheme" placeholder="e.g. professional, casual"></div>
+      <div class="btn-row"><button class="btn btn-outline" onclick="cancelEditIdentity()">Cancel</button> <button class="btn btn-primary" onclick="saveAgentIdentity()">Save Identity</button></div>
       <div class="status" id="agentIdentityStatus"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u2795</span> Them Agent moi</div>
-      <div class="field"><label>Ten agent (ID)</label><input type="text" id="newAgentName" placeholder="VD: support, sales, dev"></div>
-      <div class="field"><label>Model</label><select id="newAgentModel"><option value="">-- Chon model --</option></select></div>
-      <div class="field"><label>Channel Binding (tuy chon)</label><select id="newAgentBind"><option value="">-- Khong bind --</option></select></div>
-      <div class="btn-row"><button class="btn btn-primary" onclick="addAgent()">Them Agent</button></div>
+      <div class="card-title"><span class="ct-icon">\u2795</span> Add New Agent</div>
+      <div class="field"><label>Agent Name (ID)</label><input type="text" id="newAgentName" placeholder="e.g. support, sales, dev"></div>
+      <div class="field"><label>Model</label><select id="newAgentModel"><option value="">-- Select model --</option></select></div>
+      <div class="field"><label>Channel Binding (optional)</label><select id="newAgentBind"><option value="">-- No binding --</option></select></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="addAgent()">Add Agent</button></div>
       <div class="status" id="addAgentStatus"></div>
     </div>
   </div>
 
   <!-- TAB: Channels -->
   <div class="section" id="sec-channels">
-    <div class="page-title">Kenh nhan tin</div>
-    <div class="page-desc">Cau hinh va ghep noi cac kenh chat voi AI.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\u2705</span> Dang hoat dong</div><div id="currentChannels" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\u2795</span> Them kenh</div>
+    <div class="page-title">Messaging Channels</div>
+    <div class="page-desc">Configure and pair chat channels with AI.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\u2705</span> Active</div><div id="currentChannels" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\u2795</span> Add Channel</div>
       <div class="ch-list" id="channelList"></div>
       <div id="channelConfig" style="display:none" class="config-pane">
         <div id="channelFields"></div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="saveChannel()">Luu & Restart</button>
-          <button class="btn btn-outline" id="pairChannelBtn" style="display:none" onclick="showPairForm()">Ghep noi</button>
+          <button class="btn btn-primary" onclick="saveChannel()">Save & Restart</button>
+          <button class="btn btn-outline" id="pairChannelBtn" style="display:none" onclick="showPairForm()">Pair</button>
         </div>
         <div class="status" id="channelStatus"></div>
         <div id="pairForm" style="display:none;margin-top:14px">
-          <div class="field"><label>Ma ghep noi (Pairing Code)</label><input type="text" id="pairCode" placeholder="Nhap ma tu bot"></div>
-          <div class="btn-row"><button class="btn btn-success" onclick="pairChannel()">Ghep noi</button></div>
+          <div class="field"><label>Pairing Code</label><input type="text" id="pairCode" placeholder="Enter code from bot"></div>
+          <div class="btn-row"><button class="btn btn-success" onclick="pairChannel()">Pair</button></div>
           <div class="status" id="pairStatus"></div>
         </div>
       </div>
@@ -868,23 +868,23 @@ function panelPage() {
   <!-- TAB: Gateway -->
   <div class="section" id="sec-gateway">
     <div class="page-title">Gateway</div>
-    <div class="page-desc">Token xac thuc, ghep noi thiet bi va quan ly dashboard.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd11</span> Thong tin</div><div id="gatewayInfo" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd17</span> Ghep noi Dashboard</div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">Mo dashboard link ben duoi trong <strong>tab moi</strong>, doi trang tai xong, roi quay lai day bam <strong>Ghep noi</strong> de approve.</p>
+    <div class="page-desc">Auth token, device pairing and dashboard management.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd11</span> Information</div><div id="gatewayInfo" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd17</span> Pair Dashboard</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">Open the dashboard link below in a <strong>new tab</strong>, wait for it to load, then come back here and click <strong>Pair</strong> to approve.</p>
       <div id="pairDashboardUrl" style="padding:10px 14px;background:#f0f4ff;border:1.5px solid var(--accent);border-radius:8px;font-family:monospace;font-size:12px;cursor:pointer;color:var(--accent);margin-bottom:12px;word-break:break-all" onclick="window.open(this.textContent,'_blank')"></div>
       <div class="btn-row">
-        <button class="btn btn-success" id="pairDeviceBtn" onclick="pairDevice()">Ghep noi thiet bi</button>
-        <button class="btn btn-outline" onclick="loadDevices()">Lam moi</button>
+        <button class="btn btn-success" id="pairDeviceBtn" onclick="pairDevice()">Pair Device</button>
+        <button class="btn btn-outline" onclick="loadDevices()">Refresh</button>
       </div>
       <div class="status" id="pairDeviceStatus"></div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Thiet bi da ghep noi</div><div id="deviceList"><div style="color:var(--text2);font-size:12px;padding:8px">Dang tai...</div></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Thay doi token</div>
-      <div class="field"><label>Token tu nhap (tuy chon)</label><input type="text" id="customToken" placeholder="De trong de tao ngau nhien"></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Paired Devices</div><div id="deviceList"><div style="color:var(--text2);font-size:12px;padding:8px">Loading...</div></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Change Token</div>
+      <div class="field"><label>Custom token (optional)</label><input type="text" id="customToken" placeholder="Leave empty to generate random"></div>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="generateToken()">Tao token ngau nhien</button>
-        <button class="btn btn-outline" onclick="applyCustomToken()">Ap dung token tu nhap</button>
+        <button class="btn btn-primary" onclick="generateToken()">Generate Random Token</button>
+        <button class="btn btn-outline" onclick="applyCustomToken()">Apply Custom Token</button>
       </div>
       <div class="status" id="gatewayStatus"></div>
     </div>
@@ -893,14 +893,14 @@ function panelPage() {
   <!-- TAB: Domain -->
   <div class="section" id="sec-domain">
     <div class="page-title">Domain & SSL</div>
-    <div class="page-desc">Cau hinh ten mien voi chung chi Let's Encrypt.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83c\udf10</span> Hien tai</div><div id="domainInfo" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd12</span> Cau hinh</div>
-      <div class="field"><label>Ten mien</label><input type="text" id="domainInput" placeholder="bot.example.com"></div>
-      <div class="field"><label>Email Let's Encrypt (tuy chon)</label><input type="email" id="domainEmail" placeholder="admin@example.com"></div>
+    <div class="page-desc">Configure domain with Let's Encrypt certificate.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83c\udf10</span> Current</div><div id="domainInfo" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd12</span> Configure</div>
+      <div class="field"><label>Domain</label><input type="text" id="domainInput" placeholder="bot.example.com"></div>
+      <div class="field"><label>Let's Encrypt Email (optional)</label><input type="email" id="domainEmail" placeholder="admin@example.com"></div>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="saveDomain()">Cau hinh SSL</button>
-        <button class="btn btn-outline" onclick="resetDomainToIP()">Dung IP (tu ky)</button>
+        <button class="btn btn-primary" onclick="saveDomain()">Configure SSL</button>
+        <button class="btn btn-outline" onclick="resetDomainToIP()">Use IP (self-signed)</button>
       </div>
       <div class="status" id="domainStatus"></div>
     </div>
@@ -908,28 +908,28 @@ function panelPage() {
 
   <!-- TAB: Doctor -->
   <div class="section" id="sec-doctor">
-    <div class="page-title">Chan doan he thong</div>
-    <div class="page-desc">Chay OpenClaw Doctor de kiem tra, sua chua va toi uu hoa he thong.</div>
+    <div class="page-title">System Diagnostics</div>
+    <div class="page-desc">Run OpenClaw Doctor to check, repair and optimize the system.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\ude80</span> Hanh dong</div>
+      <div class="card-title"><span class="ct-icon">\ud83d\ude80</span> Actions</div>
       <div class="doc-actions">
         <div class="doc-btn" id="docBtnScan" onclick="runDoctor('scan')">
           <div class="db-icon" style="background:#dbeafe;color:#2563eb">\ud83d\udd0d</div>
-          <div class="db-info"><div class="db-title">Scan</div><div class="db-desc">Kiem tra 19 muc, khong sua</div></div>
+          <div class="db-info"><div class="db-title">Scan</div><div class="db-desc">Check 19 items, no repair</div></div>
         </div>
         <div class="doc-btn" id="docBtnRepair" onclick="runDoctor('repair')">
           <div class="db-icon" style="background:#dcfce7;color:#16a34a">\ud83d\udd27</div>
-          <div class="db-info"><div class="db-title">Auto Repair</div><div class="db-desc">Kiem tra + tu dong sua loi</div></div>
+          <div class="db-info"><div class="db-title">Auto Repair</div><div class="db-desc">Check + auto repair errors</div></div>
         </div>
         <div class="doc-btn" id="docBtnDeep" onclick="runDoctor('deep')">
           <div class="db-icon" style="background:#fef3c7;color:#d97706">\u26a1</div>
-          <div class="db-info"><div class="db-title">Deep Scan</div><div class="db-desc">Scan sau services + gateway</div></div>
+          <div class="db-info"><div class="db-title">Deep Scan</div><div class="db-desc">Deep scan services + gateway</div></div>
         </div>
       </div>
       <div class="status" id="doctorStatus"></div>
     </div>
     <div class="card" id="doctorResultCard" style="display:none">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Ket qua</div>
+      <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Result</div>
       <div class="doc-summary" id="doctorSummary"></div>
       <div class="doc-checks" id="doctorChecks"></div>
     </div>
@@ -938,27 +938,27 @@ function panelPage() {
       <div class="log-box" id="doctorLog" style="max-height:420px"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> Lich su</div>
-      <div class="doc-hist" id="doctorHistory"><div style="color:var(--text2);font-size:12px;padding:8px">Chua co lich su.</div></div>
+      <div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> History</div>
+      <div class="doc-hist" id="doctorHistory"><div style="color:var(--text2);font-size:12px;padding:8px">No history yet.</div></div>
     </div>
   </div>
 
   <!-- TAB: Update -->
   <div class="section" id="sec-update">
-    <div class="page-title">Cap nhat</div>
-    <div class="page-desc">Cap nhat OpenClaw Gateway va Management Panel.</div>
+    <div class="page-title">Update</div>
+    <div class="page-desc">Update OpenClaw Gateway and Management Panel.</div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udce6</span> OpenClaw Gateway</div><div id="updateInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:16px">
-        <button class="btn btn-outline" onclick="checkUpdate()">Kiem tra ban moi</button>
-        <button class="btn btn-primary" id="doUpdateBtn" style="display:none" onclick="doUpdate()">Cap nhat Gateway</button>
+        <button class="btn btn-outline" onclick="checkUpdate()">Check for Updates</button>
+        <button class="btn btn-primary" id="doUpdateBtn" style="display:none" onclick="doUpdate()">Update Gateway</button>
       </div>
       <div class="status" id="updateStatus"></div>
       <div id="updateLog" style="display:none;margin-top:14px"><div class="log-box" id="updateLogBox"></div></div>
     </div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udda5\ufe0f</span> Management Panel</div><div id="panelUpdateInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:16px">
-        <button class="btn btn-outline" onclick="checkPanelUpdate()">Kiem tra Panel moi</button>
-        <button class="btn btn-primary" id="doPanelUpdateBtn" style="display:none" onclick="doPanelUpdate()">Cap nhat Panel</button>
+        <button class="btn btn-outline" onclick="checkPanelUpdate()">Check Panel Update</button>
+        <button class="btn btn-primary" id="doPanelUpdateBtn" style="display:none" onclick="doPanelUpdate()">Update Panel</button>
       </div>
       <div class="status" id="panelUpdateStatus"></div>
     </div>
@@ -966,34 +966,34 @@ function panelPage() {
 
   <!-- TAB: Status -->
   <div class="section" id="sec-status">
-    <div class="page-title">Trang thai he thong</div>
-    <div class="page-desc">Giam sat services, tai nguyen va log.</div>
+    <div class="page-title">System Status</div>
+    <div class="page-desc">Monitor services, resources and logs.</div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Services & System</div><div id="statusInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:16px">
-        <button class="btn btn-outline" onclick="loadStatus()">Lam moi</button>
+        <button class="btn btn-outline" onclick="loadStatus()">Refresh</button>
         <button class="btn btn-primary" onclick="restartSvc('openclaw')">Restart OpenClaw</button>
         <button class="btn btn-outline" onclick="restartSvc('caddy')">Restart Caddy</button>
       </div>
       <div class="status" id="statusMsg"></div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcdd</span> Log OpenClaw</div><div class="log-box" id="logsBox">Dang tai...</div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcdd</span> OpenClaw Logs</div><div class="log-box" id="logsBox">Loading...</div></div>
   </div>
 
   <!-- TAB: Chat Playground -->
   <div class="section" id="sec-chat">
     <div class="page-title">\ud83d\udcac Chat Playground</div>
-    <div class="page-desc">Test chat truc tiep voi AI provider hien tai.</div>
+    <div class="page-desc">Test live chat with the current AI provider.</div>
     <div class="card">
       <div class="card-title"><span class="ct-icon">\u2728</span> <span id="chatProviderLabel">AI Chat</span></div>
       <div class="chat-box">
-        <div class="chat-msgs" id="chatMsgs"><div class="chat-msg ai">Xin chao! Toi la AI assistant. Hay gui tin nhan de test.</div></div>
+        <div class="chat-msgs" id="chatMsgs"><div class="chat-msg ai">Hello! I'm an AI assistant. Send a message to test.</div></div>
         <div class="chat-input">
-          <input type="text" id="chatInput" placeholder="Nhap tin nhan..." onkeydown="if(event.key==='Enter')sendChat()">
-          <button onclick="sendChat()">Gui</button>
+          <input type="text" id="chatInput" placeholder="Enter message..." onkeydown="if(event.key==='Enter')sendChat()">
+          <button onclick="sendChat()">Send</button>
         </div>
       </div>
       <div class="btn-row" style="margin-top:12px">
-        <button class="btn btn-outline" onclick="clearChat()">Xoa chat</button>
+        <button class="btn btn-outline" onclick="clearChat()">Clear Chat</button>
         <span id="chatMeta" style="font-size:11px;color:var(--text2);align-self:center;margin-left:8px"></span>
       </div>
     </div>
@@ -1002,28 +1002,28 @@ function panelPage() {
   <!-- TAB: Usage Analytics -->
   <div class="section" id="sec-analytics">
     <div class="page-title">\ud83d\udcca Usage Analytics</div>
-    <div class="page-desc">Thong ke su dung AI — tu cac kenh nhan tin va Chat Playground.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc8</span> Tong quan</div><div id="analyticsOverview" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Theo kenh</div><div id="analyticsChannels" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> Tin nhan (7 ngay)</div>
+    <div class="page-desc">AI usage statistics — from messaging channels and Chat Playground.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc8</span> Overview</div><div id="analyticsOverview" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> By Channel</div><div id="analyticsChannels" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> Messages (7 days)</div>
       <div id="analyticsChart" style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:16px 0"></div>
       <div id="analyticsList" style="margin-top:16px"></div>
     </div>
-    <div class="btn-row"><button class="btn btn-outline" onclick="loadAnalytics()">Lam moi</button></div>
+    <div class="btn-row"><button class="btn btn-outline" onclick="loadAnalytics()">Refresh</button></div>
   </div>
 
   <!-- TAB: Conversation History -->
   <div class="section" id="sec-history">
     <div class="page-title">\ud83d\udcdd Conversation History</div>
-    <div class="page-desc">Xem lich su hoi thoai gan day.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc2</span> Cac cuoc hoi thoai</div>
+    <div class="page-desc">View recent conversation history.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc2</span> Conversations</div>
       <div id="historyList" style="display:flex;flex-direction:column;gap:8px"></div>
       <div class="btn-row" style="margin-top:16px">
-        <button class="btn btn-outline" onclick="loadHistory()">Lam moi</button>
+        <button class="btn btn-outline" onclick="loadHistory()">Refresh</button>
       </div>
     </div>
     <div class="card" id="historyDetail" style="display:none">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcac</span> <span id="historyDetailTitle">Chi tiet</span></div>
+      <div class="card-title"><span class="ct-icon">\ud83d\udcac</span> <span id="historyDetailTitle">Details</span></div>
       <div id="historyMsgs" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
@@ -1033,45 +1033,45 @@ function panelPage() {
   <!-- TAB: User Management -->
   <div class="section" id="sec-users">
     <div class="page-title">\ud83d\udc65 User Management</div>
-    <div class="page-desc">Quan ly tai khoan truy cap panel.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd10</span> Doi mat khau Root</div>
-      <div class="field"><label>Mat khau cu</label><input type="password" id="oldPass" placeholder="Nhap mat khau hien tai"></div>
-      <div class="field"><label>Mat khau moi</label><input type="password" id="newPass" placeholder="Nhap mat khau moi"></div>
-      <div class="field"><label>Xac nhan</label><input type="password" id="confirmPass" placeholder="Nhap lai mat khau moi"></div>
-      <div class="btn-row"><button class="btn btn-primary" onclick="changePassword()">Doi mat khau</button></div>
+    <div class="page-desc">Manage panel access account.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd10</span> Change Root Password</div>
+      <div class="field"><label>Current Password</label><input type="password" id="oldPass" placeholder="Enter current password"></div>
+      <div class="field"><label>New Password</label><input type="password" id="newPass" placeholder="Enter new password"></div>
+      <div class="field"><label>Confirm</label><input type="password" id="confirmPass" placeholder="Re-enter new password"></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="changePassword()">Change Password</button></div>
       <div class="status" id="passStatus"></div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udee1\ufe0f</span> Bao mat</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udee1\ufe0f</span> Security</div>
       <div id="securityInfo" class="info-grid"></div>
-      <div class="btn-row" style="margin-top:12px"><button class="btn btn-outline" onclick="loadUsers()">Lam moi</button></div>
+      <div class="btn-row" style="margin-top:12px"><button class="btn btn-outline" onclick="loadUsers()">Refresh</button></div>
     </div>
   </div>
 
   <!-- TAB: Backup & Restore -->
   <div class="section" id="sec-backup">
     <div class="page-title">\ud83d\udce6 Backup & Restore</div>
-    <div class="page-desc">Sao luu va phuc hoi cau hinh he thong.</div>
+    <div class="page-desc">Backup and restore system configuration.</div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcbe</span> Backup</div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">Tao ban sao cau hinh (openclaw.json, openclaw.env, Caddyfile). API key duoc an di de bao mat.</p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">Create a backup of configuration (openclaw.json, openclaw.env, Caddyfile). API keys are hidden for security.</p>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="downloadBackup()">\ud83d\udce5 Tai file backup</button>
-        <button class="btn btn-outline" onclick="doBackup()">\ud83d\udccb Xem JSON</button>
+        <button class="btn btn-primary" onclick="downloadBackup()">\ud83d\udce5 Download Backup</button>
+        <button class="btn btn-outline" onclick="doBackup()">\ud83d\udccb View JSON</button>
       </div>
       <div class="status" id="backupStatus"></div>
       <div id="backupData" style="display:none;margin-top:14px">
-        <div class="field"><label>Backup Data (copy va luu lai)</label>
+        <div class="field"><label>Backup Data (copy and save)</label>
           <textarea id="backupContent" class="json-editor" style="min-height:160px" readonly></textarea>
         </div>
       </div>
     </div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Restore</div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">Upload file backup hoac dan JSON de phuc hoi cau hinh.</p>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">Upload a backup file or paste JSON to restore configuration.</p>
       <div class="btn-row" style="margin-bottom:16px">
-        <button class="btn btn-primary" onclick="document.getElementById('restoreFile').click()">\ud83d\udce4 Upload file backup</button>
+        <button class="btn btn-primary" onclick="document.getElementById('restoreFile').click()">\ud83d\udce4 Upload Backup File</button>
         <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="handleRestoreFile(event)">
       </div>
-      <div class="field"><label>Hoac dan backup JSON</label><textarea id="restoreContent" class="json-editor" style="min-height:120px" placeholder="Dan backup JSON vao day..."></textarea></div>
-      <div class="btn-row"><button class="btn btn-danger" onclick="doRestore()">\u26a0\ufe0f Phuc hoi</button></div>
+      <div class="field"><label>Or paste backup JSON</label><textarea id="restoreContent" class="json-editor" style="min-height:120px" placeholder="Paste backup JSON here..."></textarea></div>
+      <div class="btn-row"><button class="btn btn-danger" onclick="doRestore()">\u26a0\ufe0f Restore</button></div>
       <div class="status" id="restoreStatus"></div>
     </div>
   </div>
@@ -1079,11 +1079,11 @@ function panelPage() {
   <!-- TAB: Config Editor -->
   <div class="section" id="sec-config">
     <div class="page-title">\ud83d\udd27 Config Editor</div>
-    <div class="page-desc">Chinh sua truc tiep file cau hinh he thong.</div>
+    <div class="page-desc">Edit system configuration files directly.</div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc4</span> openclaw.json</div>
       <textarea id="configJson" class="json-editor" style="min-height:320px"></textarea>
       <div class="btn-row" style="margin-top:12px">
-        <button class="btn btn-primary" onclick="saveConfigFile('json')">Luu & Restart</button>
+        <button class="btn btn-primary" onclick="saveConfigFile('json')">Save & Restart</button>
         <button class="btn btn-outline" onclick="loadConfigEditor()">Reload</button>
       </div>
       <div class="status" id="configJsonStatus"></div>
@@ -1091,7 +1091,7 @@ function panelPage() {
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc4</span> openclaw.env</div>
       <textarea id="configEnv" class="json-editor" style="min-height:200px"></textarea>
       <div class="btn-row" style="margin-top:12px">
-        <button class="btn btn-primary" onclick="saveConfigFile('env')">Luu & Restart</button>
+        <button class="btn btn-primary" onclick="saveConfigFile('env')">Save & Restart</button>
         <button class="btn btn-outline" onclick="loadConfigEditor()">Reload</button>
       </div>
       <div class="status" id="configEnvStatus"></div>
@@ -1109,7 +1109,7 @@ function panelPage() {
         <p style="font-size:12px;color:var(--text2);margin-top:12px" id="qrUrl"></p>
       </div>
       <div class="btn-row" style="justify-content:center;margin-top:12px">
-        <button class="btn btn-outline" onclick="loadQR()">Tao lai QR</button>
+        <button class="btn btn-outline" onclick="loadQR()">Regenerate QR</button>
       </div>
     </div>
   </div>
@@ -1136,7 +1136,7 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 async function api(path,method,body){
   const o={method:method||'GET',headers:{'Content-Type':'application/json'}};
   if(body)o.body=JSON.stringify(body);
-  try{const r=await fetch(path,o);if(r.status===401){location.href='/';return{ok:false,error:'Phien het han'}}return await r.json()}catch(e){return{ok:false,error:'Loi ket noi: '+e.message}}
+  try{const r=await fetch(path,o);if(r.status===401){location.href='/';return{ok:false,error:'Session expired'}}return await r.json()}catch(e){return{ok:false,error:'Connection error: '+e.message}}
 }
 async function doLogout(){await api('/api/logout','POST');location.href='/'}
 function toggleTokenVis(){const el=document.getElementById('tokenDisplay');if(!el||!window._gwToken)return;window._gwTokenVis=!window._gwTokenVis;if(window._gwTokenVis)el.textContent=window._gwToken;else{const t=window._gwToken;el.textContent=t.substring(0,8)+'\\u2022'.repeat(8)+t.substring(t.length-8)}}
@@ -1147,7 +1147,7 @@ async function loadProvider(){
   const el=document.getElementById('currentProvider');
   el.innerHTML=d.provider
     ?'<div class="info-row"><span class="info-k">Provider</span><span class="info-v">'+esc(d.providerName)+'</span></div><div class="info-row"><span class="info-k">Model</span><span class="info-v">'+esc(d.model)+'</span></div>'
-    :'<div class="info-row"><span class="info-v" style="color:var(--warn)">Chua cau hinh</span></div>';
+    :'<div class="info-row"><span class="info-v" style="color:var(--warn)">Not configured</span></div>';
   const list=document.getElementById('providerList');list.innerHTML='';
   const cats={cloud:{label:'\\u2601\\ufe0f Cloud Providers',items:[]},gateway:{label:'\\ud83d\\udd00 Gateway / Proxy',items:[]},local:{label:'\\ud83d\\udda5\\ufe0f Self-hosted',items:[]}};
   providers.forEach(p=>{(cats[p.category||'cloud']||cats.cloud).items.push(p)});
@@ -1160,7 +1160,7 @@ async function loadProvider(){
       div.innerHTML='<div class="prov-icon" style="background:'+p.color+'15;color:'+p.color+'">'+p.icon+'</div><div class="prov-info"><div class="prov-name">'+p.name+'</div><div class="prov-desc">'+p.models.length+' model'+(p.models.length>1?'s':'')+'</div></div>'+(isCurrent?'<span class="prov-badge bg-green">ACTIVE</span>':'');
       div.onclick=()=>{selectedProvider=p.id;document.querySelectorAll('.prov-item').forEach(i=>i.classList.remove('selected'));div.classList.add('selected');
         const sel=document.getElementById('provModel');sel.innerHTML=p.models.map(m=>'<option value="'+m.id+'">'+m.name+' \\u2014 '+m.desc+'</option>').join('');
-        let extraHtml='';if(p.extraEnvKeys&&p.extraEnvKeys.length>0)p.extraEnvKeys.forEach(ek=>{extraHtml+='<div class="field"><label>'+ek+'</label><input type="text" id="extraEnv-'+ek+'" placeholder="Nhap '+ek+'"></div>'});
+        let extraHtml='';if(p.extraEnvKeys&&p.extraEnvKeys.length>0)p.extraEnvKeys.forEach(ek=>{extraHtml+='<div class="field"><label>'+ek+'</label><input type="text" id="extraEnv-'+ek+'" placeholder="Enter '+ek+'"></div>'});
         document.getElementById('provExtraFields').innerHTML=extraHtml;
         document.getElementById('providerConfig').style.display='block';document.getElementById('provStatus').className='status';};
       list.appendChild(div);
@@ -1169,31 +1169,31 @@ async function loadProvider(){
 }
 async function testProviderKey(){
   const st=document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim();
-  if(!k){st.className='status fail';st.textContent='Nhap API key';return}
-  st.className='status loading';st.textContent='Dang kiem tra...';
+  if(!k){st.className='status fail';st.textContent='Enter API key';return}
+  st.className='status loading';st.textContent='Checking...';
   const d=await api('/api/test-key','POST',{provider:selectedProvider,apiKey:k});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'API key hop le!':d.error||'Key khong hop le';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'API key is valid!':d.error||'Invalid key';
 }
 async function saveProviderKey(){
   const st=document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim();
-  if(!selectedProvider){st.className='status fail';st.textContent='Chon provider';return}
-  if(!k){st.className='status fail';st.textContent='Nhap API key';return}
-  st.className='status loading';st.textContent='Dang luu key...';
+  if(!selectedProvider){st.className='status fail';st.textContent='Select a provider';return}
+  if(!k){st.className='status fail';st.textContent='Enter API key';return}
+  st.className='status loading';st.textContent='Saving key...';
   const prov=providers.find(p=>p.id===selectedProvider);const extraEnv={};
   if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
   const d=await api('/api/provider-save-key','POST',{provider:selectedProvider,apiKey:k,extraEnv});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu API key cho '+esc(prov?prov.name:selectedProvider)+'! Model hien tai khong doi.':d.error||'Loi';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'API key saved for '+esc(prov?prov.name:selectedProvider)+'! Current model unchanged.':d.error||'Error';
   if(d.ok)setTimeout(loadProvider,1500);
 }
 async function applyProvider(){
   const st=document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim(),m=document.getElementById('provModel').value;
-  if(!selectedProvider){st.className='status fail';st.textContent='Chon provider';return}
-  if(!k){st.className='status fail';st.textContent='Nhap API key';return}
-  st.className='status loading';st.textContent='Dang ap dung...';
+  if(!selectedProvider){st.className='status fail';st.textContent='Select a provider';return}
+  if(!k){st.className='status fail';st.textContent='Enter API key';return}
+  st.className='status loading';st.textContent='Applying...';
   const prov=providers.find(p=>p.id===selectedProvider);const extraEnv={};
   if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
   const d=await api('/api/provider','POST',{provider:selectedProvider,model:m,apiKey:k,extraEnv});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Thanh cong! OpenClaw da restart.':d.error||'Loi';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Success! OpenClaw restarted.':d.error||'Error';
   if(d.ok)setTimeout(loadProvider,1500);
 }
 
@@ -1201,8 +1201,8 @@ async function applyProvider(){
 async function loadChannels(){
   const d=await api('/api/current-config');
   const el=document.getElementById('currentChannels');
-  let h='';if(d.channels&&d.channels.length>0)d.channels.forEach(c=>{h+='<div class="info-row"><span class="info-k">'+esc(c.name)+'</span><span class="info-v" style="display:flex;align-items:center;gap:8px"><span class="badge bg-green">Active</span><button onclick="disableChannel(\\x27'+esc(c.id)+'\\x27)" style="background:none;border:1px solid #fecaca;color:#ef4444;padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .2s" onmouseover="this.style.background=\\x27#fef2f2\\x27" onmouseout="this.style.background=\\x27none\\x27">Tat</button></span></div>'});
-  else h='<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co kenh nao</span></div>';
+  let h='';if(d.channels&&d.channels.length>0)d.channels.forEach(c=>{h+='<div class="info-row"><span class="info-k">'+esc(c.name)+'</span><span class="info-v" style="display:flex;align-items:center;gap:8px"><span class="badge bg-green">Active</span><button onclick="disableChannel(\\x27'+esc(c.id)+'\\x27)" style="background:none;border:1px solid #fecaca;color:#ef4444;padding:3px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;transition:all .2s" onmouseover="this.style.background=\\x27#fef2f2\\x27" onmouseout="this.style.background=\\x27none\\x27">Disable</button></span></div>'});
+  else h='<div class="info-row"><span class="info-v" style="color:var(--text2)">No channels</span></div>';
   el.innerHTML=h;
   const list=document.getElementById('channelList');list.innerHTML='';
   channels.forEach(c=>{
@@ -1213,7 +1213,7 @@ async function loadChannels(){
       selectedChannel=c;document.querySelectorAll('.ch-item').forEach(i=>i.classList.remove('selected'));div.classList.add('selected');
       const fields=document.getElementById('channelFields'),pb=document.getElementById('pairChannelBtn');
       document.getElementById('pairForm').style.display='none';document.getElementById('channelStatus').className='status';
-      fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+esc(k)+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+esc(k)+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none';
+      fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+esc(k)+'</label><input type="text" id="chfield-'+k+'" placeholder="Enter '+esc(k)+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none';
       // Pre-fill current values
       if(isActive)(async()=>{const cfg=await api('/api/channel-values','POST',{channel:c.id});if(cfg.ok&&cfg.values)Object.entries(cfg.values).forEach(([k,v])=>{const el=document.getElementById('chfield-'+k);if(el&&v)el.value=v})})();
       document.getElementById('channelConfig').style.display='block';
@@ -1224,22 +1224,22 @@ async function loadChannels(){
 async function saveChannel(){
   if(!selectedChannel)return;const st=document.getElementById('channelStatus'),data={channel:selectedChannel.id,tokens:{}};
   selectedChannel.envKeys.forEach(k=>{const el=document.getElementById('chfield-'+k);if(el)data.tokens[k]=el.value.trim()});
-  st.className='status loading';st.textContent='Dang luu...';
-  const d=await api('/api/channels','POST',data);st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu! Restart thanh cong.':d.error||'Loi';
+  st.className='status loading';st.textContent='Saving...';
+  const d=await api('/api/channels','POST',data);st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Saved! Restart successful.':d.error||'Error';
   if(d.ok)setTimeout(loadChannels,1500);
 }
 async function disableChannel(chId){
-  if(!confirm('Tat kenh '+chId+'? Token se bi xoa va dich vu restart.'))return;
+  if(!confirm('Disable channel '+chId+'? Token will be deleted and service restarted.'))return;
   const d=await api('/api/channel-disable','POST',{channel:chId});
-  if(d.ok){setTimeout(loadChannels,1500)}else{alert(d.error||'Loi tat kenh')}
+  if(d.ok){setTimeout(loadChannels,1500)}else{alert(d.error||'Error disabling channel')}
 }
 function showPairForm(){document.getElementById('pairForm').style.display='block'}
 async function pairChannel(){
   if(!selectedChannel||!selectedChannel.canPair)return;const st=document.getElementById('pairStatus'),code=document.getElementById('pairCode').value.trim();
-  if(!code){st.className='status fail';st.textContent='Nhap ma ghep noi';return}
-  st.className='status loading';st.textContent='Dang ghep noi...';
+  if(!code){st.className='status fail';st.textContent='Enter pairing code';return}
+  st.className='status loading';st.textContent='Pairing...';
   const d=await api('/api/channel-pair','POST',{channel:selectedChannel.id,code});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Ghep noi thanh cong!':d.error||'Loi';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Pairing successful!':d.error||'Error';
 }
 
 // === Agents ===
@@ -1247,9 +1247,9 @@ let editingAgentId=null;
 async function loadAgents(){
   const d=await api('/api/agents');
   const el=document.getElementById('agentList');
-  if(!d.ok){el.innerHTML='<div class="fb-empty">Loi: '+esc(d.error||'Khong tai duoc')+'</div>';return}
+  if(!d.ok){el.innerHTML='<div class="fb-empty">Error: '+esc(d.error||'Unable to load')+'</div>';return}
   const agents=d.agents||[];
-  if(!agents.length){el.innerHTML='<div class="fb-empty">Chua co agent nao.</div>';return}
+  if(!agents.length){el.innerHTML='<div class="fb-empty">No agents yet.</div>';return}
   let h='';
   agents.forEach(a=>{
     const isDefault=a.isDefault;
@@ -1265,19 +1265,19 @@ async function loadAgents(){
     h+='<div style="font-size:11px;color:var(--text2);margin-top:3px">'+esc(routeText)+'</div></div>';
     h+='<span class="fb-badge '+(isDefault?'primary':'fallback')+'">'+(isDefault?'DEFAULT':'AGENT')+'</span>';
     h+='<button class="btn btn-sm btn-outline" style="margin-left:8px" onclick="editAgentIdentity(\\x27'+esc(a.id)+'\\x27)">Identity</button>';
-    if(!isDefault)h+='<button class="fb-remove" style="margin-left:6px" onclick="deleteAgent(\\x27'+esc(a.id)+'\\x27)">Xoa</button>';
+    if(!isDefault)h+='<button class="fb-remove" style="margin-left:6px" onclick="deleteAgent(\\x27'+esc(a.id)+'\\x27)">Delete</button>';
     h+='</div>';
   });
   el.innerHTML=h;
   // Populate model dropdown (only active providers with API key)
   const modelSel=document.getElementById('newAgentModel');
-  modelSel.innerHTML='<option value="">-- Chon model --</option>';
+  modelSel.innerHTML='<option value="">-- Select model --</option>';
   const ap=d.activeProviders||[];
   if(ap.length){ap.forEach(p=>{p.models.forEach(m=>{modelSel.innerHTML+='<option value="'+m.id+'">'+esc(p.name)+' — '+esc(m.name)+'</option>'})})}
-  else{modelSel.innerHTML='<option value="">Chua cau hinh AI Provider nao</option>'}
+  else{modelSel.innerHTML='<option value="">No AI Provider configured</option>'}
   // Populate channel binding dropdown
   const bindSel=document.getElementById('newAgentBind');
-  bindSel.innerHTML='<option value="">-- Khong bind --</option>';
+  bindSel.innerHTML='<option value="">-- No binding --</option>';
   channels.forEach(c=>{bindSel.innerHTML+='<option value="'+c.id+'">'+c.icon+' '+esc(c.name)+'</option>'});
   // Hide identity editor
   document.getElementById('agentIdentityCard').style.display='none';
@@ -1288,13 +1288,13 @@ async function addAgent(){
   const model=document.getElementById('newAgentModel').value;
   const bind=document.getElementById('newAgentBind').value;
   const st=document.getElementById('addAgentStatus');
-  if(!name){st.className='status fail';st.textContent='Nhap ten agent';return}
-  if(!/^[a-zA-Z0-9_-]+$/.test(name)){st.className='status fail';st.textContent='Ten chi gom chu, so, -, _';return}
-  if(name.length>32){st.className='status fail';st.textContent='Ten qua dai (max 32 ky tu)';return}
-  st.className='status loading';st.textContent='Dang them agent...';
+  if(!name){st.className='status fail';st.textContent='Enter agent name';return}
+  if(!/^[a-zA-Z0-9_-]+$/.test(name)){st.className='status fail';st.textContent='Name must contain only letters, numbers, -, _';return}
+  if(name.length>32){st.className='status fail';st.textContent='Name too long (max 32 chars)';return}
+  st.className='status loading';st.textContent='Adding agent...';
   const d=await api('/api/agents/add','POST',{name,model,bind});
   st.className=d.ok?'status ok':'status fail';
-  st.textContent=d.ok?'Da them agent '+name+'!':d.error||'Loi';
+  st.textContent=d.ok?'Added agent '+name+'!':d.error||'Error';
   if(d.ok){document.getElementById('newAgentName').value='';setTimeout(loadAgents,1500)}
 }
 function editAgentIdentity(agentId){
@@ -1316,17 +1316,17 @@ async function saveAgentIdentity(){
   const emoji=document.getElementById('agentIdEmoji').value.trim();
   const theme=document.getElementById('agentIdTheme').value.trim();
   const st=document.getElementById('agentIdentityStatus');
-  if(!name&&!emoji&&!theme){st.className='status fail';st.textContent='Nhap it nhat 1 truong';return}
-  st.className='status loading';st.textContent='Dang luu identity...';
+  if(!name&&!emoji&&!theme){st.className='status fail';st.textContent='Enter at least 1 field';return}
+  st.className='status loading';st.textContent='Saving identity...';
   const d=await api('/api/agents/identity','POST',{agent:editingAgentId,name,emoji,theme});
   st.className=d.ok?'status ok':'status fail';
-  st.textContent=d.ok?'Da cap nhat identity!':d.error||'Loi';
+  st.textContent=d.ok?'Identity updated!':d.error||'Error';
   if(d.ok)setTimeout(()=>{cancelEditIdentity();loadAgents()},1500);
 }
 async function deleteAgent(agentId){
-  if(!confirm('Xoa agent "'+agentId+'"? Workspace va state se bi xoa. Khong the hoan tac.'))return;
+  if(!confirm('Delete agent "'+agentId+'"? Workspace and state will be deleted. This cannot be undone.'))return;
   const d=await api('/api/agents/delete','DELETE',{agent:agentId});
-  if(d.ok){loadAgents()}else{alert(d.error||'Loi xoa agent')}
+  if(d.ok){loadAgents()}else{alert(d.error||'Error deleting agent')}
 }
 
 // === Gateway ===
@@ -1334,7 +1334,7 @@ async function loadGateway(){
   const d=await api('/api/current-config'),el=document.getElementById('gatewayInfo'),host=d.domain||d.serverIP||'localhost';
   const dashUrl='https://'+esc(host)+'?token='+esc(d.token);
   const maskedToken=d.token?(d.token.substring(0,8)+'\\u2022'.repeat(8)+d.token.substring(d.token.length-8)):'';
-  el.innerHTML='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:10px"><span id="tokenDisplay">'+esc(maskedToken)+'</span> <button onclick="toggleTokenVis()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--accent)" title="Hien/An">\\ud83d\\udc41</button></span></div><div class="info-row"><span class="info-k">Dashboard</span><span class="info-v"><a href="'+dashUrl+'" target="_blank" style="color:var(--accent);text-decoration:none">https://'+esc(host)+'</a></span></div>';
+  el.innerHTML='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:10px"><span id="tokenDisplay">'+esc(maskedToken)+'</span> <button onclick="toggleTokenVis()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--accent)" title="Show/Hide">\\ud83d\\udc41</button></span></div><div class="info-row"><span class="info-k">Dashboard</span><span class="info-v"><a href="'+dashUrl+'" target="_blank" style="color:var(--accent);text-decoration:none">https://'+esc(host)+'</a></span></div>';
   window._gwToken=d.token;window._gwTokenVis=false;
   document.getElementById('pairDashboardUrl').textContent=dashUrl;
   loadDevices();
@@ -1343,11 +1343,11 @@ async function loadDevices(){
   try{
     const d=await api('/api/devices');
     const el=document.getElementById('deviceList');
-    if(!d.ok){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">'+(d.error||'Loi')+'</div>';return}
-    if(!d.devices||d.devices.length===0){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Chua co thiet bi nao duoc ghep noi.</div>';return}
+    if(!d.ok){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">'+(d.error||'Error')+'</div>';return}
+    if(!d.devices||d.devices.length===0){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">No devices paired yet.</div>';return}
     let h='';d.devices.forEach(dev=>{
       const badge=dev.status==='paired'?'bg-green':dev.status==='pending'?'bg-blue':'bg-red';
-      const label=dev.status==='paired'?'Da ghep':dev.status==='revoked'?'Da huy':'Cho duyet';
+      const label=dev.status==='paired'?'Paired':dev.status==='revoked'?'Revoked':'Pending';
       const modeIcon=dev.mode==='cli'?'\\uD83D\\uDDA5\\uFE0F':'\\uD83C\\uDF10';
       const info=esc(dev.platform)+(dev.ip?' &middot; '+esc(dev.ip):'')+(dev.mode?' &middot; '+modeIcon+' '+esc(dev.mode):'');
       h+='<div class="dev-item">';
@@ -1357,38 +1357,38 @@ async function loadDevices(){
       h+='</div>';
     });
     el.innerHTML=h;
-  }catch{document.getElementById('deviceList').innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Loi tai danh sach.</div>'}
+  }catch{document.getElementById('deviceList').innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Error loading list.</div>'}
 }
 async function revokeDevice(deviceId,role,btn){
-  if(!confirm('Ban co chac muon huy ghep noi thiet bi nay?')) return;
-  const orig=btn.textContent;btn.disabled=true;btn.textContent='Dang huy...';
+  if(!confirm('Are you sure you want to revoke this device?')) return;
+  const orig=btn.textContent;btn.disabled=true;btn.textContent='Revoking...';
   try{
     const d=await api('/api/device-revoke','DELETE',{deviceId,role});
-    if(d.ok){btn.textContent='Da huy!';setTimeout(()=>loadDevices(),500)}
-    else{alert(d.error||'Loi revoke');btn.disabled=false;btn.textContent=orig}
-  }catch(e){alert('Loi: '+e.message);btn.disabled=false;btn.textContent=orig}
+    if(d.ok){btn.textContent='Revoked!';setTimeout(()=>loadDevices(),500)}
+    else{alert(d.error||'Revoke error');btn.disabled=false;btn.textContent=orig}
+  }catch(e){alert('Error: '+e.message);btn.disabled=false;btn.textContent=orig}
 }
 async function pairDevice(){
   const st=document.getElementById('pairDeviceStatus'),btn=document.getElementById('pairDeviceBtn');
-  btn.disabled=true;btn.textContent='Dang tim yeu cau...';st.className='status loading';st.textContent='Dang kiem tra pending requests...';
+  btn.disabled=true;btn.textContent='Finding request...';st.className='status loading';st.textContent='Checking pending requests...';
   try{
     const d=await api('/api/pair','POST',{});
-    if(d.ok){st.className='status ok';st.textContent='Ghep noi thanh cong!';loadDevices()}
-    else{st.className='status fail';st.textContent=d.error||'Khong the ghep noi'}
-    btn.disabled=false;btn.textContent='Ghep noi thiet bi';
-  }catch(e){st.className='status fail';st.textContent='Loi: '+e.message;btn.disabled=false;btn.textContent='Ghep noi thiet bi'}
+    if(d.ok){st.className='status ok';st.textContent='Pairing successful!';loadDevices()}
+    else{st.className='status fail';st.textContent=d.error||'Unable to pair'}
+    btn.disabled=false;btn.textContent='Pair Device';
+  }catch(e){st.className='status fail';st.textContent='Error: '+e.message;btn.disabled=false;btn.textContent='Pair Device'}
 }
 async function generateToken(){
-  if(!confirm('Tao token moi se lam mat ket noi tat ca thiet bi hien tai. Ban chac chan?'))return;
-  const st=document.getElementById('gatewayStatus');st.className='status loading';st.textContent='Dang tao...';
-  const d=await api('/api/gateway-token','POST',{action:'generate'});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Token moi da tao! Tat ca thiet bi can ghep noi lai.':d.error||'Loi';if(d.ok)loadGateway();
+  if(!confirm('Generate new token? This will disconnect all current devices.'))return;
+  const st=document.getElementById('gatewayStatus');st.className='status loading';st.textContent='Generating...';
+  const d=await api('/api/gateway-token','POST',{action:'generate'});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'New token created! All devices need to re-pair.':d.error||'Error';if(d.ok)loadGateway();
 }
 async function applyCustomToken(){
   const st=document.getElementById('gatewayStatus'),t=document.getElementById('customToken').value.trim();
-  if(!t){st.className='status fail';st.textContent='Nhap token';return}
-  if(t.length<16){st.className='status fail';st.textContent='Token qua ngan (min 16 ky tu)';return}
-  st.className='status loading';st.textContent='Dang cap nhat...';
-  const d=await api('/api/gateway-token','POST',{action:'custom',token:t});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da cap nhat!':d.error||'Loi';if(d.ok)loadGateway();
+  if(!t){st.className='status fail';st.textContent='Enter token';return}
+  if(t.length<16){st.className='status fail';st.textContent='Token too short (min 16 chars)';return}
+  st.className='status loading';st.textContent='Updating...';
+  const d=await api('/api/gateway-token','POST',{action:'custom',token:t});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Updated!':d.error||'Error';if(d.ok)loadGateway();
 }
 
 // === Domain ===
@@ -1398,39 +1398,39 @@ async function loadDomain(){
 }
 async function saveDomain(){
   const st=document.getElementById('domainStatus'),dm=document.getElementById('domainInput').value.trim(),em=document.getElementById('domainEmail').value.trim();
-  if(!dm){st.className='status fail';st.textContent='Nhap ten mien';return}
-  st.className='status loading';st.textContent='Dang cau hinh Caddy + SSL...';
-  const d=await api('/api/domain','POST',{domain:dm,email:em});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'SSL da cau hinh cho '+dm+'!':d.error||'Loi';if(d.ok)setTimeout(loadDomain,1500);
+  if(!dm){st.className='status fail';st.textContent='Enter domain';return}
+  st.className='status loading';st.textContent='Configuring Caddy + SSL...';
+  const d=await api('/api/domain','POST',{domain:dm,email:em});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'SSL configured for '+dm+'!':d.error||'Error';if(d.ok)setTimeout(loadDomain,1500);
 }
 async function resetDomainToIP(){
-  if(!confirm('Chuyen ve IP se xoa cau hinh SSL. Ban chac chan?'))return;
-  const st=document.getElementById('domainStatus');st.className='status loading';st.textContent='Chuyen ve IP...';
-  const d=await api('/api/domain','POST',{resetToIP:true});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da chuyen ve IP!':d.error||'Loi';if(d.ok)setTimeout(loadDomain,1500);
+  if(!confirm('Switch to IP? This will remove SSL configuration.'))return;
+  const st=document.getElementById('domainStatus');st.className='status loading';st.textContent='Switching to IP...';
+  const d=await api('/api/domain','POST',{resetToIP:true});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Switched to IP!':d.error||'Error';if(d.ok)setTimeout(loadDomain,1500);
 }
 
 // === Update ===
 async function loadUpdate(){
   const d=await api('/api/current-config'),el=document.getElementById('updateInfo');
-  el.innerHTML='<div class="info-row"><span class="info-k">Phien ban</span><span class="info-v">'+esc(d.version||'N/A')+'</span></div>';
+  el.innerHTML='<div class="info-row"><span class="info-k">Version</span><span class="info-v">'+esc(d.version||'N/A')+'</span></div>';
   document.getElementById('doUpdateBtn').style.display='none';document.getElementById('updateLog').style.display='none';
   loadPanelUpdate();
 }
 async function checkUpdate(){
-  const st=document.getElementById('updateStatus');st.className='status loading';st.textContent='Dang kiem tra...';
+  const st=document.getElementById('updateStatus');st.className='status loading';st.textContent='Checking...';
   const d=await api('/api/update-check');
   if(d.ok){availVersions=d.versions||[];
-    if(availVersions.length>0){st.className='status ok';st.textContent=availVersions.length+' phien ban moi. Latest: '+availVersions[0];document.getElementById('doUpdateBtn').style.display='inline-flex'}
-    else{st.className='status ok';st.textContent='Da la ban moi nhat!'}
-  }else{st.className='status fail';st.textContent=d.error||'Loi'}
+    if(availVersions.length>0){st.className='status ok';st.textContent=availVersions.length+' new version(s). Latest: '+availVersions[0];document.getElementById('doUpdateBtn').style.display='inline-flex'}
+    else{st.className='status ok';st.textContent='Already up to date!'}
+  }else{st.className='status fail';st.textContent=d.error||'Error'}
 }
 async function doUpdate(){
   const v=availVersions.length>0?availVersions[0]:'latest';
-  if(!confirm('Cap nhat len '+v+'? OpenClaw se tam dung trong qua trinh nay.'))return;
+  if(!confirm('Update to '+v+'? OpenClaw will be temporarily down during this process.'))return;
   const st=document.getElementById('updateStatus');
-  st.className='status loading';st.textContent='Dang cap nhat '+v+'...';
-  document.getElementById('updateLog').style.display='block';document.getElementById('updateLogBox').textContent='Bat dau...\\n';
+  st.className='status loading';st.textContent='Updating '+v+'...';
+  document.getElementById('updateLog').style.display='block';document.getElementById('updateLogBox').textContent='Starting...\\n';
   const d=await api('/api/update','POST',{version:v});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Cap nhat thanh cong!':d.error||'Loi';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Update successful!':d.error||'Error';
   document.getElementById('updateLogBox').textContent+=d.log||'';if(d.ok)loadUpdate();
 }
 
@@ -1441,27 +1441,27 @@ function loadPanelUpdate(){
   document.getElementById('doPanelUpdateBtn').style.display='none';
 }
 async function checkPanelUpdate(){
-  const st=document.getElementById('panelUpdateStatus');st.className='status loading';st.textContent='Dang kiem tra...';
+  const st=document.getElementById('panelUpdateStatus');st.className='status loading';st.textContent='Checking...';
   const d=await api('/api/panel-update-check');
   if(d.ok){
     document.getElementById('panelUpdateInfo').innerHTML=
-      '<div class="info-row"><span class="info-k">Hien tai</span><span class="info-v">'+esc(d.current||'-')+'</span></div>'+
-      '<div class="info-row"><span class="info-k">Moi nhat</span><span class="info-v">'+esc(d.latest||'-')+'</span></div>';
-    if(d.updateAvailable){st.className='status ok';st.textContent='Co ban moi: '+d.latest;document.getElementById('doPanelUpdateBtn').style.display='inline-flex'}
-    else{st.className='status ok';st.textContent='Panel da la ban moi nhat!'}
-  }else{st.className='status fail';st.textContent=d.error||'Loi'}
+      '<div class="info-row"><span class="info-k">Current</span><span class="info-v">'+esc(d.current||'-')+'</span></div>'+
+      '<div class="info-row"><span class="info-k">Latest</span><span class="info-v">'+esc(d.latest||'-')+'</span></div>';
+    if(d.updateAvailable){st.className='status ok';st.textContent='New version available: '+d.latest;document.getElementById('doPanelUpdateBtn').style.display='inline-flex'}
+    else{st.className='status ok';st.textContent='Panel is up to date!'}
+  }else{st.className='status fail';st.textContent=d.error||'Error'}
 }
 async function doPanelUpdate(){
-  if(!confirm('Cap nhat Panel? Trang se tu reload sau khi cap nhat.'))return;
+  if(!confirm('Update Panel? Page will auto-reload after update.'))return;
   const st=document.getElementById('panelUpdateStatus');
-  st.className='status loading';st.textContent='Dang cap nhat Panel...';
+  st.className='status loading';st.textContent='Updating Panel...';
   document.getElementById('doPanelUpdateBtn').style.display='none';
   try{
     const d=await api('/api/panel-update','POST');
-    if(d.ok){st.className='status ok';st.textContent='Thanh cong! Dang reload...';setTimeout(()=>{window.location.reload()},3000)}
-    else{st.className='status fail';st.textContent=d.error||'Loi cap nhat';document.getElementById('doPanelUpdateBtn').style.display='inline-flex'}
+    if(d.ok){st.className='status ok';st.textContent='Success! Reloading...';setTimeout(()=>{window.location.reload()},3000)}
+    else{st.className='status fail';st.textContent=d.error||'Update error';document.getElementById('doPanelUpdateBtn').style.display='inline-flex'}
   }catch(e){
-    st.className='status ok';st.textContent='Panel dang restart... Reload sau 5 giay.';
+    st.className='status ok';st.textContent='Panel restarting... Reloading in 5 seconds.';
     setTimeout(()=>{window.location.reload()},5000);
   }
 }
@@ -1469,7 +1469,7 @@ async function doPanelUpdate(){
 // === Status ===
 async function loadStatus(){
   const d=await api('/api/status'),el=document.getElementById('statusInfo');
-  if(!d.ok){el.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--danger)">Loi</span></div>';return}
+  if(!d.ok){el.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--danger)">Error</span></div>';return}
   let h='';(d.services||[]).forEach(s=>{h+='<div class="info-row"><span class="info-k">'+esc(s.name)+'</span><span class="info-v"><span class="badge '+(s.active?'bg-green':'bg-red')+'">'+(s.active?'Running':'Stopped')+'</span></span></div>'});
   h+='<div class="info-row" style="border-top:2px solid #f0f1f3;margin-top:4px;padding-top:12px"><span class="info-k">Uptime</span><span class="info-v">'+esc(d.uptime||'-')+'</span></div>';
   h+='<div class="info-row"><span class="info-k">RAM</span><span class="info-v">'+esc(d.memory||'-')+'</span></div>';
@@ -1481,10 +1481,10 @@ async function loadStatus(){
   h+='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:9px">'+esc(st_masked)+'</span></div>';
   el.innerHTML=h;
 }
-async function loadLogs(){const d=await api('/api/logs');document.getElementById('logsBox').textContent=d.ok?d.logs:'Loi'}
+async function loadLogs(){const d=await api('/api/logs');document.getElementById('logsBox').textContent=d.ok?d.logs:'Error'}
 async function restartSvc(n){
-  const st=document.getElementById('statusMsg');st.className='status loading';st.textContent='Restart '+n+'...';
-  const d=await api('/api/restart','POST',{service:n});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?n+' OK!':d.error||'Loi';
+  const st=document.getElementById('statusMsg');st.className='status loading';st.textContent='Restarting '+n+'...';
+  const d=await api('/api/restart','POST',{service:n});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?n+' OK!':d.error||'Error';
   setTimeout(()=>{loadStatus();loadLogs()},2000);
 }
 
@@ -1495,7 +1495,7 @@ async function loadFallback(){
   const chain=d.chain||[];const settings=d.settings||{};
   // Render chain
   const el=document.getElementById('fbChain');
-  if(!chain.length&&!d.primaryProvider){el.innerHTML='<div class="fb-empty">Chua cau hinh provider chinh. Vao tab AI Provider truoc.</div>';return;}
+  if(!chain.length&&!d.primaryProvider){el.innerHTML='<div class="fb-empty">Primary provider not configured. Go to AI Provider tab first.</div>';return;}
   let h='';
   // Primary always first
   if(d.primaryProvider){
@@ -1506,13 +1506,13 @@ async function loadFallback(){
     if(c.provider===d.primaryProvider)return;
     const pp=PROV_LIST_FB.find(p=>p.key===c.provider);
     const hasKey=c.hasKey;
-    h+='<div class="fb-item"><div class="fb-icon">'+(pp?pp.icon:'\\u2728')+'</div><div class="fb-info"><div class="fb-name">'+(pp?pp.name:c.provider)+'</div><div class="fb-model">'+(c.model||'')+'</div></div><span class="fb-badge fallback">FALLBACK #'+(i+1)+'</span><div class="fb-status-dot '+(hasKey?'configured':'nokey')+'" title="'+(hasKey?'Key OK':'No API key')+'"></div><button class="fb-remove" onclick="removeFallbackProvider(\\''+c.provider+'\\')">Xoa</button></div>';
+    h+='<div class="fb-item"><div class="fb-icon">'+(pp?pp.icon:'\\u2728')+'</div><div class="fb-info"><div class="fb-name">'+(pp?pp.name:c.provider)+'</div><div class="fb-model">'+(c.model||'')+'</div></div><span class="fb-badge fallback">FALLBACK #'+(i+1)+'</span><div class="fb-status-dot '+(hasKey?'configured':'nokey')+'" title="'+(hasKey?'Key OK':'No API key')+'"></div><button class="fb-remove" onclick="removeFallbackProvider(\\''+c.provider+'\\')">Remove</button></div>';
   });
-  if(!chain.length||chain.every(c=>c.provider===d.primaryProvider))h+='<div class="fb-empty" style="margin-top:8px">Chua co fallback provider. Them provider du phong ben duoi.</div>';
+  if(!chain.length||chain.every(c=>c.provider===d.primaryProvider))h+='<div class="fb-empty" style="margin-top:8px">No fallback provider. Add a backup provider below.</div>';
   el.innerHTML=h;
   // Populate add dropdown (exclude already in chain + primary)
   const usedKeys=chain.map(c=>c.provider);if(d.primaryProvider)usedKeys.push(d.primaryProvider);
-  const sel=document.getElementById('fbProvider');sel.innerHTML='<option value="">-- Chon provider --</option>';
+  const sel=document.getElementById('fbProvider');sel.innerHTML='<option value="">-- Select provider --</option>';
   PROV_LIST_FB.forEach(p=>{if(!usedKeys.includes(p.key))sel.innerHTML+='<option value="'+p.key+'">'+p.icon+' '+p.name+'</option>';});
   document.getElementById('fbModel').innerHTML='';
   // Settings
@@ -1531,23 +1531,23 @@ async function addFallbackProvider(){
   const model=document.getElementById('fbModel').value;
   const apiKey=document.getElementById('fbApiKey').value;
   const st=document.getElementById('fbAddStatus');
-  if(!prov){st.className='status fail';st.textContent='Chon provider truoc';return;}
-  if(!apiKey){st.className='status fail';st.textContent='Nhap API key';return;}
-  st.className='status loading';st.textContent='Dang them...';
+  if(!prov){st.className='status fail';st.textContent='Select provider first';return;}
+  if(!apiKey){st.className='status fail';st.textContent='Enter API key';return;}
+  st.className='status loading';st.textContent='Adding...';
   const d=await api('/api/fallback/add','POST',{provider:prov,model:model,apiKey:apiKey});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da them '+prov+' vao fallback chain!':(d.error||'Loi');
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Added '+prov+' to fallback chain!':(d.error||'Error');
   if(d.ok){document.getElementById('fbApiKey').value='';loadFallback();}
 }
 async function removeFallbackProvider(prov){
-  if(!confirm('Xoa '+prov+' khoi fallback chain?'))return;
+  if(!confirm('Remove '+prov+' from fallback chain?'))return;
   const d=await api('/api/fallback/remove','DELETE',{provider:prov});
   if(d.ok)loadFallback();
 }
 async function saveFallbackSettings(){
   const st=document.getElementById('fbSettingsStatus');
-  st.className='status loading';st.textContent='Dang luu...';
+  st.className='status loading';st.textContent='Saving...';
   const d=await api('/api/fallback','POST',{settings:{rateLimitPerMinute:parseInt(document.getElementById('fbRateLimit').value)||60,cooldownSeconds:parseInt(document.getElementById('fbCooldown').value)||300}});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu cai dat!':(d.error||'Loi');
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Settings saved!':(d.error||'Error');
 }
 
 // === Chat Playground ===
@@ -1561,43 +1561,43 @@ async function sendChat(){
   if(chatSending)return;
   const inp=document.getElementById('chatInput'),msg=inp.value.trim();if(!msg)return;
   chatSending=true;inp.value='';inp.disabled=true;
-  const sendBtn=document.querySelector('.chat-input button');if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='Dang gui...'}
+  const sendBtn=document.querySelector('.chat-input button');if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='Sending...'}
   const box=document.getElementById('chatMsgs');
   const userDiv=document.createElement('div');userDiv.className='chat-msg user';userDiv.textContent=msg;box.appendChild(userDiv);
   chatHistory.push({role:'user',content:msg});
-  const aiDiv=document.createElement('div');aiDiv.className='chat-msg ai';aiDiv.textContent='Dang suy nghi...';box.appendChild(aiDiv);
+  const aiDiv=document.createElement('div');aiDiv.className='chat-msg ai';aiDiv.textContent='Thinking...';box.appendChild(aiDiv);
   box.scrollTop=box.scrollHeight;
   const t0=Date.now();
   try{const d=await api('/api/chat','POST',{message:msg,history:chatHistory.slice(-20)});
     if(d.ok){aiDiv.innerHTML=esc(d.reply).replace(/\\n/g,'<br>')+'<div class="meta">'+(d.tokens?d.tokens+' tokens | ':'')+((Date.now()-t0)/1000).toFixed(1)+'s'+(d.model?' | '+esc(d.model):'')+'</div>';
       chatHistory.push({role:'assistant',content:d.reply});
       document.getElementById('chatMeta').textContent='Messages: '+chatHistory.length;
-    }else{aiDiv.textContent='Loi: '+(d.error||'Khong the ket noi');}
-  }catch(e){aiDiv.textContent='Loi: '+e.message;}
+    }else{aiDiv.textContent='Error: '+(d.error||'Unable to connect');}
+  }catch(e){aiDiv.textContent='Error: '+e.message;}
   chatSending=false;inp.disabled=false;inp.focus();
-  if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Gui'}
+  if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send'}
   box.scrollTop=box.scrollHeight;
 }
-function clearChat(){chatHistory=[];document.getElementById('chatMsgs').innerHTML='<div class="chat-msg ai">Chat da xoa. Hay gui tin nhan moi.</div>';document.getElementById('chatMeta').textContent=''}
+function clearChat(){chatHistory=[];document.getElementById('chatMsgs').innerHTML='<div class="chat-msg ai">Chat cleared. Send a new message.</div>';document.getElementById('chatMeta').textContent=''}
 
 // === Usage Analytics ===
 async function loadAnalytics(){
   const d=await api('/api/analytics');
   const ov=document.getElementById('analyticsOverview');
   const ch=document.getElementById('analyticsChannels');
-  if(!d.ok){ov.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Loi tai du lieu</span></div>';ch.innerHTML='';return}
-  ov.innerHTML='<div class="info-row"><span class="info-k">Hoi thoai</span><span class="info-v">'+esc(String(d.totalConversations||0))+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Tin nhan (user)</span><span class="info-v">'+esc(String(d.totalMessages||0))+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Token (Playground)</span><span class="info-v">'+esc(String((d.totalTokens||0).toLocaleString()))+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Hom nay</span><span class="info-v">'+esc(String(d.todayMessages||0))+' tin nhan</span></div>'+
+  if(!d.ok){ov.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Error loading data</span></div>';ch.innerHTML='';return}
+  ov.innerHTML='<div class="info-row"><span class="info-k">Conversations</span><span class="info-v">'+esc(String(d.totalConversations||0))+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Messages (user)</span><span class="info-v">'+esc(String(d.totalMessages||0))+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Tokens (Playground)</span><span class="info-v">'+esc(String((d.totalTokens||0).toLocaleString()))+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Today</span><span class="info-v">'+esc(String(d.todayMessages||0))+' messages</span></div>'+
     '<div class="info-row"><span class="info-k">Provider</span><span class="info-v">'+esc(d.provider||'-')+'</span></div>';
   // Channel breakdown
   if(d.channels&&Object.keys(d.channels).length>0){
     let chH='';Object.entries(d.channels).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
-      if(v>0)chH+='<div class="info-row"><span class="info-k">'+esc(k)+'</span><span class="info-v">'+v+' hoi thoai</span></div>';
+      if(v>0)chH+='<div class="info-row"><span class="info-k">'+esc(k)+'</span><span class="info-v">'+v+' conversations</span></div>';
     });
-    ch.innerHTML=chH||'<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co</span></div>';
-  }else ch.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co</span></div>';
+    ch.innerHTML=chH||'<div class="info-row"><span class="info-v" style="color:var(--text2)">None</span></div>';
+  }else ch.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">None</span></div>';
   // 7-day chart
   const chart=document.getElementById('analyticsChart'),list=document.getElementById('analyticsList');
   chart.innerHTML='';list.innerHTML='';
@@ -1605,10 +1605,10 @@ async function loadAnalytics(){
     const maxR=Math.max(...d.daily.map(x=>x.messages||0),1);
     d.daily.forEach(day=>{const msgs=day.messages||0;const pct=Math.max(4,(msgs/maxR)*100);
       const bar=document.createElement('div');bar.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px';
-      bar.innerHTML='<span style="font-size:10px;color:var(--text2)">'+msgs+'</span><div style="width:100%;height:'+pct+'px;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:4px;min-width:20px" title="'+esc(day.date)+': '+msgs+' tin nhan"></div><span style="font-size:9px;color:var(--text2)">'+esc(day.date.slice(5))+'</span>';
+      bar.innerHTML='<span style="font-size:10px;color:var(--text2)">'+msgs+'</span><div style="width:100%;height:'+pct+'px;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:4px;min-width:20px" title="'+esc(day.date)+': '+msgs+' messages"></div><span style="font-size:9px;color:var(--text2)">'+esc(day.date.slice(5))+'</span>';
       chart.appendChild(bar);
     });
-  }else{chart.innerHTML='<div style="color:var(--text2);font-size:13px;padding:20px;text-align:center;width:100%">Chua co du lieu trong 7 ngay qua</div>'}
+  }else{chart.innerHTML='<div style="color:var(--text2);font-size:13px;padding:20px;text-align:center;width:100%">No data in the last 7 days</div>'}
 }
 
 // === Conversation History ===
@@ -1616,13 +1616,13 @@ async function loadHistory(){
   const d=await api('/api/conversations');
   const el=document.getElementById('historyList');
   document.getElementById('historyDetail').style.display='none';
-  if(!d.ok||!d.conversations||d.conversations.length===0){el.innerHTML='<div style="font-size:12px;color:var(--text2)">Chua co hoi thoai nao.</div>';return}
+  if(!d.ok||!d.conversations||d.conversations.length===0){el.innerHTML='<div style="font-size:12px;color:var(--text2)">No conversations yet.</div>';return}
   el.innerHTML='';
   d.conversations.forEach((c,i)=>{
     const div=document.createElement('div');div.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s';
-    div.innerHTML='<span style="font-size:18px">\\ud83d\\udcac</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(c.title||'Hoi thoai #'+(i+1))+'</div><div style="font-size:11px;color:var(--text2)">'+esc(c.date||'')+' \\u2014 '+(c.messageCount||0)+' tin nhan'+(c.channel?' \\u2014 '+esc(c.channel):'')+'</div></div>';
+    div.innerHTML='<span style="font-size:18px">\\ud83d\\udcac</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(c.title||'Conversation #'+(i+1))+'</div><div style="font-size:11px;color:var(--text2)">'+esc(c.date||'')+' \\u2014 '+(c.messageCount||0)+' messages'+(c.channel?' \\u2014 '+esc(c.channel):'')+'</div></div>';
     div.onmouseover=()=>{div.style.borderColor='var(--accent)'};div.onmouseout=()=>{div.style.borderColor='var(--border)'};
-    div.onclick=()=>showConversation(c.id,c.title||'Hoi thoai #'+(i+1));
+    div.onclick=()=>showConversation(c.id,c.title||'Conversation #'+(i+1));
     el.appendChild(div);
   });
 }
@@ -1631,7 +1631,7 @@ async function showConversation(id,title){
   document.getElementById('historyDetailTitle').textContent=title;
   const d=await api('/api/conversations/'+id);
   const el=document.getElementById('historyMsgs');
-  if(!d.ok){el.innerHTML='<div style="color:var(--text2)">Loi</div>';return}
+  if(!d.ok){el.innerHTML='<div style="color:var(--text2)">Error</div>';return}
   el.innerHTML='';
   (d.messages||[]).forEach(m=>{
     const div=document.createElement('div');div.className='chat-msg '+(m.role==='user'?'user':'ai');div.style.maxWidth='95%';
@@ -1643,28 +1643,28 @@ async function showConversation(id,title){
 async function loadUsers(){
   const d=await api('/api/security');
   const el=document.getElementById('securityInfo');
-  if(!d.ok){el.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Loi</span></div>';return}
+  if(!d.ok){el.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Error</span></div>';return}
   el.innerHTML='<div class="info-row"><span class="info-k">UFW Firewall</span><span class="info-v"><span class="badge '+(d.ufw?'bg-green':'bg-red')+'">'+(d.ufw?'Active':'Inactive')+'</span></span></div>'+
     '<div class="info-row"><span class="info-k">SSH</span><span class="info-v">'+esc(String(d.sshPort||22))+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Login IP hien tai</span><span class="info-v">'+esc(d.clientIP||'-')+'</span></div>';
+    '<div class="info-row"><span class="info-k">Current Login IP</span><span class="info-v">'+esc(d.clientIP||'-')+'</span></div>';
 }
 async function changePassword(){
   const st=document.getElementById('passStatus'),o=document.getElementById('oldPass').value,n=document.getElementById('newPass').value,c=document.getElementById('confirmPass').value;
-  if(!o||!n){st.className='status fail';st.textContent='Nhap day du';return}
-  if(n!==c){st.className='status fail';st.textContent='Mat khau moi khong khop';return}
-  if(n.length<6){st.className='status fail';st.textContent='Mat khau moi qua ngan (min 6)';return}
-  st.className='status loading';st.textContent='Dang doi...';
+  if(!o||!n){st.className='status fail';st.textContent='Fill in all fields';return}
+  if(n!==c){st.className='status fail';st.textContent='New passwords don\\x27t match';return}
+  if(n.length<6){st.className='status fail';st.textContent='New password too short (min 6)';return}
+  st.className='status loading';st.textContent='Changing...';
   const d=await api('/api/change-password','POST',{oldPassword:o,newPassword:n});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da doi mat khau!':d.error||'Loi';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Password changed!':d.error||'Error';
   if(d.ok){document.getElementById('oldPass').value='';document.getElementById('newPass').value='';document.getElementById('confirmPass').value=''}
 }
 
 // === Backup & Restore ===
 async function downloadBackup(){
-  const st=document.getElementById('backupStatus');st.className='status loading';st.textContent='Dang tao backup...';
+  const st=document.getElementById('backupStatus');st.className='status loading';st.textContent='Creating backup...';
   const d=await api('/api/backup');
-  if(!d.ok){st.className='status fail';st.textContent=d.error||'Loi';return}
-  st.className='status ok';st.textContent='Backup thanh cong! File dang tai xuong...';
+  if(!d.ok){st.className='status fail';st.textContent=d.error||'Error';return}
+  st.className='status ok';st.textContent='Backup successful! File is downloading...';
   const blob=new Blob([JSON.stringify(d.data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');
   const date=new Date().toISOString().slice(0,10).replace(/-/g,'');
@@ -1672,34 +1672,34 @@ async function downloadBackup(){
   document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 async function doBackup(){
-  const st=document.getElementById('backupStatus');st.className='status loading';st.textContent='Dang tao backup...';
+  const st=document.getElementById('backupStatus');st.className='status loading';st.textContent='Creating backup...';
   const d=await api('/api/backup');
-  if(d.ok){st.className='status ok';st.textContent='Backup thanh cong! Copy noi dung ben duoi.';
+  if(d.ok){st.className='status ok';st.textContent='Backup successful! Copy the content below.';
     document.getElementById('backupData').style.display='block';
     document.getElementById('backupContent').value=JSON.stringify(d.data,null,2);
-  }else{st.className='status fail';st.textContent=d.error||'Loi'}
+  }else{st.className='status fail';st.textContent=d.error||'Error'}
 }
 function handleRestoreFile(e){
   const file=e.target.files[0];if(!file)return;
   const st=document.getElementById('restoreStatus');
-  if(!file.name.endsWith('.json')){st.className='status fail';st.textContent='Chi chap nhan file .json';e.target.value='';return}
+  if(!file.name.endsWith('.json')){st.className='status fail';st.textContent='Only .json files accepted';e.target.value='';return}
   const reader=new FileReader();
   reader.onload=function(ev){
     try{JSON.parse(ev.target.result);document.getElementById('restoreContent').value=ev.target.result;
-      st.className='status ok';st.textContent='Da doc file '+file.name+' — nhan "Phuc hoi" de ap dung.';
-    }catch{st.className='status fail';st.textContent='File JSON khong hop le'}
+      st.className='status ok';st.textContent='Read file '+file.name+' — click "Restore" to apply.';
+    }catch{st.className='status fail';st.textContent='Invalid JSON file'}
   };
-  reader.onerror=function(){st.className='status fail';st.textContent='Khong doc duoc file'};
+  reader.onerror=function(){st.className='status fail';st.textContent='Unable to read file'};
   reader.readAsText(file);e.target.value='';
 }
 async function doRestore(){
   const st=document.getElementById('restoreStatus'),raw=document.getElementById('restoreContent').value.trim();
-  if(!raw){st.className='status fail';st.textContent='Upload file hoac dan backup JSON truoc';return}
-  let data;try{data=JSON.parse(raw)}catch{st.className='status fail';st.textContent='JSON khong hop le';return}
-  if(!confirm('Ban chac chan muon phuc hoi? Cau hinh hien tai se bi ghi de.'))return;
-  st.className='status loading';st.textContent='Dang phuc hoi...';
+  if(!raw){st.className='status fail';st.textContent='Upload file or paste backup JSON first';return}
+  let data;try{data=JSON.parse(raw)}catch{st.className='status fail';st.textContent='Invalid JSON';return}
+  if(!confirm('Are you sure? Current configuration will be overwritten.'))return;
+  st.className='status loading';st.textContent='Restoring...';
   const d=await api('/api/restore','POST',{data});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Phuc hoi thanh cong! OpenClaw da restart.':d.error||'Loi';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Restore successful! OpenClaw restarted.':d.error||'Error';
 }
 
 // === Config Editor ===
@@ -1709,11 +1709,11 @@ async function loadConfigEditor(){
 }
 async function saveConfigFile(type){
   const stId=type==='json'?'configJsonStatus':'configEnvStatus';const st=document.getElementById(stId);
-  st.className='status loading';st.textContent='Dang luu...';
+  st.className='status loading';st.textContent='Saving...';
   const content=type==='json'?document.getElementById('configJson').value:document.getElementById('configEnv').value;
-  if(type==='json'){try{JSON.parse(content)}catch(e){st.className='status fail';st.textContent='JSON loi: '+e.message;return}}
+  if(type==='json'){try{JSON.parse(content)}catch(e){st.className='status fail';st.textContent='JSON error: '+e.message;return}}
   const d=await api('/api/config-write','POST',{type,content});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu! Restart OK.':d.error||'Loi';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Saved! Restart OK.':d.error||'Error';
 }
 
 // === QR Code (local SVG generation — no external API) ===
@@ -1809,7 +1809,7 @@ async function loadDoctor(){
   try{
     const d=await api('/api/doctor-history');
     const el=document.getElementById('doctorHistory');
-    if(!d.ok||!d.history||d.history.length===0){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">Chua co lich su. Bam Scan de bat dau.</div>';return}
+    if(!d.ok||!d.history||d.history.length===0){el.innerHTML='<div style="color:var(--text2);font-size:12px;padding:8px">No history. Click Scan to start.</div>';return}
     let h='';d.history.forEach(item=>{
       const modeLabel={scan:'Scan',repair:'Repair',deep:'Deep'}[item.mode]||item.mode;
       const s=item.summary||{};
@@ -1845,22 +1845,22 @@ async function runDoctor(mode){
   const st=document.getElementById('doctorStatus');
   const btns=document.querySelectorAll('.doc-btn');btns.forEach(b=>b.classList.add('running'));
   const modeLabel={scan:'Scanning...',repair:'Repairing...',deep:'Deep scanning...'}[mode]||'Running...';
-  st.className='status loading';st.textContent=modeLabel+' (co the mat 1-2 phut)';
+  st.className='status loading';st.textContent=modeLabel+' (may take 1-2 minutes)';
   document.getElementById('doctorResultCard').style.display='none';
   document.getElementById('doctorOutputCard').style.display='none';
   try{
     const d=await api('/api/doctor','POST',{mode});
     btns.forEach(b=>b.classList.remove('running'));doctorRunning=false;
-    if(!d.ok){st.className='status fail';st.textContent=d.error||'Loi khi chay doctor';return}
+    if(!d.ok){st.className='status fail';st.textContent=d.error||'Error running doctor';return}
     const s=d.summary||{};
-    if(s.fail>0){st.className='status fail';st.textContent='Phat hien '+s.fail+' loi! ('+s.total+' checks, '+d.duration+')'}
-    else if(s.warn>0){st.className='status warn';st.textContent=s.warn+' canh bao. ('+s.total+' checks, '+d.duration+')'}
-    else{st.className='status ok';st.textContent='He thong binh thuong! ('+s.total+' checks, '+d.duration+')'}
+    if(s.fail>0){st.className='status fail';st.textContent='Found '+s.fail+' error(s)! ('+s.total+' checks, '+d.duration+')'}
+    else if(s.warn>0){st.className='status warn';st.textContent=s.warn+' warning(s). ('+s.total+' checks, '+d.duration+')'}
+    else{st.className='status ok';st.textContent='System is healthy! ('+s.total+' checks, '+d.duration+')'}
     renderDoctorResult(s,d.output||'');
     loadDoctor();
   }catch(e){
     btns.forEach(b=>b.classList.remove('running'));doctorRunning=false;
-    st.className='status fail';st.textContent='Loi: '+e.message;
+    st.className='status fail';st.textContent='Error: '+e.message;
   }
 }
 
@@ -1906,10 +1906,10 @@ const server = http.createServer(async (req, res) => {
 
   // Login
   if (req.method === 'POST' && url.pathname === '/api/login') {
-    if (isBlocked(ip)) return json(res, 429, { ok: false, error: 'Qua nhieu lan thu. Doi 15 phut.' });
+    if (isBlocked(ip)) return json(res, 429, { ok: false, error: 'Too many attempts. Wait 15 minutes.' });
     try {
       const body = await parseBody(req);
-      if (!body.username || !body.password) return json(res, 400, { ok: false, error: 'Thieu thong tin' });
+      if (!body.username || !body.password) return json(res, 400, { ok: false, error: 'Missing credentials' });
       if (verifyPassword(body.username, body.password)) {
         const token = createSession();
         res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `panel_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}` });
@@ -1917,9 +1917,9 @@ const server = http.createServer(async (req, res) => {
       } else {
         recordFailedLogin(ip);
         const rem = MAX_LOGIN_ATTEMPTS - (loginAttempts[ip]?.count || 0);
-        return json(res, 401, { ok: false, error: `Sai mat khau. Con ${Math.max(0, rem)} lan.` });
+        return json(res, 401, { ok: false, error: `Wrong password. ${Math.max(0, rem)} attempt(s) remaining.` });
       }
-    } catch { return json(res, 400, { ok: false, error: 'Request loi' }); }
+    } catch { return json(res, 400, { ok: false, error: 'Bad request' }); }
   }
 
   // Logout
@@ -1932,7 +1932,7 @@ const server = http.createServer(async (req, res) => {
 
   // Auth check
   if (url.pathname.startsWith('/api/') && url.pathname !== '/api/login') {
-    if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Chua dang nhap' });
+    if (!isValidSession(req)) return json(res, 401, { ok: false, error: 'Not logged in' });
   }
 
   // Current Config
@@ -1964,18 +1964,18 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/test-key') {
     try {
       const body = await parseBody(req); const p = PROVIDERS[body.provider];
-      if (!p) return json(res, 400, { ok: false, error: 'Provider khong hop le' });
+      if (!p) return json(res, 400, { ok: false, error: 'Invalid provider' });
       const ok = p.testFn(body.apiKey);
-      return json(res, 200, { ok, error: ok ? null : 'API key khong hop le' });
-    } catch { return json(res, 500, { ok: false, error: 'Loi' }); }
+      return json(res, 200, { ok, error: ok ? null : 'Invalid API key' });
+    } catch { return json(res, 500, { ok: false, error: 'Error' }); }
   }
 
   // Save Provider Key Only (no model change, no restart)
   if (req.method === 'POST' && url.pathname === '/api/provider-save-key') {
     try {
       const body = await parseBody(req); const prov = PROVIDERS[body.provider];
-      if (!prov) return json(res, 400, { ok: false, error: 'Provider khong hop le' });
-      if (!body.apiKey) return json(res, 400, { ok: false, error: 'Thieu API key' });
+      if (!prov) return json(res, 400, { ok: false, error: 'Invalid provider' });
+      if (!body.apiKey) return json(res, 400, { ok: false, error: 'Missing API key' });
       setEnvValue(prov.envKey, body.apiKey);
       if (body.extraEnv && prov.extraEnvKeys) { for (const [ek, ev] of Object.entries(body.extraEnv)) { if (prov.extraEnvKeys.includes(ek) && ev) setEnvValue(ek, ev); } }
       return json(res, 200, { ok: true });
@@ -1986,7 +1986,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/provider') {
     try {
       const body = await parseBody(req); const prov = PROVIDERS[body.provider];
-      if (!prov) return json(res, 400, { ok: false, error: 'Provider khong hop le' });
+      if (!prov) return json(res, 400, { ok: false, error: 'Invalid provider' });
       const token = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
       setEnvValue(prov.envKey, body.apiKey);
       if (body.extraEnv && prov.extraEnvKeys) { for (const [ek, ev] of Object.entries(body.extraEnv)) { if (prov.extraEnvKeys.includes(ek) && ev) setEnvValue(ek, ev); } }
@@ -1997,7 +1997,7 @@ const server = http.createServer(async (req, res) => {
       config.browser = config.browser || { headless: true, executablePath: '/usr/bin/google-chrome', defaultProfile: 'openclaw', noSandbox: true };
       config.gateway.mode = config.gateway.mode || 'local'; config.gateway.bind = config.gateway.bind || 'loopback'; config.gateway.trustedProxies = config.gateway.trustedProxies || ['127.0.0.1', '::1'];
       saveConfig(config); restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
-      return json(res, 200, { ok: isServiceActive('openclaw'), error: isServiceActive('openclaw') ? null : 'Khong khoi dong duoc' });
+      return json(res, 200, { ok: isServiceActive('openclaw'), error: isServiceActive('openclaw') ? null : 'Unable to start' });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -2034,9 +2034,9 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req);
       const prov = PROVIDERS[body.provider];
-      if (!prov) return json(res, 400, { ok: false, error: 'Provider khong hop le' });
+      if (!prov) return json(res, 400, { ok: false, error: 'Invalid provider' });
       const fbCfg = getFallbackConfig();
-      if (fbCfg.chain.some(c => c.provider === body.provider)) return json(res, 400, { ok: false, error: 'Provider da co trong chain' });
+      if (fbCfg.chain.some(c => c.provider === body.provider)) return json(res, 400, { ok: false, error: 'Provider already in chain' });
       fbCfg.chain.push({ provider: body.provider, model: body.model || prov.models[0]?.id || '', priority: fbCfg.chain.length + 1 });
       if (body.apiKey) setEnvValue(prov.envKey, body.apiKey);
       saveFallbackConfig(fbCfg);
@@ -2052,7 +2052,7 @@ const server = http.createServer(async (req, res) => {
       const config = getConfig();
       const primaryModel = config?.agents?.defaults?.model?.primary || '';
       const isPrimary = primaryModel.startsWith(body.provider + '/') || (body.provider === 'gemini' && primaryModel.startsWith('google/')) || (body.provider === 'bedrock' && primaryModel.startsWith('amazon-bedrock/'));
-      if (isPrimary) return json(res, 400, { ok: false, error: 'Khong the xoa primary provider' });
+      if (isPrimary) return json(res, 400, { ok: false, error: 'Cannot remove primary provider' });
       fbCfg.chain = fbCfg.chain.filter(c => c.provider !== body.provider);
       fbCfg.chain.forEach((c, i) => c.priority = i + 1);
       saveFallbackConfig(fbCfg);
@@ -2067,7 +2067,7 @@ const server = http.createServer(async (req, res) => {
       try { output = execSync(`/opt/openclaw-cli.sh agents list --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); }
       catch (e) { output = (e.stdout || '').toString(); }
       let agents;
-      try { agents = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Khong doc duoc danh sach agents' }); }
+      try { agents = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Unable to read agent list' }); }
       const config = getConfig();
       const defaultModel = config?.agents?.defaults?.model?.primary || '';
       agents = (Array.isArray(agents) ? agents : []).map(a => ({ ...a, model: a.model || defaultModel, identity: a.identity || {} }));
@@ -2085,8 +2085,8 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req);
       const name = (body.name || '').replace(/[^a-zA-Z0-9_-]/g, '');
-      if (!name) return json(res, 400, { ok: false, error: 'Thieu ten agent' });
-      if (name.length > 32) return json(res, 400, { ok: false, error: 'Ten qua dai (max 32 ky tu)' });
+      if (!name) return json(res, 400, { ok: false, error: 'Missing agent name' });
+      if (name.length > 32) return json(res, 400, { ok: false, error: 'Name too long (max 32 chars)' });
       let cmd = `agents add "${name}" --non-interactive --json`;
       if (body.model) { const m = body.model.replace(/[^a-zA-Z0-9/_.-]/g, ''); cmd += ` --model "${m}"`; }
       if (body.bind) { const b = body.bind.replace(/[^a-zA-Z0-9_:-]/g, ''); cmd += ` --bind "${b}"`; }
@@ -2101,7 +2101,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req);
       const agent = (body.agent || '').replace(/[^a-zA-Z0-9_-]/g, '');
-      if (!agent) return json(res, 400, { ok: false, error: 'Thieu agent ID' });
+      if (!agent) return json(res, 400, { ok: false, error: 'Missing agent ID' });
       let cmd = `agents set-identity --agent "${agent}" --json`;
       if (body.name) { const n = body.name.replace(/"/g, '\\"'); cmd += ` --name "${n}"`; }
       if (body.emoji) { const e = body.emoji.replace(/"/g, '\\"'); cmd += ` --emoji "${e}"`; }
@@ -2116,8 +2116,8 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req);
       const agent = (body.agent || '').replace(/[^a-zA-Z0-9_-]/g, '');
-      if (!agent) return json(res, 400, { ok: false, error: 'Thieu agent ID' });
-      if (agent === 'main') return json(res, 400, { ok: false, error: 'Khong the xoa agent mac dinh (main)' });
+      if (!agent) return json(res, 400, { ok: false, error: 'Missing agent ID' });
+      if (agent === 'main') return json(res, 400, { ok: false, error: 'Cannot delete default agent (main)' });
       try { execSync(`/opt/openclaw-cli.sh agents delete "${agent}" --force --json`, { timeout: 15000, stdio: 'pipe' }); }
       catch (e) { const err = ((e.stderr || '') + (e.stdout || '')).toString().trim(); return json(res, 200, { ok: false, error: err.substring(0, 300) || e.message }); }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
@@ -2129,19 +2129,19 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/channels') {
     try {
       const body = await parseBody(req); const ch = CHANNELS[body.channel];
-      if (!ch) return json(res, 400, { ok: false, error: 'Channel khong hop le' });
+      if (!ch) return json(res, 400, { ok: false, error: 'Invalid channel' });
       for (const [key, val] of Object.entries(body.tokens || {})) { if (ch.envKeys.includes(key) && val) setEnvValue(key, val); }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // Channel Disable (tat kenh — xoa token env vars)
+  // Channel Disable (disable channel — remove token env vars)
   if (req.method === 'POST' && url.pathname === '/api/channel-disable') {
     try {
       const body = await parseBody(req); const ch = CHANNELS[body.channel];
-      if (!ch) return json(res, 400, { ok: false, error: 'Channel khong hop le' });
-      // Xoa tat ca env keys cua channel (dat thanh comment)
+      if (!ch) return json(res, 400, { ok: false, error: 'Invalid channel' });
+      // Remove all env keys for channel (set as comment)
       ch.envKeys.forEach(k => { setEnvValue(k, '#disabled'); });
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
@@ -2152,7 +2152,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/channel-values') {
     try {
       const body = await parseBody(req); const ch = CHANNELS[body.channel];
-      if (!ch) return json(res, 400, { ok: false, error: 'Channel khong hop le' });
+      if (!ch) return json(res, 400, { ok: false, error: 'Invalid channel' });
       const values = {};
       ch.envKeys.forEach(k => { const v = getEnvValue(k); if (v && !v.startsWith('#')) values[k] = v.substring(0, 4) + '***' + v.substring(v.length - 4); });
       return json(res, 200, { ok: true, values });
@@ -2163,30 +2163,30 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/channel-pair') {
     try {
       const body = await parseBody(req); const ch = CHANNELS[body.channel];
-      if (!ch || !ch.canPair) return json(res, 400, { ok: false, error: 'Khong ho tro pairing qua web' });
+      if (!ch || !ch.canPair) return json(res, 400, { ok: false, error: 'Web pairing not supported' });
       const code = (body.code || '').replace(/[^a-zA-Z0-9_-]/g, '');
-      if (!code) return json(res, 400, { ok: false, error: 'Thieu ma' });
+      if (!code) return json(res, 400, { ok: false, error: 'Missing code' });
       try { execSync(`/opt/openclaw-cli.sh pairing approve ${ch.pairCmd} ${code}`, { timeout: 15000, stdio: 'pipe' }); return json(res, 200, { ok: true }); }
       catch (e) { return json(res, 200, { ok: false, error: (e.stderr || e.stdout || '').toString().substring(0, 200) || e.message }); }
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // Device Pair — tim va approve pending pairing request
+  // Device Pair — find and approve pending pairing request
   if (req.method === 'POST' && url.pathname === '/api/pair') {
     try {
       const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
-      if (!gatewayToken) return json(res, 400, { ok: false, error: 'Chua co gateway token' });
+      if (!gatewayToken) return json(res, 400, { ok: false, error: 'No gateway token' });
       let output = '';
       try { output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); } catch (e) { output = (e.stdout || '').toString(); }
-      let data; try { data = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Khong doc duoc danh sach thiet bi' }); }
+      let data; try { data = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Unable to read device list' }); }
       const pending = data.pending || [];
-      if (!pending.length) return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Mo dashboard truoc roi thu lai.' });
-      if (pending.length > 1) return json(res, 200, { ok: false, error: 'Tim thay ' + pending.length + ' yeu cau. Thu lai sau.' });
+      if (!pending.length) return json(res, 200, { ok: false, error: 'No pairing request found. Open dashboard first then try again.' });
+      if (pending.length > 1) return json(res, 200, { ok: false, error: 'Found ' + pending.length + ' request(s). Try again later.' });
       const requestId = pending[0].requestId || '';
-      if (!requestId) return json(res, 200, { ok: false, error: 'Khong lay duoc request ID' });
+      if (!requestId) return json(res, 200, { ok: false, error: 'Unable to get request ID' });
       execSync(`/opt/openclaw-cli.sh devices approve "${requestId}" --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
       return json(res, 200, { ok: true });
-    } catch (e) { return json(res, 500, { ok: false, error: 'Loi ghep noi: ' + e.message }); }
+    } catch (e) { return json(res, 500, { ok: false, error: 'Pairing error: ' + e.message }); }
   }
 
   // Device List
@@ -2199,7 +2199,7 @@ const server = http.createServer(async (req, res) => {
       let data; try { data = JSON.parse(output); } catch { return json(res, 200, { ok: true, devices: [] }); }
       const devices = [];
       (data.paired || []).forEach(d => { const tokens = d.tokens || []; const allRevoked = tokens.length > 0 && tokens.every(t => t.revokedAtMs); const st = allRevoked ? 'revoked' : 'paired'; devices.push({ uuid: d.deviceId || d.id || '', name: (d.platform || d.clientId || d.deviceId || '').substring(0, 20), status: st, ip: d.remoteIp || '', platform: d.platform || '', client: d.clientId || '', mode: d.clientMode || '', role: d.role || 'operator' }); });
-      (data.pending || []).forEach(d => devices.push({ uuid: d.deviceId || d.id || '', name: (d.platform || d.clientId || d.deviceId || '').substring(0, 20) + ' (cho duyet)', status: 'pending', ip: d.remoteIp || '', platform: d.platform || '', client: d.clientId || '', mode: d.clientMode || '', role: d.role || 'operator' }));
+      (data.pending || []).forEach(d => devices.push({ uuid: d.deviceId || d.id || '', name: (d.platform || d.clientId || d.deviceId || '').substring(0, 20) + ' (pending)', status: 'pending', ip: d.remoteIp || '', platform: d.platform || '', client: d.clientId || '', mode: d.clientMode || '', role: d.role || 'operator' }));
       return json(res, 200, { ok: true, devices });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
@@ -2210,12 +2210,12 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const deviceId = (body.deviceId || '').replace(/[^a-f0-9]/g, '');
       const role = (body.role || 'operator').replace(/[^a-z]/g, '');
-      if (!deviceId) return json(res, 400, { ok: false, error: 'Thieu device ID' });
+      if (!deviceId) return json(res, 400, { ok: false, error: 'Missing device ID' });
       const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
-      if (!gatewayToken) return json(res, 400, { ok: false, error: 'Chua co gateway token' });
+      if (!gatewayToken) return json(res, 400, { ok: false, error: 'No gateway token' });
       execSync(`/opt/openclaw-cli.sh devices revoke --device ${deviceId} --role ${role} --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
       return json(res, 200, { ok: true });
-    } catch (e) { return json(res, 500, { ok: false, error: 'Loi revoke: ' + (e.stderr ? e.stderr.toString().trim() : e.message) }); }
+    } catch (e) { return json(res, 500, { ok: false, error: 'Revoke error: ' + (e.stderr ? e.stderr.toString().trim() : e.message) }); }
   }
 
   // Gateway Token
@@ -2239,19 +2239,19 @@ const server = http.createServer(async (req, res) => {
         restartService('caddy'); await new Promise(r => setTimeout(r, 2000)); return json(res, 200, { ok: true });
       }
       const domain = (body.domain || '').trim().toLowerCase(), email = (body.email || '').trim();
-      if (!domain) return json(res, 400, { ok: false, error: 'Thieu ten mien' });
-      if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) return json(res, 400, { ok: false, error: 'Ten mien khong hop le' });
+      if (!domain) return json(res, 400, { ok: false, error: 'Missing domain' });
+      if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(domain)) return json(res, 400, { ok: false, error: 'Invalid domain' });
       let ips = [];
       try { const o = safeExec(`dig +short A ${domain}`, 10000); if (o) ips = o.split('\n').filter(i => /^\d+\.\d+\.\d+\.\d+$/.test(i.trim())); } catch {}
       if (!ips.length) try { const o = safeExec(`host ${domain}`, 10000); const m = o.match(/has address (\d+\.\d+\.\d+\.\d+)/g); if (m) ips = m.map(s => s.replace('has address ', '')); } catch {}
       if (!ips.length) try { const o = safeExec(`python3 -c "import socket; print(socket.gethostbyname('${domain}'))"`, 10000); if (/^\d+\.\d+\.\d+\.\d+$/.test(o)) ips = [o]; } catch {}
-      if (!ips.length) return json(res, 400, { ok: false, error: `Khong phan giai DNS. Tro A record ve ${serverIP}.` });
-      if (!ips.includes(serverIP)) return json(res, 400, { ok: false, error: `DNS tro ve ${ips.join(', ')} — khong phai ${serverIP}.` });
+      if (!ips.length) return json(res, 400, { ok: false, error: `DNS resolution failed. Point A record to ${serverIP}.` });
+      if (!ips.includes(serverIP)) return json(res, 400, { ok: false, error: `DNS points to ${ips.join(', ')} — not ${serverIP}.` });
       writeCaddyfile(domain, email);
       execSync('systemctl enable caddy 2>/dev/null || true', { timeout: 10000 }); restartService('caddy'); await new Promise(r => setTimeout(r, 3000));
       if (isServiceActive('caddy')) return json(res, 200, { ok: true, domain });
       writeCaddyfile(null); restartService('caddy');
-      return json(res, 500, { ok: false, error: 'Caddy loi. Da rollback.' });
+      return json(res, 500, { ok: false, error: 'Caddy error. Rolled back.' });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -2280,7 +2280,7 @@ const server = http.createServer(async (req, res) => {
       if (ver !== 'latest') setEnvValue('OPENCLAW_VERSION', ver);
       log += 'Start...\n'; restartService('openclaw'); await new Promise(r => setTimeout(r, 3000));
       const ok = isServiceActive('openclaw'); log += ok ? 'OK!\n' : 'FAIL\n';
-      return json(res, 200, { ok, log, error: ok ? null : 'Khong khoi dong duoc' });
+      return json(res, 200, { ok, log, error: ok ? null : 'Unable to start' });
     } catch (e) { return json(res, 500, { ok: false, error: e.message, log: e.message }); }
   }
 
@@ -2291,7 +2291,7 @@ const server = http.createServer(async (req, res) => {
       const remoteHead = safeExec(`curl -sL --max-time 10 -r 0-500 "${PANEL_UPDATE_URL}"`, 15000);
       const m = remoteHead.match(/PANEL_VERSION\s*=\s*['"]([^'"]+)['"]/);
       const remoteVersion = m ? m[1] : null;
-      if (!remoteVersion) return json(res, 200, { ok: true, current: localVersion, latest: null, updateAvailable: false, error: 'Khong doc duoc phien ban tu server' });
+      if (!remoteVersion) return json(res, 200, { ok: true, current: localVersion, latest: null, updateAvailable: false, error: 'Unable to read version from server' });
       return json(res, 200, { ok: true, current: localVersion, latest: remoteVersion, updateAvailable: remoteVersion !== localVersion });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
@@ -2303,19 +2303,19 @@ const server = http.createServer(async (req, res) => {
       let log = '';
       log += 'Downloading latest panel.js...\n';
       const dlResult = safeExec(`curl -fsSL --max-time 30 -o "${tmpFile}" "${PANEL_UPDATE_URL}" && echo "OK"`, 45000);
-      if (!dlResult.includes('OK')) { try { fs.unlinkSync(tmpFile); } catch {} return json(res, 500, { ok: false, error: 'Tai panel.js that bai', log }); }
+      if (!dlResult.includes('OK')) { try { fs.unlinkSync(tmpFile); } catch {} return json(res, 500, { ok: false, error: 'Failed to download panel.js', log }); }
       log += 'Validating...\n';
       const stat = fs.statSync(tmpFile);
-      if (stat.size < 1000) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'File tai ve qua nho (' + stat.size + ' bytes)', log }); }
+      if (stat.size < 1000) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'Downloaded file too small (' + stat.size + ' bytes)', log }); }
       const head = fs.readFileSync(tmpFile, 'utf8').substring(0, 300);
-      if (!head.includes('#!/usr/bin/env node') || !head.includes('OpenClaw')) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'File khong hop le', log }); }
-      log += 'Backup panel cu...\n';
+      if (!head.includes('#!/usr/bin/env node') || !head.includes('OpenClaw')) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'Invalid file', log }); }
+      log += 'Backing up current panel...\n';
       try { fs.copyFileSync(PANEL_FILE, PANEL_FILE + '.bak'); } catch {}
-      log += 'Thay the panel.js...\n';
+      log += 'Replacing panel.js...\n';
       fs.renameSync(tmpFile, PANEL_FILE);
-      log += 'Restart panel service...\n';
+      log += 'Restarting panel service...\n';
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, log, message: 'Cap nhat thanh cong! Panel dang restart...' }));
+      res.end(JSON.stringify({ ok: true, log, message: 'Update successful! Panel restarting...' }));
       setTimeout(() => {
         try { execSync('systemctl restart openclaw-panel', { timeout: 15000 }); }
         catch { try { fs.copyFileSync(PANEL_FILE + '.bak', PANEL_FILE); execSync('systemctl restart openclaw-panel', { timeout: 15000 }); } catch {} }
@@ -2366,11 +2366,11 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const config = getConfig();
       const model = config?.agents?.defaults?.model?.primary || '';
-      if (!model) return json(res, 400, { ok: false, error: 'Chua cau hinh provider' });
+      if (!model) return json(res, 400, { ok: false, error: 'Provider not configured' });
 
       // Detect primary provider
       const provEntry = Object.entries(PROVIDERS).find(([k]) => model.startsWith(k + '/') || (k === 'gemini' && model.startsWith('google/')) || (k === 'bedrock' && model.startsWith('amazon-bedrock/')));
-      if (!provEntry) return json(res, 400, { ok: false, error: 'Provider khong xac dinh' });
+      if (!provEntry) return json(res, 400, { ok: false, error: 'Unknown provider' });
 
       // Build messages
       const messages = (body.history || []).slice(-20).map(m => ({ role: m.role, content: m.content }));
@@ -2407,7 +2407,7 @@ const server = http.createServer(async (req, res) => {
       // Save rate state
       try { saveFallbackConfig(fbCfg); } catch {}
 
-      if (!reply) return json(res, 502, { ok: false, error: 'Tat ca provider deu that bai. ' + lastError });
+      if (!reply) return json(res, 502, { ok: false, error: 'All providers failed. ' + lastError });
 
       // Track usage
       try {
@@ -2546,7 +2546,7 @@ const server = http.createServer(async (req, res) => {
           const dateStr = (lastTs || firstTs || '').replace('T', ' ').substring(0, 19);
           conversations.push({
             id: sess.sessionId || key,
-            title: firstUserMsg.substring(0, 60) || label || 'Hoi thoai',
+            title: firstUserMsg.substring(0, 60) || label || 'Conversation',
             date: dateStr,
             messageCount: msgCount,
             channel,
@@ -2607,13 +2607,13 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/change-password') {
     try {
       const body = await parseBody(req);
-      if (!body.oldPassword || !body.newPassword) return json(res, 400, { ok: false, error: 'Thieu thong tin' });
-      if (body.newPassword.length < 6) return json(res, 400, { ok: false, error: 'Mat khau moi qua ngan' });
-      if (!verifyPassword('root', body.oldPassword)) return json(res, 401, { ok: false, error: 'Mat khau cu sai' });
+      if (!body.oldPassword || !body.newPassword) return json(res, 400, { ok: false, error: 'Missing credentials' });
+      if (body.newPassword.length < 6) return json(res, 400, { ok: false, error: 'New password too short' });
+      if (!verifyPassword('root', body.oldPassword)) return json(res, 401, { ok: false, error: 'Current password incorrect' });
       try {
         execSync(`echo 'root:${body.newPassword.replace(/'/g,"'\\''")}' | chpasswd`, { timeout: 10000 });
         return json(res, 200, { ok: true });
-      } catch (e) { return json(res, 500, { ok: false, error: 'Loi doi mat khau: ' + e.message }); }
+      } catch (e) { return json(res, 500, { ok: false, error: 'Error changing password: ' + e.message }); }
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -2636,7 +2636,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req);
       const d = body.data;
-      if (!d || d._type !== 'openclaw-backup') return json(res, 400, { ok: false, error: 'Backup data khong hop le' });
+      if (!d || d._type !== 'openclaw-backup') return json(res, 400, { ok: false, error: 'Invalid backup data' });
       // Restore config (keep existing token)
       if (d.config && typeof d.config === 'object') {
         const existing = getConfig();
@@ -2676,13 +2676,13 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req);
       if (body.type === 'json') {
-        try { JSON.parse(body.content); } catch (e) { return json(res, 400, { ok: false, error: 'JSON loi: ' + e.message }); }
+        try { JSON.parse(body.content); } catch (e) { return json(res, 400, { ok: false, error: 'JSON error: ' + e.message }); }
         const dir = '/home/openclaw/.openclaw'; fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(CONFIG_FILE, body.content, 'utf8');
         execSync(`chown openclaw:openclaw ${CONFIG_FILE}`); execSync(`chmod 0600 ${CONFIG_FILE}`);
       } else if (body.type === 'env') {
         fs.writeFileSync(ENV_FILE, body.content, 'utf8');
-      } else { return json(res, 400, { ok: false, error: 'Type khong hop le' }); }
+      } else { return json(res, 400, { ok: false, error: 'Invalid type' }); }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: isServiceActive('openclaw') });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -2764,7 +2764,7 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: 'Not found' });
 });
 
-// Retry listen voi backoff neu port van bi chiem (vd: Setup UI chua exit hoan toan)
+// Retry listen with backoff if port is still occupied (e.g., Setup UI hasn't fully exited)
 let retryCount = 0;
 const MAX_RETRIES = 20;
 
@@ -2780,11 +2780,11 @@ server.on('error', (err) => {
     retryCount++;
     // Exponential backoff: 2s, 2s, 3s, 3s, 4s, 5s, ... max 10s
     const delay = Math.min(2000 + Math.floor(retryCount / 2) * 1000, 10000);
-    console.log(`[Management Panel] Port ${PORT} dang bi chiem. Retry ${retryCount}/${MAX_RETRIES} sau ${delay/1000}s...`);
+    console.log(`[Management Panel] Port ${PORT} in use. Retry ${retryCount}/${MAX_RETRIES} in ${delay/1000}s...`);
     setTimeout(startListen, delay);
   } else {
-    console.error(`[Management Panel] Loi khong phuc hoi: ${err.message}`);
-    console.error(`[Management Panel] Kiem tra: ss -tlnp | grep :${PORT}`);
+    console.error(`[Management Panel] Unrecoverable error: ${err.message}`);
+    console.error(`[Management Panel] Check: ss -tlnp | grep :${PORT}`);
     process.exit(1);
   }
 });
