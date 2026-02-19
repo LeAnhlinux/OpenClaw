@@ -46,9 +46,8 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-de
  3.  Cau hinh tuong lua UFW
      ├── Port 80, 443      (HTTP/HTTPS)
      ├── Port 18789        (OpenClaw Gateway)
-     ├── Port 9999         (Panel HTTP - mac dinh)
-     ├── Port 22           (SSH - rate limit)
-     └── Port 9999         (Setup UI - tam thoi)
+     ├── Port 9999         (Panel HTTP — mac dinh khi chua co domain)
+     └── Port 22           (SSH — rate limit)
  4.  Cai dat Node.js 22 + pnpm
  4b. Cai dat Google Chrome (cho browser tool)
  5.  Cai dat Caddy (reverse proxy + TLS tu dong)
@@ -61,9 +60,7 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-de
  9.  Tao systemd service: openclaw.service
 10.  Tao helper scripts (/opt/*.sh)
 11.  Ghi config JSON templates -> /etc/config/*.json
-     ├── anthropic.json
-     ├── openai.json
-     ├── gemini.json
+     ├── anthropic.json, openai.json, gemini.json
      └── Moi file gom: agents, gateway, browser config
 12.  Tao MOTD banner (hien khi SSH)
 13.  Tao setup_wizard.sh (backup CLI)
@@ -75,10 +72,13 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-de
 17.  Tao gateway token (random 64 hex)
 18.  Tai Setup UI (server.js) tu GitHub
      + Tao openclaw-setup.service
+18b. Tai Management Panel (panel.js) tu GitHub
+     + Tao openclaw-panel.service (chua enable)
 19.  Enable + Start services
-     ├── openclaw.service    (port 18789)
-     ├── caddy.service       (port 80/443)
-     └── openclaw-setup.service (port 9999)
+     ├── openclaw.service        (port 18789)
+     ├── caddy.service           (port 80/443)
+     ├── openclaw-setup.service  (port 9999 — tam thoi)
+     └── openclaw-panel.service  (CHUA enable — doi setup xong)
 20.  Don dep apt
 
  => In ra URL Setup UI: http://<IP>:9999
@@ -95,11 +95,10 @@ LOGIN
 STEP 1: Ten mien & SSL (tuy chon)
   |  Co domain -> Nhap domain + email
   |    -> Kiem tra DNS (A record tro ve IP server)
-  |    -> Cau hinh Caddy voi Let's Encrypt ACME
-  |    -> Them Panel HTTPS proxy (:9443)
+  |    -> Cau hinh Caddy: gateway HTTPS + Panel HTTPS :9443
   |    -> Firewall: mo 9443, dong 9999
   |  Khong co -> Bo qua (dung IP + self-signed cert)
-  |    -> Panel truy cap qua HTTP :9999
+  |    -> Panel se truy cap qua HTTP :9999
   v
 STEP 2: Chon AI Provider + Model
   |  ○ Anthropic (Claude Opus 4.5 / Sonnet 4 / Haiku 3.5)
@@ -108,79 +107,73 @@ STEP 2: Chon AI Provider + Model
   v
 STEP 3: Nhap API Key
   |  -> Goi API that de verify key hop le
-  |     (POST /api/test-key)
   v
 STEP 4: Xac nhan cau hinh
-  |  Hien thi: Provider, Model, API Key (masked)
-  |  -> Bam "Hoan tat cai dat"
   |  -> Ghi API key vao /opt/openclaw.env
   |  -> Copy config JSON + set gateway token + model
   |  -> Restart openclaw
-  |     (POST /api/setup)
   v
 STEP 5: Kenh nhan tin (tuy chon)
-  |  Chon kenh:
-  |  ├── Telegram Bot
-  |  │   -> Nhap Bot Token (tu @BotFather)
-  |  │   -> Luu -> Ghep noi
-  |  └── Zalo Bot
-  |      -> Nhap Bot Token
-  |      -> Luu -> Ghep noi
+  |  ├── Telegram Bot -> Nhap Bot Token -> Ghep noi
+  |  └── Zalo Bot     -> Nhap Bot Token -> Ghep noi
   v
 STEP 6: Ghep noi Dashboard
-  |  -> Hien link dashboard (https://<host>?token=<token>)
-  |  -> User mo link trong tab moi
+  |  -> Mo link dashboard trong tab moi
   |  -> Quay lai bam "Ghep noi"
-  |     (POST /api/pair)
-  |     -> devices list --json -> tim pending requestId -> devices approve
+  |  -> devices list --json -> tim pending requestId -> devices approve
   v
-STEP 7: Hoan tat -> Chuyen giao sang Management Panel
+STEP 7: Hoan tat -> Chuyen giao sang Management Panel (~3 giay)
      -> selfDestruct():
         ├── Enable openclaw-panel, disable openclaw-setup
-        ├── server.close() -> giai phong port 9999
-        ├── systemctl start openclaw-panel
-        ├── systemd-run: don dep file setup
+        ├── server.close() giai phong port 9999
+        ├── systemctl start openclaw-panel (tiep quan port 9999)
+        ├── systemd-run: don dep file setup (chay ngoai process tree)
         └── process.exit(0)
-     -> Chuyen giao mat ~3 giay
 
- => Setup UI TU DONG XOA VINH VIEN sau khi hoan tat
+ => Setup UI TU DONG XOA VINH VIEN
+ => Management Panel tiep quan port 9999 ngay lap tuc
 ```
 
-### Phase 3: Management Panel
-
-Sau khi setup xong, Panel quan ly chay thuong truc:
+### Phase 3: Management Panel (chay thuong truc)
 
 ```
-Truy cap Panel:
+Truy cap:
 ├── Co domain:  https://<domain>:9443     (HTTPS qua Caddy)
 └── Khong domain: http://<IP>:9999        (HTTP truc tiep)
 
-Dang nhap: Xac thuc PAM (root password)
+Dang nhap: Xac thuc PAM (root password), session 15 phut
 
 Cac tab quan ly:
 ├── AI Provider     — Doi provider, model, API key
-├── Fallback        — Cau hinh chuoi provider du phong
-│   ├── Fallback chain (keo tha doi thu tu uu tien)
+├── Fallback        — Chuoi provider du phong
+│   ├── Fallback chain (thu tu uu tien)
 │   ├── Them/xoa provider voi API key rieng
-│   └── Cai dat: rate limit / phut, cooldown khi loi
+│   └── Rate limit / phut + cooldown khi loi
 ├── Kenh nhan tin   — Quan ly Telegram, Zalo tokens
-├── Gateway         — Token, ghep noi thiet bi, revoke
+├── Gateway         — Token, thiet bi, ghep noi
 │   ├── Thong tin gateway token + dashboard URL
-│   ├── Ghep noi thiet bi moi (approve pending requests)
+│   ├── Ghep noi thiet bi (approve pending requestId)
 │   ├── Danh sach thiet bi (platform, IP, mode, trang thai)
-│   ├── Nut Revoke de huy ghep noi tung thiet bi
-│   └── Tao/doi gateway token
+│   └── Revoke de huy ghep noi / Tao doi token
 ├── Domain & SSL    — Cau hinh ten mien + Let's Encrypt
-│   ├── Set domain -> Caddy + Panel HTTPS :9443
-│   └── Reset IP   -> Panel HTTP :9999
+│   ├── Set domain -> Caddy gateway + Panel HTTPS :9443
+│   └── Reset IP   -> Panel HTTP :9999 truc tiep
 ├── Chat            — Test AI chat truc tiep
 ├── Cap nhat        — Update phien ban OpenClaw
-├── Doctor          — Chan doan he thong (scan/repair/deep)
+├── Doctor          — Chan doan he thong (scan / repair / deep)
 ├── Backup/Restore  — Sao luu va khoi phuc cau hinh
 │   ├── Download file backup JSON
 │   └── Upload file backup de restore
 ├── Trang thai      — Xem services, logs, restart
-└── Giao dien       — Chuyen dark/light mode
+└── Giao dien       — Chuyen dark / light mode
+```
+
+### Toan bo lifecycle
+
+```
+[Install script]  ──>  [Setup UI :9999]  ──selfDestruct──>  [Panel :9999 hoac :9443]
+   ~10-15 phut           1 lan duy nhat         ~3 giay          chay thuong truc
+                         roi tu huy                              (reboot tu start)
 ```
 
 ---

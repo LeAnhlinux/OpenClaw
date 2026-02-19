@@ -14,6 +14,8 @@ LOG_FILE="/var/log/openclaw-install.log"
 SETUP_UI_DIR="/opt/openclaw-setup"
 SETUP_UI_PORT=9999
 SETUP_UI_REPO="https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/server.js"
+PANEL_DIR="/opt/openclaw-panel"
+PANEL_REPO="https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js"
 
 # --- Logging helper ---
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
@@ -754,6 +756,46 @@ WantedBy=multi-user.target
 EOF
 
 # =============================================================================
+# 18b. Cai dat Management Panel (Web)
+# =============================================================================
+log "Cai dat Management Panel..."
+mkdir -p ${PANEL_DIR}
+
+# Tai panel.js tu repo
+curl -fsSL "${PANEL_REPO}" -o ${PANEL_DIR}/panel.js || {
+    log "Canh bao: Khong tai duoc Management Panel."
+}
+# Verify panel.js da tai thanh cong va co noi dung
+if [ -f "${PANEL_DIR}/panel.js" ] && [ -s "${PANEL_DIR}/panel.js" ]; then
+    chmod 644 ${PANEL_DIR}/panel.js
+    log "Management Panel: ${PANEL_DIR}/panel.js OK ($(wc -l < ${PANEL_DIR}/panel.js) dong)"
+else
+    log "LOI: panel.js khong ton tai hoac rong! Panel se khong hoat dong."
+    log "Thu tai lai: curl -fsSL ${PANEL_REPO} -o ${PANEL_DIR}/panel.js"
+fi
+
+# Tao systemd service cho Management Panel
+cat > /etc/systemd/system/openclaw-panel.service << EOF
+[Unit]
+Description=OpenClaw Management Panel (persistent web admin)
+After=network-online.target openclaw.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${PANEL_DIR}
+ExecStart=/usr/bin/node ${PANEL_DIR}/panel.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# =============================================================================
 # 19. Kich hoat va khoi dong dich vu
 # =============================================================================
 log "Kich hoat va khoi dong dich vu..."
@@ -761,6 +803,10 @@ systemctl daemon-reload
 systemctl enable openclaw
 systemctl enable caddy
 systemctl enable openclaw-setup
+# Panel KHONG enable, KHONG start — doi Setup UI selfDestruct kich hoat
+# selfDestruct() se: enable + start openclaw-panel sau khi setup hoan tat
+# Neu reboot truoc khi setup xong → chi Setup UI chay, Panel khong chay
+# Sau khi setup xong → Panel duoc enable → reboot se tu start Panel
 
 # OpenClaw chay voi --allow-unconfigured (cho phep chay truoc khi co API key)
 systemctl restart openclaw
