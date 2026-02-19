@@ -694,6 +694,7 @@ function panelPage() {
     <div class="nav-group-label">AI</div>
     <div class="nav-item active" onclick="showTab('provider',this)"><span class="nav-icon">\u2728</span>AI Provider</div>
     <div class="nav-item" onclick="showTab('fallback',this)"><span class="nav-icon">\ud83d\udd04</span>Fallback</div>
+    <div class="nav-item" onclick="showTab('agents',this)"><span class="nav-icon">\ud83e\udd16</span>Agents</div>
     <div class="nav-item" onclick="showTab('channels',this)"><span class="nav-icon">\ud83d\udce8</span>Channels</div>
     <div class="nav-item" onclick="showTab('chat',this)"><span class="nav-icon">\ud83d\udcac</span>Playground</div>
     <div class="nav-group-label">Infrastructure</div>
@@ -777,6 +778,32 @@ function panelPage() {
       <div class="field"><label>Cooldown khi fail (giay)</label><input type="number" id="fbCooldown" value="300" min="10" max="3600"></div>
       <div class="btn-row"><button class="btn btn-primary" onclick="saveFallbackSettings()">Luu cai dat</button></div>
       <div class="status" id="fbSettingsStatus"></div>
+    </div>
+  </div>
+
+  <!-- TAB: Agents -->
+  <div class="section" id="sec-agents">
+    <div class="page-title">Multi-Agent Management</div>
+    <div class="page-desc">Quan ly cac agent — moi agent co workspace, model va routing rieng.</div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\ud83e\udd16</span> Danh sach Agents</div>
+      <div id="agentList" class="fb-chain"><div class="muted">Dang tai...</div></div>
+    </div>
+    <div class="card" id="agentIdentityCard" style="display:none">
+      <div class="card-title"><span class="ct-icon">\u270f\ufe0f</span> Identity — <span id="agentIdentityName"></span></div>
+      <div class="field"><label>Ten hien thi</label><input type="text" id="agentIdName" placeholder="VD: Support Bot"></div>
+      <div class="field"><label>Emoji</label><input type="text" id="agentIdEmoji" placeholder="VD: \ud83e\udd16"></div>
+      <div class="field"><label>Theme</label><input type="text" id="agentIdTheme" placeholder="VD: professional, casual"></div>
+      <div class="btn-row"><button class="btn btn-outline" onclick="cancelEditIdentity()">Huy</button> <button class="btn btn-primary" onclick="saveAgentIdentity()">Luu Identity</button></div>
+      <div class="status" id="agentIdentityStatus"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\u2795</span> Them Agent moi</div>
+      <div class="field"><label>Ten agent (ID)</label><input type="text" id="newAgentName" placeholder="VD: support, sales, dev"></div>
+      <div class="field"><label>Model</label><select id="newAgentModel"><option value="">-- Chon model --</option></select></div>
+      <div class="field"><label>Channel Binding (tuy chon)</label><select id="newAgentBind"><option value="">-- Khong bind --</option></select></div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="addAgent()">Them Agent</button></div>
+      <div class="status" id="addAgentStatus"></div>
     </div>
   </div>
 
@@ -1057,7 +1084,7 @@ function showTab(name,el){
   const sec=document.getElementById('sec-'+name);if(sec)sec.classList.add('active');
   if(el)el.classList.add('active');
   document.querySelector('.sidebar').classList.remove('open');
-  const loaders={provider:loadProvider,fallback:loadFallback,channels:loadChannels,gateway:loadGateway,domain:loadDomain,update:loadUpdate,
+  const loaders={provider:loadProvider,fallback:loadFallback,agents:loadAgents,channels:loadChannels,gateway:loadGateway,domain:loadDomain,update:loadUpdate,
     chat:loadChat,analytics:loadAnalytics,history:loadHistory,users:loadUsers,backup:()=>{},config:loadConfigEditor,qr:loadQR,
     doctor:loadDoctor,status:()=>{loadStatus();loadLogs()}};
   if(loaders[name]){if(el)el.style.opacity='.6';Promise.resolve(loaders[name]()).finally(()=>{if(el)el.style.opacity='1'})}
@@ -1159,6 +1186,91 @@ async function pairChannel(){
   st.className='status loading';st.textContent='Dang ghep noi...';
   const d=await api('/api/channel-pair','POST',{channel:selectedChannel.id,code});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Ghep noi thanh cong!':d.error||'Loi';
+}
+
+// === Agents ===
+let editingAgentId=null;
+async function loadAgents(){
+  const d=await api('/api/agents');
+  const el=document.getElementById('agentList');
+  if(!d.ok){el.innerHTML='<div class="fb-empty">Loi: '+esc(d.error||'Khong tai duoc')+'</div>';return}
+  const agents=d.agents||[];
+  if(!agents.length){el.innerHTML='<div class="fb-empty">Chua co agent nao.</div>';return}
+  let h='';
+  agents.forEach(a=>{
+    const isDefault=a.isDefault;
+    const emoji=a.identity&&a.identity.emoji?a.identity.emoji:'\ud83e\udd16';
+    const displayName=a.identity&&a.identity.name?a.identity.name:a.id;
+    const model=a.model||'N/A';
+    const bindText=a.bindings>0?a.bindings+' binding(s)':'No bindings';
+    const routeText=a.routes&&a.routes.length?a.routes.join(', '):'No routes';
+    h+='<div class="fb-item">';
+    h+='<div class="fb-icon" style="font-size:28px">'+emoji+'</div>';
+    h+='<div class="fb-info"><div class="fb-name">'+esc(displayName)+' <span style="color:var(--text2);font-weight:400;font-size:12px">('+esc(a.id)+')</span></div>';
+    h+='<div class="fb-model">'+esc(model)+' &middot; '+esc(bindText)+'</div>';
+    h+='<div style="font-size:11px;color:var(--text2);margin-top:3px">'+esc(routeText)+'</div></div>';
+    h+='<span class="fb-badge '+(isDefault?'primary':'fallback')+'">'+(isDefault?'DEFAULT':'AGENT')+'</span>';
+    h+='<button class="btn btn-sm btn-outline" style="margin-left:8px" onclick="editAgentIdentity(\\x27'+esc(a.id)+'\\x27)">Identity</button>';
+    if(!isDefault)h+='<button class="fb-remove" style="margin-left:6px" onclick="deleteAgent(\\x27'+esc(a.id)+'\\x27)">Xoa</button>';
+    h+='</div>';
+  });
+  el.innerHTML=h;
+  // Populate model dropdown
+  const modelSel=document.getElementById('newAgentModel');
+  modelSel.innerHTML='<option value="">-- Chon model --</option>';
+  providers.forEach(p=>{p.models.forEach(m=>{modelSel.innerHTML+='<option value="'+m.id+'">'+esc(p.name)+' — '+esc(m.name)+'</option>'})});
+  // Populate channel binding dropdown
+  const bindSel=document.getElementById('newAgentBind');
+  bindSel.innerHTML='<option value="">-- Khong bind --</option>';
+  channels.forEach(c=>{bindSel.innerHTML+='<option value="'+c.id+'">'+c.icon+' '+esc(c.name)+'</option>'});
+  // Hide identity editor
+  document.getElementById('agentIdentityCard').style.display='none';
+  editingAgentId=null;
+}
+async function addAgent(){
+  const name=document.getElementById('newAgentName').value.trim();
+  const model=document.getElementById('newAgentModel').value;
+  const bind=document.getElementById('newAgentBind').value;
+  const st=document.getElementById('addAgentStatus');
+  if(!name){st.className='status fail';st.textContent='Nhap ten agent';return}
+  if(!/^[a-zA-Z0-9_-]+$/.test(name)){st.className='status fail';st.textContent='Ten chi gom chu, so, -, _';return}
+  if(name.length>32){st.className='status fail';st.textContent='Ten qua dai (max 32 ky tu)';return}
+  st.className='status loading';st.textContent='Dang them agent...';
+  const d=await api('/api/agents/add','POST',{name,model,bind});
+  st.className=d.ok?'status ok':'status fail';
+  st.textContent=d.ok?'Da them agent '+name+'!':d.error||'Loi';
+  if(d.ok){document.getElementById('newAgentName').value='';setTimeout(loadAgents,1500)}
+}
+function editAgentIdentity(agentId){
+  editingAgentId=agentId;
+  document.getElementById('agentIdentityCard').style.display='block';
+  document.getElementById('agentIdentityName').textContent=agentId;
+  document.getElementById('agentIdName').value='';
+  document.getElementById('agentIdEmoji').value='';
+  document.getElementById('agentIdTheme').value='';
+  document.getElementById('agentIdentityStatus').className='status';
+}
+function cancelEditIdentity(){
+  editingAgentId=null;
+  document.getElementById('agentIdentityCard').style.display='none';
+}
+async function saveAgentIdentity(){
+  if(!editingAgentId)return;
+  const name=document.getElementById('agentIdName').value.trim();
+  const emoji=document.getElementById('agentIdEmoji').value.trim();
+  const theme=document.getElementById('agentIdTheme').value.trim();
+  const st=document.getElementById('agentIdentityStatus');
+  if(!name&&!emoji&&!theme){st.className='status fail';st.textContent='Nhap it nhat 1 truong';return}
+  st.className='status loading';st.textContent='Dang luu identity...';
+  const d=await api('/api/agents/identity','POST',{agent:editingAgentId,name,emoji,theme});
+  st.className=d.ok?'status ok':'status fail';
+  st.textContent=d.ok?'Da cap nhat identity!':d.error||'Loi';
+  if(d.ok)setTimeout(()=>{cancelEditIdentity();loadAgents()},1500);
+}
+async function deleteAgent(agentId){
+  if(!confirm('Xoa agent "'+agentId+'"? Workspace va state se bi xoa. Khong the hoan tac.'))return;
+  const d=await api('/api/agents/delete','DELETE',{agent:agentId});
+  if(d.ok){loadAgents()}else{alert(d.error||'Loi xoa agent')}
 }
 
 // === Gateway ===
@@ -1846,6 +1958,65 @@ const server = http.createServer(async (req, res) => {
       fbCfg.chain.forEach((c, i) => c.priority = i + 1);
       saveFallbackConfig(fbCfg);
       return json(res, 200, { ok: true, chain: fbCfg.chain });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Agents ===
+  if (req.method === 'GET' && url.pathname === '/api/agents') {
+    try {
+      let output = '';
+      try { output = execSync(`/opt/openclaw-cli.sh agents list --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); }
+      catch (e) { output = (e.stdout || '').toString(); }
+      let agents;
+      try { agents = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Khong doc duoc danh sach agents' }); }
+      const config = getConfig();
+      const defaultModel = config?.agents?.defaults?.model?.primary || '';
+      agents = (Array.isArray(agents) ? agents : []).map(a => ({ ...a, model: a.model || defaultModel, identity: a.identity || {} }));
+      return json(res, 200, { ok: true, agents });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/agents/add') {
+    try {
+      const body = await parseBody(req);
+      const name = (body.name || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!name) return json(res, 400, { ok: false, error: 'Thieu ten agent' });
+      if (name.length > 32) return json(res, 400, { ok: false, error: 'Ten qua dai (max 32 ky tu)' });
+      let cmd = `agents add "${name}" --non-interactive --json`;
+      if (body.model) { const m = body.model.replace(/[^a-zA-Z0-9/_.-]/g, ''); cmd += ` --model "${m}"`; }
+      if (body.bind) { const b = body.bind.replace(/[^a-zA-Z0-9_:-]/g, ''); cmd += ` --bind "${b}"`; }
+      try { execSync(`/opt/openclaw-cli.sh ${cmd}`, { timeout: 30000, stdio: 'pipe' }); }
+      catch (e) { const err = ((e.stderr || '') + (e.stdout || '')).toString().trim(); return json(res, 200, { ok: false, error: err.substring(0, 300) || e.message }); }
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/agents/identity') {
+    try {
+      const body = await parseBody(req);
+      const agent = (body.agent || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!agent) return json(res, 400, { ok: false, error: 'Thieu agent ID' });
+      let cmd = `agents set-identity --agent "${agent}" --json`;
+      if (body.name) { const n = body.name.replace(/"/g, '\\"'); cmd += ` --name "${n}"`; }
+      if (body.emoji) { const e = body.emoji.replace(/"/g, '\\"'); cmd += ` --emoji "${e}"`; }
+      if (body.theme) { const t = body.theme.replace(/[^a-zA-Z0-9_-]/g, ''); cmd += ` --theme "${t}"`; }
+      try { execSync(`/opt/openclaw-cli.sh ${cmd}`, { timeout: 15000, stdio: 'pipe' }); }
+      catch (e) { const err = ((e.stderr || '') + (e.stdout || '')).toString().trim(); return json(res, 200, { ok: false, error: err.substring(0, 300) || e.message }); }
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  if (req.method === 'DELETE' && url.pathname === '/api/agents/delete') {
+    try {
+      const body = await parseBody(req);
+      const agent = (body.agent || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!agent) return json(res, 400, { ok: false, error: 'Thieu agent ID' });
+      if (agent === 'main') return json(res, 400, { ok: false, error: 'Khong the xoa agent mac dinh (main)' });
+      try { execSync(`/opt/openclaw-cli.sh agents delete "${agent}" --force --json`, { timeout: 15000, stdio: 'pipe' }); }
+      catch (e) { const err = ((e.stderr || '') + (e.stdout || '')).toString().trim(); return json(res, 200, { ok: false, error: err.substring(0, 300) || e.message }); }
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
