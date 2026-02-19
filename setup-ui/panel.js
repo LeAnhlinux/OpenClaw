@@ -783,7 +783,8 @@ function panelPage() {
         <div id="provExtraFields"></div>
         <div class="btn-row">
           <button class="btn btn-outline" onclick="testProviderKey()">Kiem tra key</button>
-          <button class="btn btn-primary" onclick="applyProvider()">Ap dung</button>
+          <button class="btn btn-outline" onclick="saveProviderKey()" style="border-color:var(--accent2);color:var(--accent2)">Luu Key</button>
+          <button class="btn btn-primary" onclick="applyProvider()">Ap dung & Doi model</button>
         </div>
         <div class="status" id="provStatus"></div>
       </div>
@@ -1172,6 +1173,17 @@ async function testProviderKey(){
   st.className='status loading';st.textContent='Dang kiem tra...';
   const d=await api('/api/test-key','POST',{provider:selectedProvider,apiKey:k});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'API key hop le!':d.error||'Key khong hop le';
+}
+async function saveProviderKey(){
+  const st=document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim();
+  if(!selectedProvider){st.className='status fail';st.textContent='Chon provider';return}
+  if(!k){st.className='status fail';st.textContent='Nhap API key';return}
+  st.className='status loading';st.textContent='Dang luu key...';
+  const prov=providers.find(p=>p.id===selectedProvider);const extraEnv={};
+  if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
+  const d=await api('/api/provider-save-key','POST',{provider:selectedProvider,apiKey:k,extraEnv});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Da luu API key cho '+esc(prov?prov.name:selectedProvider)+'! Model hien tai khong doi.':d.error||'Loi';
+  if(d.ok)setTimeout(loadProvider,1500);
 }
 async function applyProvider(){
   const st=document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim(),m=document.getElementById('provModel').value;
@@ -1958,7 +1970,19 @@ const server = http.createServer(async (req, res) => {
     } catch { return json(res, 500, { ok: false, error: 'Loi' }); }
   }
 
-  // Apply Provider
+  // Save Provider Key Only (no model change, no restart)
+  if (req.method === 'POST' && url.pathname === '/api/provider-save-key') {
+    try {
+      const body = await parseBody(req); const prov = PROVIDERS[body.provider];
+      if (!prov) return json(res, 400, { ok: false, error: 'Provider khong hop le' });
+      if (!body.apiKey) return json(res, 400, { ok: false, error: 'Thieu API key' });
+      setEnvValue(prov.envKey, body.apiKey);
+      if (body.extraEnv && prov.extraEnvKeys) { for (const [ek, ev] of Object.entries(body.extraEnv)) { if (prov.extraEnvKeys.includes(ek) && ev) setEnvValue(ek, ev); } }
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Apply Provider (save key + change model + restart)
   if (req.method === 'POST' && url.pathname === '/api/provider') {
     try {
       const body = await parseBody(req); const prov = PROVIDERS[body.provider];
