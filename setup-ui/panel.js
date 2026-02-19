@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // =============================================================================
 // OpenClaw Management Panel — Web-based admin panel
-// Xac thuc bang PAM (root password), chay lau dai
-// Port: 9999 | Chay bang root | Systemd: openclaw-panel.service
+// PAM authentication (root password), long-running service
+// Port: 9999 | Runs as root | Systemd: openclaw-panel.service
 // =============================================================================
 
 const http = require('http');
@@ -20,7 +20,7 @@ const CONFIG_FILE = '/home/openclaw/.openclaw/openclaw.json';
 const CONFIG_DIR = '/etc/config';
 const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
-const PANEL_VERSION = '2026.02.19';
+const PANEL_VERSION = '2026.02.19.1';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
 
@@ -2288,7 +2288,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/panel-update-check') {
     try {
       const localVersion = PANEL_VERSION;
-      const remoteHead = safeExec(`curl -sL --max-time 10 -r 0-500 "${PANEL_UPDATE_URL}"`, 15000);
+      const remoteHead = safeExec(`curl -sL --max-time 10 -r 0-1500 "${PANEL_UPDATE_URL}"`, 15000);
       const m = remoteHead.match(/PANEL_VERSION\s*=\s*['"]([^'"]+)['"]/);
       const remoteVersion = m ? m[1] : null;
       if (!remoteVersion) return json(res, 200, { ok: true, current: localVersion, latest: null, updateAvailable: false, error: 'Unable to read version from server' });
