@@ -427,21 +427,38 @@ const CHANNELS = {
 
 // --- CSS ---
 const CSS = `
-:root{--bg:#f4f6fb;--sidebar-bg:#1a1a2e;--sidebar-w:240px;--card-bg:#fff;--accent:#4285f4;--accent2:#34a853;--text:#1a1a2e;--text2:#5f6368;--border:#e8eaed;--danger:#ea4335;--warn:#fbbc05;--radius:16px}
+:root{--bg:#f4f6fb;--sidebar-bg:#111318;--sidebar-w:250px;--card-bg:#fff;--accent:#4285f4;--accent2:#34a853;--text:#1a1a2e;--text2:#5f6368;--border:#e8eaed;--danger:#ea4335;--warn:#fbbc05;--radius:16px}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;background:linear-gradient(135deg,#f0f4ff 0%,#e8f5e9 50%,#f3e5f5 100%);color:var(--text);min-height:100vh;display:flex}
+body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f6fb;color:var(--text);min-height:100vh;display:flex}
 
 /* Sidebar */
 .sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);min-height:100vh;position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:10}
-.sidebar .brand{padding:28px 20px 24px;border-bottom:1px solid rgba(255,255,255,.08)}
-.sidebar .brand h1{font-size:22px;color:#fff;font-weight:800;letter-spacing:-.3px;background:linear-gradient(135deg,#4285f4,#34a853);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.sidebar .brand p{font-size:11px;color:rgba(255,255,255,.45);margin-top:4px}
-.sidebar nav{flex:1;padding:12px 10px;overflow-y:auto}
-.nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;cursor:pointer;color:rgba(255,255,255,.55);font-size:13px;font-weight:600;transition:all .3s ease;margin-bottom:2px;user-select:none}
-.nav-item:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.9);transform:translateX(2px)}
-.nav-item.active{background:linear-gradient(135deg,rgba(66,133,244,.3),rgba(52,168,83,.2));color:#fff;box-shadow:0 2px 12px rgba(66,133,244,.15)}
-.nav-item .nav-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
-.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:11px;color:rgba(255,255,255,.3)}
+.sidebar .brand{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+.sidebar .brand h1{font-size:18px;color:#fff;font-weight:700;letter-spacing:-.2px;background:linear-gradient(135deg,#4285f4,#34a853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sidebar .brand p{font-size:10px;color:rgba(255,255,255,.3);margin-top:2px;letter-spacing:.3px;text-transform:uppercase;font-weight:600}
+.sidebar nav{flex:1;padding:8px 8px;overflow-y:auto}
+.sidebar nav::-webkit-scrollbar{width:4px} .sidebar nav::-webkit-scrollbar-track{background:transparent} .sidebar nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px} .sidebar nav::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
+.nav-group-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:1.2px;padding:16px 14px 6px;margin-top:4px}
+.nav-group-label:first-child{margin-top:0;padding-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.5);font-size:13px;font-weight:500;transition:all .2s ease;margin-bottom:1px;user-select:none;position:relative}
+.nav-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85)}
+.nav-item.active{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:linear-gradient(180deg,#4285f4,#34a853);border-radius:0 3px 3px 0}
+.nav-item .nav-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0}
+/* Sidebar Footer */
+.sidebar-footer{border-top:1px solid rgba(255,255,255,.06);padding:0}
+.sidebar-footer-top{padding:12px 14px 8px;display:flex;align-items:center}
+.sidebar-user{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.sidebar-user-avatar{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.sidebar-user-info{display:flex;flex-direction:column;min-width:0}
+.sidebar-user-name{font-size:13px;font-weight:600;color:rgba(255,255,255,.85);line-height:1.2}
+.sidebar-user-role{font-size:10px;color:rgba(255,255,255,.3);line-height:1.2;margin-top:2px}
+.sidebar-footer-actions{display:flex;align-items:center;gap:6px;padding:4px 14px 14px}
+.sidebar-action-btn{display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:8px;color:rgba(255,255,255,.45);cursor:pointer;transition:all .2s ease;padding:8px 10px;font-size:12px;font-weight:500;font-family:inherit}
+.sidebar-action-btn:hover{background:rgba(255,255,255,.1);color:rgba(255,255,255,.9);border-color:rgba(255,255,255,.15)}
+.sidebar-action-btn svg{flex-shrink:0}
+.sidebar-logout-btn{flex:1;justify-content:center}
+.sidebar-logout-btn:hover{background:rgba(234,67,53,.15);color:#f87171;border-color:rgba(234,67,53,.3)}
 
 /* Main */
 .main{margin-left:var(--sidebar-w);flex:1;padding:32px 36px;min-height:100vh}
@@ -450,7 +467,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 
 /* Cards */
 .card{background:linear-gradient(135deg,#ffffff 0%,#f9fafb 100%);border-radius:var(--radius);padding:32px;box-shadow:0 10px 40px rgba(0,0,0,.08);border:1px solid rgba(0,0,0,.06);margin-bottom:24px;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#4285f4,#34a853,#fbbc05,#ea4335)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:.6}
 .card-title{font-size:17px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:10px}
 .card-title .ct-icon{font-size:20px}
 
@@ -583,7 +600,11 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 
 /* Dark Mode */
 body.dark{--bg:#0f172a;--sidebar-bg:#0a0e1a;--card-bg:#1e293b;--text:#e2e8f0;--text2:#94a3b8;--border:#334155}
-body.dark{background:linear-gradient(135deg,#0f172a 0%,#1a1a2e 50%,#0f172a 100%)}
+body.dark{background:#0f172a}
+body.dark .nav-group-label{color:rgba(255,255,255,.2)}
+body.dark .sidebar-action-btn{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.06)}
+body.dark .sidebar-action-btn:hover{background:rgba(255,255,255,.1);color:rgba(255,255,255,.9)}
+body.dark .sidebar-logout-btn:hover{background:rgba(234,67,53,.12);color:#f87171;border-color:rgba(234,67,53,.25)}
 body.dark .card{background:linear-gradient(135deg,var(--card-bg) 0%,#1a2438 100%);border-color:var(--border)}
 body.dark .prov-item,body.dark .ch-item{background:var(--card-bg);border-color:var(--border)}
 body.dark .prov-item.current{background:#1a3a2a;border-color:var(--accent2)}
@@ -673,27 +694,44 @@ function panelPage() {
 <div class="sidebar">
   <div class="brand"><h1>OpenClaw</h1><p>Management Panel</p></div>
   <nav>
+    <div class="nav-group-label">AI</div>
     <div class="nav-item active" onclick="showTab('provider',this)"><span class="nav-icon">\u2728</span>AI Provider</div>
     <div class="nav-item" onclick="showTab('fallback',this)"><span class="nav-icon">\ud83d\udd04</span>Fallback</div>
     <div class="nav-item" onclick="showTab('channels',this)"><span class="nav-icon">\ud83d\udce8</span>Channels</div>
     <div class="nav-item" onclick="showTab('chat',this)"><span class="nav-icon">\ud83d\udcac</span>Playground</div>
+    <div class="nav-group-label">Infrastructure</div>
     <div class="nav-item" onclick="showTab('gateway',this)"><span class="nav-icon">\ud83d\udd11</span>Gateway</div>
     <div class="nav-item" onclick="showTab('domain',this)"><span class="nav-icon">\ud83c\udf10</span>Domain & SSL</div>
-    <div class="nav-item" onclick="showTab('analytics',this)"><span class="nav-icon">\ud83d\udcca</span>Analytics</div>
-    <div class="nav-item" onclick="showTab('history',this)"><span class="nav-icon">\ud83d\udcdd</span>History</div>
-    <div class="nav-item" onclick="showTab('users',this)"><span class="nav-icon">\ud83d\udc65</span>Users</div>
-    <div class="nav-item" onclick="showTab('backup',this)"><span class="nav-icon">\ud83d\udce6</span>Backup</div>
     <div class="nav-item" onclick="showTab('config',this)"><span class="nav-icon">\ud83d\udd27</span>Config</div>
     <div class="nav-item" onclick="showTab('qr',this)"><span class="nav-icon">\ud83d\udcf1</span>QR Code</div>
-    <div class="nav-item" onclick="showTab('doctor',this)"><span class="nav-icon">\ud83e\ude7a</span>Doctor</div>
-    <div class="nav-item" onclick="showTab('update',this)"><span class="nav-icon">\u2b06\ufe0f</span>Update</div>
+    <div class="nav-group-label">Monitoring</div>
+    <div class="nav-item" onclick="showTab('analytics',this)"><span class="nav-icon">\ud83d\udcca</span>Analytics</div>
+    <div class="nav-item" onclick="showTab('history',this)"><span class="nav-icon">\ud83d\udcdd</span>History</div>
     <div class="nav-item" onclick="showTab('status',this)"><span class="nav-icon">\ud83d\udfe2</span>Status</div>
+    <div class="nav-item" onclick="showTab('doctor',this)"><span class="nav-icon">\ud83e\ude7a</span>Doctor</div>
+    <div class="nav-group-label">Admin</div>
+    <div class="nav-item" onclick="showTab('users',this)"><span class="nav-icon">\ud83d\udc65</span>Users</div>
+    <div class="nav-item" onclick="showTab('backup',this)"><span class="nav-icon">\ud83d\udce6</span>Backup</div>
+    <div class="nav-item" onclick="showTab('update',this)"><span class="nav-icon">\u2b06\ufe0f</span>Update</div>
   </nav>
-  <div class="sidebar-footer" style="display:flex;align-items:center;justify-content:space-between">
-    <span>OpenClaw Panel</span>
-    <div style="display:flex;gap:8px">
-      <button onclick="toggleDark()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:16px" title="Dark/Light">\ud83c\udf19</button>
-      <button onclick="doLogout()" style="background:none;border:none;color:rgba(255,255,255,.4);cursor:pointer;font-size:14px" title="Dang xuat">\ud83d\udeaa</button>
+  <div class="sidebar-footer">
+    <div class="sidebar-footer-top">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar">R</div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-name">root</span>
+          <span class="sidebar-user-role">Administrator</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-footer-actions">
+      <button class="sidebar-action-btn" id="themeToggleBtn" onclick="toggleDark()" title="Toggle theme">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v1m0 12v1m7-7h-1M2 8H1m12.07-4.07-.71.71M3.64 12.36l-.71.71m10.14 0-.71-.71M3.64 3.64l-.71-.71M11 8a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </button>
+      <button class="sidebar-action-btn sidebar-logout-btn" onclick="doLogout()" title="Log out">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3m4 9l3-3-3-3m3 3H6"/></svg>
+        <span>Log out</span>
+      </button>
     </div>
   </div>
 </div>
@@ -1625,11 +1663,19 @@ async function runDoctor(mode){
 }
 
 // === Dark Mode ===
+function updateThemeIcon(){
+  const btn=document.getElementById('themeToggleBtn');if(!btn)return;
+  const isDark=document.body.classList.contains('dark');
+  btn.innerHTML=isDark
+    ?'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v1m0 12v1m7-7h-1M2 8H1m12.07-4.07-.71.71M3.64 12.36l-.71.71m10.14 0-.71-.71M3.64 3.64l-.71-.71M11 8a3 3 0 11-6 0 3 3 0 016 0z"/></svg>'
+    :'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 9.27A7 7 0 016.73 2a7 7 0 107.27 7.27z"/></svg>';
+}
 function toggleDark(){
   document.body.classList.toggle('dark');
   try{localStorage.setItem('oc-dark',document.body.classList.contains('dark')?'1':'0')}catch{}
+  updateThemeIcon();
 }
-(function(){try{if(localStorage.getItem('oc-dark')==='1')document.body.classList.add('dark')}catch{}})();
+(function(){try{if(localStorage.getItem('oc-dark')==='1')document.body.classList.add('dark')}catch{} updateThemeIcon()})();
 
 // Mobile: close sidebar on outside click
 document.addEventListener('click',function(e){if(window.innerWidth<=768){const sb=document.querySelector('.sidebar');const hb=document.querySelector('.hamburger');if(sb&&sb.classList.contains('open')&&!sb.contains(e.target)&&e.target!==hb)sb.classList.remove('open')}});
