@@ -898,9 +898,10 @@ function panelPage() {
   <!-- TAB: Usage Analytics -->
   <div class="section" id="sec-analytics">
     <div class="page-title">\ud83d\udcca Usage Analytics</div>
-    <div class="page-desc">Thong ke su dung API va token.</div>
+    <div class="page-desc">Thong ke su dung AI — tu cac kenh nhan tin va Chat Playground.</div>
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc8</span> Tong quan</div><div id="analyticsOverview" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> Lich su request (7 ngay)</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Theo kenh</div><div id="analyticsChannels" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> Tin nhan (7 ngay)</div>
       <div id="analyticsChart" style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:16px 0"></div>
       <div id="analyticsList" style="margin-top:16px"></div>
     </div>
@@ -1343,21 +1344,31 @@ function clearChat(){chatHistory=[];document.getElementById('chatMsgs').innerHTM
 async function loadAnalytics(){
   const d=await api('/api/analytics');
   const ov=document.getElementById('analyticsOverview');
-  if(!d.ok){ov.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co du lieu</span></div>';return}
-  ov.innerHTML='<div class="info-row"><span class="info-k">Tong request</span><span class="info-v">'+esc(String(d.totalRequests))+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Tong token</span><span class="info-v">'+esc(String((d.totalTokens||0).toLocaleString()))+'</span></div>'+
-    '<div class="info-row"><span class="info-k">Hom nay</span><span class="info-v">'+esc(String(d.todayRequests))+' req</span></div>'+
+  const ch=document.getElementById('analyticsChannels');
+  if(!d.ok){ov.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Loi tai du lieu</span></div>';ch.innerHTML='';return}
+  ov.innerHTML='<div class="info-row"><span class="info-k">Hoi thoai</span><span class="info-v">'+esc(String(d.totalConversations||0))+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Tin nhan (user)</span><span class="info-v">'+esc(String(d.totalMessages||0))+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Token (Playground)</span><span class="info-v">'+esc(String((d.totalTokens||0).toLocaleString()))+'</span></div>'+
+    '<div class="info-row"><span class="info-k">Hom nay</span><span class="info-v">'+esc(String(d.todayMessages||0))+' tin nhan</span></div>'+
     '<div class="info-row"><span class="info-k">Provider</span><span class="info-v">'+esc(d.provider||'-')+'</span></div>';
+  // Channel breakdown
+  if(d.channels&&Object.keys(d.channels).length>0){
+    let chH='';Object.entries(d.channels).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>{
+      if(v>0)chH+='<div class="info-row"><span class="info-k">'+esc(k)+'</span><span class="info-v">'+v+' hoi thoai</span></div>';
+    });
+    ch.innerHTML=chH||'<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co</span></div>';
+  }else ch.innerHTML='<div class="info-row"><span class="info-v" style="color:var(--text2)">Chua co</span></div>';
+  // 7-day chart
   const chart=document.getElementById('analyticsChart'),list=document.getElementById('analyticsList');
   chart.innerHTML='';list.innerHTML='';
   if(d.daily&&d.daily.length>0){
-    const maxR=Math.max(...d.daily.map(x=>x.requests),1);
-    d.daily.forEach(day=>{const pct=Math.max(4,(day.requests/maxR)*100);
+    const maxR=Math.max(...d.daily.map(x=>x.messages||0),1);
+    d.daily.forEach(day=>{const msgs=day.messages||0;const pct=Math.max(4,(msgs/maxR)*100);
       const bar=document.createElement('div');bar.style.cssText='flex:1;display:flex;flex-direction:column;align-items:center;gap:4px';
-      bar.innerHTML='<span style="font-size:10px;color:var(--text2)">'+day.requests+'</span><div style="width:100%;height:'+pct+'px;background:var(--accent);border-radius:4px;min-width:20px"></div><span style="font-size:9px;color:var(--text2)">'+day.date.slice(5)+'</span>';
+      bar.innerHTML='<span style="font-size:10px;color:var(--text2)">'+msgs+'</span><div style="width:100%;height:'+pct+'px;background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:4px;min-width:20px" title="'+esc(day.date)+': '+msgs+' tin nhan"></div><span style="font-size:9px;color:var(--text2)">'+esc(day.date.slice(5))+'</span>';
       chart.appendChild(bar);
     });
-  }
+  }else{chart.innerHTML='<div style="color:var(--text2);font-size:13px;padding:20px;text-align:center;width:100%">Chua co du lieu trong 7 ngay qua</div>'}
 }
 
 // === Conversation History ===
@@ -2041,14 +2052,71 @@ const server = http.createServer(async (req, res) => {
   // === Analytics ===
   if (req.method === 'GET' && url.pathname === '/api/analytics') {
     try {
+      // 1. Chat Playground stats (existing)
       const statsFile = '/opt/openclaw-panel-stats.json';
-      let stats = {}; try { stats = JSON.parse(fs.readFileSync(statsFile, 'utf8')); } catch {}
+      let pgStats = {}; try { pgStats = JSON.parse(fs.readFileSync(statsFile, 'utf8')); } catch {}
+
+      // 2. Read real sessions from OpenClaw agent
+      const sessionsFile = '/home/openclaw/.openclaw/agents/main/sessions/sessions.json';
+      let sessionsData = {}; try { sessionsData = JSON.parse(fs.readFileSync(sessionsFile, 'utf8')); } catch {}
+
+      let totalMsgs = 0, totalConv = 0, channelCounts = {}, dailyMsgs = {};
+      const today = new Date().toISOString().slice(0, 10);
+
+      Object.values(sessionsData).forEach(sess => {
+        if (!sess || typeof sess !== 'object') return;
+        totalConv++;
+        const channel = sess.deliveryContext?.channel || sess.origin?.surface || 'unknown';
+        channelCounts[channel] = (channelCounts[channel] || 0) + 1;
+
+        // Read session JSONL for message counts + dates
+        const sf = sess.sessionFile;
+        if (sf && fs.existsSync(sf)) {
+          try {
+            const lines = fs.readFileSync(sf, 'utf8').split('\n').filter(Boolean);
+            for (const line of lines) {
+              try {
+                const d = JSON.parse(line);
+                if (d.type === 'message' && d.message?.role === 'user') {
+                  totalMsgs++;
+                  const dateStr = (d.timestamp || '').substring(0, 10);
+                  if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) dailyMsgs[dateStr] = (dailyMsgs[dateStr] || 0) + 1;
+                }
+              } catch {}
+            }
+          } catch {}
+        }
+      });
+
+      // Add playground stats to channel counts
+      if (pgStats.requests > 0) channelCounts['playground'] = (channelCounts['playground'] || 0) + (pgStats.requests || 0);
+
+      // 3. Build 7-day chart (merge sessions + playground)
+      const daily = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        const ds = d.toISOString().slice(0, 10);
+        daily.push({
+          date: ds,
+          messages: (dailyMsgs[ds] || 0) + (pgStats.daily?.[ds]?.requests || 0),
+          tokens: pgStats.daily?.[ds]?.tokens || 0
+        });
+      }
+
+      // 4. Provider info
       const config = getConfig(); const model = config?.agents?.defaults?.model?.primary || '';
       const provInfo = Object.entries(PROVIDERS).find(([k]) => model.startsWith(k + '/') || (k === 'gemini' && model.startsWith('google/')) || (k === 'bedrock' && model.startsWith('amazon-bedrock/')));
-      const today = new Date().toISOString().slice(0, 10);
-      const daily = [];
-      for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); const ds = d.toISOString().slice(0, 10); daily.push({ date: ds, requests: stats.daily?.[ds]?.requests || 0, tokens: stats.daily?.[ds]?.tokens || 0 }); }
-      return json(res, 200, { ok: true, totalRequests: stats.requests || 0, totalTokens: stats.tokens || 0, todayRequests: stats.daily?.[today]?.requests || 0, provider: provInfo ? provInfo[1].name : '-', daily });
+
+      return json(res, 200, {
+        ok: true,
+        totalConversations: totalConv,
+        totalMessages: totalMsgs + (pgStats.requests || 0),
+        totalTokens: pgStats.tokens || 0,
+        todayMessages: (dailyMsgs[today] || 0) + (pgStats.daily?.[today]?.requests || 0),
+        provider: provInfo ? provInfo[1].name : '-',
+        channels: channelCounts,
+        daily
+      });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
