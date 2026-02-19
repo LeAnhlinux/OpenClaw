@@ -957,36 +957,35 @@ const server = http.createServer(async (req, res) => {
     try {
       const gatewayToken = getGatewayToken();
 
-      // Tim pending pairing requests
+      // Tim pending pairing requests (dung --json de lay requestId)
       let output = '';
       try {
         output = execSync(
-          `/opt/openclaw-cli.sh devices list --token=${gatewayToken} 2>/dev/null`,
+          `/opt/openclaw-cli.sh devices list --token=${gatewayToken} --json 2>/dev/null`,
           { timeout: 15000, stdio: 'pipe' }
         ).toString();
       } catch (e) {
         output = e.stdout ? e.stdout.toString() : '';
       }
 
-      // Lay phan Pending
-      const pendingSection = output.match(/Pending[\s\S]*?(?=Paired|$)/i);
-      if (!pendingSection) {
+      let data;
+      try { data = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Khong doc duoc danh sach thiet bi' }); }
+      const pending = data.pending || [];
+
+      if (!pending.length) {
         return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Hay mo dashboard truoc roi thu lai.' });
       }
 
-      // Tim UUID trong phan pending
-      const uuids = pendingSection[0].match(/[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/g);
-      if (!uuids || uuids.length === 0) {
-        return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Hay mo dashboard truoc roi thu lai.' });
+      if (pending.length > 1) {
+        return json(res, 200, { ok: false, error: `Tim thay ${pending.length} yeu cau. Co nguoi khac dang ket noi. Hay thu lai sau.` });
       }
 
-      if (uuids.length > 1) {
-        return json(res, 200, { ok: false, error: `Tim thay ${uuids.length} yeu cau. Co nguoi khac dang ket noi. Hay thu lai sau.` });
-      }
+      const requestId = pending[0].requestId || '';
+      if (!requestId) return json(res, 200, { ok: false, error: 'Khong lay duoc request ID' });
 
       // Approve request — KHONG selfDestruct o day, doi /api/finalize
       execSync(
-        `/opt/openclaw-cli.sh devices approve "${uuids[0]}" --token=${gatewayToken}`,
+        `/opt/openclaw-cli.sh devices approve "${requestId}" --token=${gatewayToken}`,
         { timeout: 15000, stdio: 'pipe' }
       );
 

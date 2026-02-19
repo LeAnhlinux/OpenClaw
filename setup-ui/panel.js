@@ -1730,9 +1730,9 @@ const server = http.createServer(async (req, res) => {
       const pending = data.pending || [];
       if (!pending.length) return json(res, 200, { ok: false, error: 'Khong tim thay yeu cau ghep noi. Mo dashboard truoc roi thu lai.' });
       if (pending.length > 1) return json(res, 200, { ok: false, error: 'Tim thay ' + pending.length + ' yeu cau. Thu lai sau.' });
-      const deviceId = pending[0].deviceId || pending[0].id || '';
-      if (!deviceId) return json(res, 200, { ok: false, error: 'Khong lay duoc device ID' });
-      execSync(`/opt/openclaw-cli.sh devices approve "${deviceId}" --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
+      const requestId = pending[0].requestId || '';
+      if (!requestId) return json(res, 200, { ok: false, error: 'Khong lay duoc request ID' });
+      execSync(`/opt/openclaw-cli.sh devices approve "${requestId}" --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: 'Loi ghep noi: ' + e.message }); }
   }
