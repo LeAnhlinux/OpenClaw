@@ -1964,9 +1964,6 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req); const prov = PROVIDERS[body.provider];
       if (!prov) return json(res, 400, { ok: false, error: 'Provider khong hop le' });
       const token = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
-      const fbProvKeys = getFallbackProviderKeys();
-      const fbEnvKeys = new Set(fbProvKeys.map(k => PROVIDERS[k]?.envKey).filter(Boolean));
-      for (const [k, p] of Object.entries(PROVIDERS)) { if (p.envKey !== prov.envKey && !fbEnvKeys.has(p.envKey)) removeEnvValue(p.envKey); if (p.extraEnvKeys) p.extraEnvKeys.forEach(ek => { if (!(prov.extraEnvKeys || []).includes(ek)) removeEnvValue(ek); }); }
       setEnvValue(prov.envKey, body.apiKey);
       if (body.extraEnv && prov.extraEnvKeys) { for (const [ek, ev] of Object.entries(body.extraEnv)) { if (prov.extraEnvKeys.includes(ek) && ev) setEnvValue(ek, ev); } }
       let config; try { config = JSON.parse(fs.readFileSync(prov.configFile, 'utf8')); } catch { config = getConfig(); }
