@@ -1968,26 +1968,26 @@ const server = http.createServer(async (req, res) => {
       if (!fs.existsSync(ZCA_BIN)) return json(res, 200, { ok: false, error: 'zca chua duoc cai dat. Chay: su - openclaw -c "curl -fsSL https://get.zca-cli.dev/install.sh | bash"' });
       // Remove old QR file
       try { fs.unlinkSync(ZCA_QR_PATH); } catch {}
-      // Generate QR — zca auth login --qr-path saves image and waits for scan (runs in background)
-      let output = '';
-      try {
-        // Use timeout + spawn to get QR image then return (login continues in background)
-        output = execSync(ZCA_CMD(`auth login --qr-path ${ZCA_QR_PATH}`), { timeout: 20000, stdio: 'pipe' }).toString().trim();
-      } catch (e) {
-        // Timeout is expected — zca waits for scan. Check if QR file was created
-        output = ((e.stderr || '') + (e.stdout || '')).toString();
+      // Spawn zca in background — it waits for scan, we just need the QR file
+      const { spawn } = require('child_process');
+      const zcaProc = spawn('su', ['-', 'openclaw', '-c', `export PATH=/home/openclaw/.local/bin:/home/openclaw/.npm/bin:$PATH && zca auth login --qr-path ${ZCA_QR_PATH}`], { stdio: 'pipe', detached: true });
+      zcaProc.unref(); // Don't wait for process to exit
+      // Poll for QR file to appear (up to 15s, check every 500ms)
+      let found = false;
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        if (fs.existsSync(ZCA_QR_PATH)) {
+          // Wait a tiny bit more for file to finish writing
+          await new Promise(r => setTimeout(r, 300));
+          const qrData = fs.readFileSync(ZCA_QR_PATH);
+          if (qrData.length > 100) { // Valid PNG
+            const qrBase64 = 'data:image/png;base64,' + qrData.toString('base64');
+            return json(res, 200, { ok: true, qrDataUrl: qrBase64 });
+          }
+        }
       }
-      // Check if QR image file was created
-      if (fs.existsSync(ZCA_QR_PATH)) {
-        const qrData = fs.readFileSync(ZCA_QR_PATH);
-        const qrBase64 = 'data:image/png;base64,' + qrData.toString('base64');
-        return json(res, 200, { ok: true, qrDataUrl: qrBase64 });
-      }
-      // If already logged in, output may say so
-      if (output.includes('already logged in') || output.includes('Already logged')) {
-        return json(res, 200, { ok: true, alreadyLoggedIn: true });
-      }
-      return json(res, 200, { ok: false, error: 'Khong tao duoc QR. Output: ' + output.substring(0, 300) });
+      // Check if already logged in (zca may have exited with message)
+      return json(res, 200, { ok: false, error: 'Khong tao duoc QR sau 15s. Thu lai hoac kiem tra zca auth status.' });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
