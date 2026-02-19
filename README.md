@@ -313,8 +313,10 @@ openclaw browser open https://example.com
 # Kenh nhan tin - pairing
 openclaw pairing list telegram
 openclaw pairing approve telegram <code>
-openclaw pairing list zalo
-openclaw pairing approve zalo <code>
+
+# Zalo (Free) — ket noi qua QR code (openzca)
+/opt/openclaw-zalo-pair.sh
+# hoac: su - openclaw -c "openzca auth login"
 
 # Devices (dashboard pairing)
 openclaw devices list --token=<gateway-token>

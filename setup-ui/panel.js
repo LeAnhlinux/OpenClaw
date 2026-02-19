@@ -416,7 +416,8 @@ const PROVIDERS = {
 // --- Channel configs ---
 const CHANNELS = {
   telegram: { name: 'Telegram', icon: '\ud83d\udce8', envKeys: ['TELEGRAM_BOT_TOKEN'], pairCmd: 'telegram', desc: 'Tao bot tai @BotFather', canPair: true },
-  zalo: { name: 'Zalo', icon: '\ud83d\udcac', envKeys: ['ZALO_BOT_TOKEN'], pairCmd: null, desc: 'Tao bot tai bot.zaloplatforms.com', canPair: false },
+  zalo: { name: 'Zalo OA', icon: '\ud83d\udcac', envKeys: ['ZALO_BOT_TOKEN'], pairCmd: null, desc: 'Zalo Official Account — tao bot tai bot.zaloplatforms.com', canPair: false },
+  zaloFree: { name: 'Zalo (Free)', icon: '\ud83d\udcac', envKeys: [], pairCmd: null, desc: 'Ket noi Zalo ca nhan mien phi qua QR code (openzca)', canPair: false, hasQrPair: true },
   discord: { name: 'Discord', icon: '\ud83c\udfae', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Tao bot tai discord.com/developers', canPair: true },
   slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Tao app tai api.slack.com/apps', canPair: false },
   whatsapp: { name: 'WhatsApp', icon: '\ud83d\udcf1', envKeys: [], pairCmd: null, desc: 'Chay: openclaw whatsapp pair', canPair: false, cliOnly: true },
@@ -1135,7 +1136,12 @@ async function loadChannels(){
       selectedChannel=c;document.querySelectorAll('.ch-item').forEach(i=>i.classList.remove('selected'));div.classList.add('selected');
       const fields=document.getElementById('channelFields'),pb=document.getElementById('pairChannelBtn');
       document.getElementById('pairForm').style.display='none';document.getElementById('channelStatus').className='status';
-      if(c.cliOnly){fields.innerHTML='<div class="status warn" style="display:block">'+esc(c.name)+' chi ho tro qua CLI. '+esc(c.desc)+'</div>';pb.style.display='none'}
+      if(c.hasQrPair){
+        fields.innerHTML='<div style="text-align:center;padding:16px 0"><p style="margin-bottom:14px;color:var(--text2);font-size:14px;line-height:1.6">Ket noi Zalo ca nhan mien phi — scan QR code bang ung dung Zalo tren dien thoai.<br><span style="font-size:12px;opacity:.7">Su dung <a href="https://github.com/darkamenosa/openzca" target="_blank" style="color:var(--accent)">openzca</a> — khong can tao Zalo Official Account.</span></p><button class="btn btn-primary" onclick="startZaloQR()" id="zaloQrBtn">Tao QR Code</button><div id="zaloQrArea" style="margin-top:16px"></div><div id="zaloQrStatus" class="status" style="margin-top:10px"></div></div>';
+        pb.style.display='none';
+        // Check if already logged in
+        (async()=>{const st=await api('/api/zalo-qr-status');if(st.ok&&st.loggedIn){const s=document.getElementById('zaloQrStatus');if(s){s.className='status ok';s.textContent='Da ket noi Zalo ('+(st.name||'default')+')'}}})();
+      } else if(c.cliOnly){fields.innerHTML='<div class="status warn" style="display:block">'+esc(c.name)+' chi ho tro qua CLI. '+esc(c.desc)+'</div>';pb.style.display='none'}
       else{fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+esc(k)+'</label><input type="text" id="chfield-'+k+'" placeholder="Nhap '+esc(k)+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none';
         // Pre-fill current values
         if(isActive)(async()=>{const cfg=await api('/api/channel-values','POST',{channel:c.id});if(cfg.ok&&cfg.values)Object.entries(cfg.values).forEach(([k,v])=>{const el=document.getElementById('chfield-'+k);if(el&&v)el.value=v})})();
@@ -1159,6 +1165,45 @@ async function pairChannel(){
   st.className='status loading';st.textContent='Dang ghep noi...';
   const d=await api('/api/channel-pair','POST',{channel:selectedChannel.id,code});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Ghep noi thanh cong!':d.error||'Loi';
+}
+
+// === Zalo Free (openzca) QR Pairing ===
+let zaloQrPolling=false;
+async function startZaloQR(){
+  const area=document.getElementById('zaloQrArea'),st=document.getElementById('zaloQrStatus'),btn=document.getElementById('zaloQrBtn');
+  if(!area||!st||!btn)return;
+  btn.disabled=true;btn.textContent='Dang tao QR...';
+  st.className='status loading';st.textContent='Dang tao QR code...';
+  area.innerHTML='';
+  try{
+    const d=await api('/api/zalo-qr','POST');
+    if(d.ok&&d.qrDataUrl){
+      area.innerHTML='<img src="'+esc(d.qrDataUrl)+'" style="max-width:256px;border-radius:12px;border:2px solid var(--border);background:#fff;padding:8px">';
+      st.className='status ok';st.textContent='Mo Zalo tren dien thoai > Scan QR code nay. Dang cho...';
+      pollZaloLogin();
+    } else {
+      st.className='status fail';st.textContent=d.error||'Loi tao QR code';
+    }
+  }catch(e){st.className='status fail';st.textContent='Loi: '+e.message}
+  btn.disabled=false;btn.textContent='Tao lai QR Code';
+}
+async function pollZaloLogin(){
+  if(zaloQrPolling)return;zaloQrPolling=true;
+  const st=document.getElementById('zaloQrStatus');
+  try{
+    for(let i=0;i<30;i++){
+      await new Promise(r=>setTimeout(r,3000));
+      const d=await api('/api/zalo-qr-status');
+      if(d.ok&&d.loggedIn){
+        st.className='status ok';st.textContent='Da ket noi Zalo thanh cong! ('+(d.name||'default')+')';
+        document.getElementById('zaloQrArea').innerHTML='';
+        setTimeout(loadChannels,2000);
+        zaloQrPolling=false;return;
+      }
+    }
+    st.className='status warn';st.textContent='Het thoi gian cho (90s). Bam "Tao lai QR Code" de thu lai.';
+  }catch(e){}
+  zaloQrPolling=false;
 }
 
 // === Gateway ===
@@ -1881,6 +1926,57 @@ const server = http.createServer(async (req, res) => {
       try { execSync(`/opt/openclaw-cli.sh pairing approve ${ch.pairCmd} ${code}`, { timeout: 15000, stdio: 'pipe' }); return json(res, 200, { ok: true }); }
       catch (e) { return json(res, 200, { ok: false, error: (e.stderr || e.stdout || '').toString().substring(0, 200) || e.message }); }
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // === Zalo Free (openzca) QR Pairing ===
+  const OPENZCA_BIN = '/home/openclaw/.npm/bin/openzca';
+  const OPENZCA_CMD = (args) => `su - openclaw -c "export PATH=/home/openclaw/.npm/bin:$PATH && openzca ${args}"`;
+
+  if (req.method === 'POST' && url.pathname === '/api/zalo-qr') {
+    try {
+      // Check if openzca is installed
+      if (!fs.existsSync(OPENZCA_BIN)) return json(res, 200, { ok: false, error: 'openzca chua duoc cai dat. Chay: su - openclaw -c "npm install -g openzca@latest"' });
+      // Generate QR as base64 data URL
+      let output = '';
+      try {
+        output = execSync(OPENZCA_CMD('auth login --qr-base64'), { timeout: 30000, stdio: 'pipe' }).toString().trim();
+      } catch (e) {
+        const err = (e.stderr || e.stdout || '').toString().substring(0, 300) || e.message;
+        return json(res, 200, { ok: false, error: 'Loi tao QR: ' + err });
+      }
+      // openzca --qr-base64 outputs a data:image/png;base64,... URL
+      if (output && output.startsWith('data:')) {
+        return json(res, 200, { ok: true, qrDataUrl: output });
+      }
+      // Try to find data URL in output (may have extra lines)
+      const dataLine = output.split('\n').find(l => l.trim().startsWith('data:'));
+      if (dataLine) return json(res, 200, { ok: true, qrDataUrl: dataLine.trim() });
+      return json(res, 200, { ok: false, error: 'Khong nhan duoc QR data. Output: ' + output.substring(0, 200) });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/zalo-qr-status') {
+    try {
+      if (!fs.existsSync(OPENZCA_BIN)) return json(res, 200, { ok: true, loggedIn: false, error: 'openzca chua cai' });
+      let output = '';
+      try {
+        output = execSync(OPENZCA_CMD('account list'), { timeout: 10000, stdio: 'pipe' }).toString();
+      } catch (e) { output = (e.stdout || '').toString(); }
+      // Parse table: columns are name│label│default│active│loggedIn│createdAt│updatedAt
+      // Data row looks like: │ 0 │ 'default' │ '' │ true │ true │ false │ '2026-...' │ '2026-...' │
+      // loggedIn is the 6th column (index 5). Look for rows with actual data (not header)
+      const lines = output.split('\n').filter(l => l.includes('│') && /\d/.test(l) && l.includes("'"));
+      let loggedIn = false, profileName = 'default';
+      for (const line of lines) {
+        const cols = line.split('│').map(c => c.trim());
+        // cols: ['', index, name, label, default, active, loggedIn, createdAt, updatedAt, '']
+        if (cols.length >= 8) {
+          const liCol = cols[6]; // loggedIn column
+          if (liCol === 'true') { loggedIn = true; profileName = cols[2].replace(/'/g, ''); break; }
+        }
+      }
+      return json(res, 200, { ok: true, loggedIn, name: profileName });
+    } catch (e) { return json(res, 200, { ok: true, loggedIn: false }); }
   }
 
   // Device Pair — tim va approve pending pairing request

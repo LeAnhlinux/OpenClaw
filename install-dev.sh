@@ -679,6 +679,20 @@ mkdir -p /home/openclaw/.npm
 chown -R openclaw:openclaw /home/openclaw/.npm
 su - openclaw -c "npm config set prefix /home/openclaw/.npm"
 
+# Cai dat openzca (Zalo CLI mien phi)
+log "Cai dat openzca (Zalo CLI)..."
+su - openclaw -c "npm install -g openzca@latest" || log "Canh bao: Khong the cai openzca"
+
+# Tao helper script cho Zalo QR pairing
+cat > /opt/openclaw-zalo-pair.sh << 'EOFZALO'
+#!/bin/bash
+echo "=== Ket noi Zalo (Free) qua QR Code ==="
+echo "Mo Zalo tren dien thoai > Scan QR code de ket noi"
+echo ""
+su - openclaw -c "export PATH=/home/openclaw/.npm/bin:\$PATH && openzca auth login"
+EOFZALO
+chmod +x /opt/openclaw-zalo-pair.sh
+
 # =============================================================================
 # 17. Tao gateway token
 # =============================================================================
