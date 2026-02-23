@@ -2735,6 +2735,8 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true, log });
       } else {
         // CamoFox: install service + OpenClaw plugin
+        log += 'Installing browser dependencies...\n';
+        safeExec('apt-get install -qqy libgtk-3-0t64 libasound2t64 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libdbus-glib-1-2 libgbm1 2>&1', 120000);
         const camofoxDir = '/opt/camofox-browser';
         if (fs.existsSync(camofoxDir)) {
           log += 'Removing old CamoFox directory...\n';
