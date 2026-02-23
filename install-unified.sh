@@ -90,7 +90,7 @@ if [ "$ENABLE_GUI" = "true" ]; then
     ufw allow 18789/tcp comment 'OpenClaw Gateway'
     ufw allow ${SETUP_UI_PORT}/tcp comment 'OpenClaw Setup UI (tam thoi)'
 fi
-ufw limit ssh/tcp
+ufw allow ssh/tcp
 ufw --force enable
 
 # =============================================================================
@@ -402,9 +402,8 @@ CADDYEOC
     fi
 }
 
-# Firewall: mo 9443 (Panel HTTPS), dong 9999 (Panel HTTP)
+# Firewall: mo 9443 (Panel HTTPS qua Caddy)
 ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null || true
-ufw delete allow 9999/tcp 2>/dev/null || true
 
 systemctl enable caddy
 systemctl restart caddy

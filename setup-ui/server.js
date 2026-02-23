@@ -103,12 +103,10 @@ function writeCaddyfile(domain, email) {
     const tlsBlock = `    tls {\n        issuer acme {\n            dir https://acme-v02.api.letsencrypt.org/directory\n            profile shortlived\n        }\n    }`;
     cfg = `${el}${domain} {\n${tlsBlock}\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n\n${domain}:9443 {\n${tlsBlock}\n    reverse_proxy ${BIND}:${PANEL_PORT}\n}\n`;
     try { execSync('ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null', { stdio: 'ignore' }); } catch {}
-    try { execSync('ufw delete allow 9999/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
   } else {
     const serverIP = getServerIP();
     cfg = `${serverIP} {\n    tls internal\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n`;
     try { execSync('ufw allow 9999/tcp comment "OpenClaw Panel HTTP" 2>/dev/null', { stdio: 'ignore' }); } catch {}
-    try { execSync('ufw delete allow 9443/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
   }
   fs.writeFileSync('/etc/caddy/Caddyfile', cfg, 'utf8');
 }

@@ -103,13 +103,10 @@ function writeCaddyfile(domain, email) {
     cfg = `${el}${domain} {\n${tlsBlock}\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n\n${domain}:9443 {\n${tlsBlock}\n    reverse_proxy ${BIND}:${PANEL_PORT}\n}\n`;
     // Firewall: mo 9443, dong 9999
     try { execSync('ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null', { stdio: 'ignore' }); } catch {}
-    try { execSync('ufw delete allow 9999/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
   } else {
     const serverIP = getServerIP();
     cfg = `${serverIP} {\n    tls internal\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n`;
-    // Firewall: mo 9999, dong 9443
     try { execSync('ufw allow 9999/tcp comment "OpenClaw Panel HTTP" 2>/dev/null', { stdio: 'ignore' }); } catch {}
-    try { execSync('ufw delete allow 9443/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
   }
   fs.writeFileSync(CADDYFILE, cfg, 'utf8');
 }

@@ -8,7 +8,7 @@ REPO_DIR="/opt/openclaw"
 ufw allow 80
 ufw allow 443
 ufw allow 9999/tcp comment "OpenClaw Panel HTTP"
-ufw limit ssh/tcp
+ufw allow ssh/tcp
 ufw --force enable
 
 # Install Node.js 22 (required for Openclaw)
@@ -317,9 +317,8 @@ CADDYEOC
     fi
 }
 
-# Firewall: open 9443 (Panel HTTPS), close 9999 (Panel HTTP)
+# Firewall: open 9443 (Panel HTTPS via Caddy)
 ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null || true
-ufw delete allow 9999/tcp 2>/dev/null || true
 
 systemctl enable caddy
 systemctl restart openclaw
