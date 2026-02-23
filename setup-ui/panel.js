@@ -1983,10 +1983,16 @@ async function doRestore(){
   const st=document.getElementById('restoreStatus'),raw=document.getElementById('restoreContent').value.trim();
   if(!raw){st.className='status fail';st.textContent='Upload file or paste backup JSON first';return}
   let data;try{data=JSON.parse(raw)}catch{st.className='status fail';st.textContent='Invalid JSON';return}
-  if(!confirm('Are you sure? Current configuration will be overwritten.'))return;
-  st.className='status loading';st.textContent='Restoring...';
+  const hasPlugins=data.installedPlugins&&data.installedPlugins.length;
+  const hasSkills=data.installedClawHubSkills&&data.installedClawHubSkills.length;
+  let msg='Are you sure? Current configuration will be overwritten.';
+  if(hasPlugins)msg+='\\n'+data.installedPlugins.length+' plugin(s) will be reinstalled.';
+  if(hasSkills)msg+='\\n'+data.installedClawHubSkills.length+' ClawHub skill(s) will be reinstalled.';
+  if(!confirm(msg))return;
+  st.className='status loading';st.textContent='Restoring...'+(hasPlugins||hasSkills?' (reinstalling plugins/skills, may take a while)':'');
   const d=await api('/api/restore','POST',{data});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Restore successful! OpenClaw restarted.':d.error||'Error';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Restore successful! OpenClaw restarted.'+(d.log?' Plugins/skills log available.':''):d.error||'Error';
+  if(d.log){document.getElementById('backupData').style.display='block';document.getElementById('backupContent').value=d.log}
 }
 
 // === Config Editor ===
@@ -3072,6 +3078,18 @@ const server = http.createServer(async (req, res) => {
       try { const env = fs.readFileSync(ENV_FILE, 'utf8'); data.env = env.replace(/^(.*(?:KEY|TOKEN|SECRET|PASSWORD).*)=(.+)$/gm, '$1=***REDACTED***'); } catch { data.env = ''; }
       try { data.caddyfile = fs.readFileSync(CADDYFILE, 'utf8'); } catch { data.caddyfile = ''; }
       try { data.fallback = JSON.parse(fs.readFileSync(FALLBACK_FILE, 'utf8')); if (data.fallback?.chain) data.fallback.chain.forEach(c => { if (c.apiKey) c.apiKey = '***REDACTED***'; }); } catch { data.fallback = null; }
+      // Save installed plugins (npm-installed only, for reinstall on restore)
+      try {
+        const pout = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins list --json" 2>/dev/null`, 30000);
+        if (pout) { const pd = JSON.parse(pout); data.installedPlugins = (pd.plugins || []).filter(p => p.origin === 'npm').map(p => ({ id: p.id, name: p.name, enabled: p.enabled })); }
+      } catch { data.installedPlugins = []; }
+      // Save installed ClawHub skills
+      try {
+        const cout = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub list" 2>/dev/null`, 30000);
+        if (cout && !cout.includes('No installed skills')) {
+          data.installedClawHubSkills = cout.split('\n').filter(l => l.trim() && !l.includes('Installed skills')).map(l => { const m = l.match(/^(\S+)\s+(v[\d.]+)?/); return m ? { slug: m[1], version: (m[2] || '').trim() } : null; }).filter(Boolean);
+        } else { data.installedClawHubSkills = []; }
+      } catch { data.installedClawHubSkills = []; }
       return json(res, 200, { ok: true, data });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
@@ -3103,8 +3121,27 @@ const server = http.createServer(async (req, res) => {
       }
       // Restore Caddyfile
       if (d.caddyfile) { fs.writeFileSync(CADDYFILE, d.caddyfile, 'utf8'); restartService('caddy'); }
+      // Reinstall npm plugins
+      let restoreLog = '';
+      if (d.installedPlugins && Array.isArray(d.installedPlugins) && d.installedPlugins.length) {
+        for (const p of d.installedPlugins) {
+          try {
+            const spec = (p.name || p.id || '').replace(/[;&|`$()]/g, '');
+            if (spec) { restoreLog += 'Installing plugin: ' + spec + '...\n'; safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install '${spec}'" 2>&1`, 120000); }
+          } catch (e) { restoreLog += 'Plugin install error: ' + e.message + '\n'; }
+        }
+      }
+      // Reinstall ClawHub skills
+      if (d.installedClawHubSkills && Array.isArray(d.installedClawHubSkills) && d.installedClawHubSkills.length) {
+        for (const s of d.installedClawHubSkills) {
+          try {
+            const slug = (s.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
+            if (slug) { restoreLog += 'Installing skill: ' + slug + '...\n'; safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub install ${slug} --force" 2>&1`, 60000); }
+          } catch (e) { restoreLog += 'Skill install error: ' + e.message + '\n'; }
+        }
+      }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
-      return json(res, 200, { ok: isServiceActive('openclaw') });
+      return json(res, 200, { ok: isServiceActive('openclaw'), log: restoreLog || null });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
