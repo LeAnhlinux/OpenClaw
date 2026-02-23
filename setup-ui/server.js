@@ -720,7 +720,7 @@ const server = http.createServer(async (req, res) => {
       if (!body.username || !body.password) return json(res, 400, { ok: false, error: 'Thieu username hoac password' });
       if (verifyPassword(body.username, body.password)) {
         const token = createSession();
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `session=${token}; Secure; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}` });
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}` });
         return res.end(JSON.stringify({ ok: true }));
       } else {
         recordFailedLogin(ip);
