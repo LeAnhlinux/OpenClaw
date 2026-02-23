@@ -2757,6 +2757,8 @@ const server = http.createServer(async (req, res) => {
         const npmOut = safeExec(`cd "${camofoxDir}" && npm install 2>&1`, 600000);
         log += npmOut ? npmOut.substring(Math.max(0, npmOut.length - 1000)) + '\n' : '';
         if (!fs.existsSync(camofoxDir + '/node_modules')) return json(res, 500, { ok: false, error: 'npm install failed', log });
+        // Patch: bind 127.0.0.1 instead of 0.0.0.0
+        safeExec(`sed -i "s|app.listen(PORT, () => {|app.listen(PORT, '127.0.0.1', () => {|" "${camofoxDir}/server.js"`, 5000);
         safeExec(`chown -R openclaw:openclaw "${camofoxDir}"`, 30000);
         // Copy camoufox binary cache to openclaw user (npm postinstall downloads to root cache)
         log += 'Setting up camoufox binary for openclaw user...\n';
