@@ -8,7 +8,7 @@ set -euo pipefail
 # Chay: curl -fsSL <url>/install-dev.sh | bash
 # =============================================================================
 
-APP_VERSION="v2026.2.3"
+APP_VERSION="Latest"
 REPO_URL="https://github.com/openclaw/openclaw.git"
 REPO_DIR="/opt/openclaw"
 LOG_FILE="/var/log/openclaw-install.log"

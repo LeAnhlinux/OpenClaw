@@ -20,7 +20,7 @@ const CONFIG_FILE = '/home/openclaw/.openclaw/openclaw.json';
 const CONFIG_DIR = '/etc/config';
 const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
-const PANEL_VERSION = '2026.02.19.1';
+const PANEL_VERSION = '2026.02.23.1';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -952,6 +952,7 @@ function panelPage() {
     <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udce6</span> OpenClaw Gateway</div><div id="updateInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-outline" onclick="checkUpdate()">Check for Updates</button>
+        <div class="field" id="updateVersionField" style="display:none;margin:0;min-width:180px"><select id="updateVersionSelect"></select></div>
         <button class="btn btn-primary" id="doUpdateBtn" style="display:none" onclick="doUpdate()">Update Gateway</button>
       </div>
       <div class="status" id="updateStatus"></div>
@@ -1419,20 +1420,27 @@ async function loadUpdate(){
 }
 async function checkUpdate(){
   const st=document.getElementById('updateStatus');st.className='status loading';st.textContent='Checking...';
+  document.getElementById('updateVersionField').style.display='none';document.getElementById('doUpdateBtn').style.display='none';
   const d=await api('/api/update-check');
   if(d.ok){availVersions=d.versions||[];
-    if(availVersions.length>0){st.className='status ok';st.textContent=availVersions.length+' new version(s). Latest: '+availVersions[0];document.getElementById('doUpdateBtn').style.display='inline-flex'}
-    else{st.className='status ok';st.textContent='Already up to date!'}
+    if(availVersions.length>0){
+      const sel=document.getElementById('updateVersionSelect');sel.innerHTML='';
+      availVersions.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o)});
+      document.getElementById('updateVersionField').style.display='';document.getElementById('doUpdateBtn').style.display='inline-flex';
+      st.className='status ok';st.textContent=availVersions.length+' newer version(s) available.';
+    }else{st.className='status ok';st.textContent='Already up to date!'}
   }else{st.className='status fail';st.textContent=d.error||'Error'}
 }
 async function doUpdate(){
-  const v=availVersions.length>0?availVersions[0]:'latest';
+  const sel=document.getElementById('updateVersionSelect');
+  const v=sel&&sel.value?sel.value:(availVersions.length>0?availVersions[0]:'latest');
   if(!confirm('Update to '+v+'? OpenClaw will be temporarily down during this process.'))return;
   const st=document.getElementById('updateStatus');
-  st.className='status loading';st.textContent='Updating '+v+'...';
+  st.className='status loading';st.textContent='Updating to '+v+'...';
+  document.getElementById('doUpdateBtn').style.display='none';document.getElementById('updateVersionField').style.display='none';
   document.getElementById('updateLog').style.display='block';document.getElementById('updateLogBox').textContent='Starting...\\n';
   const d=await api('/api/update','POST',{version:v});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Update successful!':d.error||'Error';
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Updated to '+v+' successfully!':d.error||'Error';
   document.getElementById('updateLogBox').textContent+=d.log||'';if(d.ok)loadUpdate();
 }
 
@@ -2263,8 +2271,14 @@ const server = http.createServer(async (req, res) => {
       const cur = getEnvValue('OPENCLAW_VERSION') || '';
       safeExec(`cd ${OPENCLAW_DIR} && git fetch --tags 2>/dev/null`, 30000);
       const raw = safeExec(`cd ${OPENCLAW_DIR} && git tag --sort=-version:refname 2>/dev/null`, 10000);
-      const tags = raw.split('\n').filter(t => t.trim() && t.startsWith('v')).slice(0, 20);
-      return json(res, 200, { ok: true, current: cur, versions: tags.filter(t => t !== cur), allVersions: tags });
+      // Only stable releases: vYYYY.M.D (no -beta, -rc, -2 suffixes)
+      const tags = raw.split('\n').map(t => t.trim()).filter(t => /^v\d+\.\d+\.\d+$/.test(t));
+      // Parse version for comparison: v2026.2.18 => [2026, 2, 18]
+      const parseVer = v => (v.replace(/^v/, '').split('.').map(Number));
+      const cmpVer = (a, b) => { const pa = parseVer(a), pb = parseVer(b); for (let i = 0; i < 3; i++) { if ((pa[i]||0) !== (pb[i]||0)) return (pb[i]||0) - (pa[i]||0); } return 0; };
+      tags.sort(cmpVer);
+      const newer = cur && /^v\d+\.\d+\.\d+$/.test(cur) ? tags.filter(t => cmpVer(t, cur) < 0) : tags.filter(t => t !== cur);
+      return json(res, 200, { ok: true, current: cur, versions: newer.slice(0, 20) });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -2276,6 +2290,7 @@ const server = http.createServer(async (req, res) => {
       log += 'Fetch...\n'; safeExec(`cd ${OPENCLAW_DIR} && git stash 2>/dev/null`, 15000); safeExec(`cd ${OPENCLAW_DIR} && git fetch --tags --all`, 30000);
       if (ver === 'latest') { safeExec(`cd ${OPENCLAW_DIR} && git checkout main && git pull origin main`, 30000); log += 'Checkout main.\n'; }
       else { safeExec(`cd ${OPENCLAW_DIR} && git checkout ${ver.replace(/[^a-zA-Z0-9._-]/g, '')}`, 15000); log += `Checkout ${ver}.\n`; }
+      log += 'Fix permissions...\n'; safeExec(`chown -R openclaw:openclaw ${OPENCLAW_DIR}`, 30000);
       log += 'Build...\n';
       const bo = safeExec(`cd ${OPENCLAW_DIR} && su - openclaw -c "cd ${OPENCLAW_DIR} && pnpm install --frozen-lockfile 2>&1 && pnpm build 2>&1 && pnpm ui:install 2>&1 && pnpm ui:build 2>&1"`, 300000);
       log += bo ? bo.substring(Math.max(0, bo.length - 500)) + '\n' : 'Done.\n';

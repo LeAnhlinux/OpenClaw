@@ -68,7 +68,7 @@ packer build -on-error=ask clawdbot-24-04/template.json   # hỏi khi gặp lỗ
 
 ## Cấu hình quan trọng
 
-- **template.json** — Template Packer: phiên bản image (`v2026.2.3`), kích thước instance (`s-1vcpu-2gb`), region (`nyc3`), các bước provisioning
+- **template.json** — Template Packer: phiên bản image (`Latest`), kích thước instance (`s-1vcpu-2gb`), region (`nyc3`), các bước provisioning
 - **install.sh** — Script cài đặt all-in-one: gộp mọi thứ (apt, firewall, Node.js, Caddy, clone/build, config, helper scripts, token, MOTD, wizard)
 - **files/etc/config/*.json** — Cấu hình nhà cung cấp LLM (Anthropic, OpenAI) với thiết lập model, sandbox và xác thực gateway
 - **scripts/openclaw.sh** — Script cài đặt cho Packer: tường lửa, Node.js, Caddy, clone/build OpenClaw, helper scripts, Homebrew + wacli
