@@ -857,8 +857,8 @@ const server = http.createServer(async (req, res) => {
       if (model) {
         config.agents.defaults.model.primary = model;
       }
-      // Browser config (Chrome noSandbox cho root)
-      config.browser = config.browser || { headless: true, executablePath: '/usr/bin/google-chrome', defaultProfile: 'openclaw', noSandbox: true };
+      // Browser config — managed via Panel Browser tab
+      config.browser = config.browser || {};
       // Gateway luon bind loopback — Caddy reverse proxy tu localhost
       // Khong can thay doi bind khi dung domain vi Caddy va OpenClaw cung server
       const configDir = '/home/openclaw/.openclaw';

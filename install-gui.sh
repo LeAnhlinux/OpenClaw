@@ -71,13 +71,9 @@ corepack enable
 corepack prepare pnpm@latest --activate
 
 # =============================================================================
-# 4b. Cai dat Google Chrome (cho browser tool)
+# 4b. Browser se duoc cai qua Management Panel (Chrome hoac CamoFox)
 # =============================================================================
-log "Cai dat Google Chrome..."
-CHROME_DEB=$(mktemp /tmp/google-chrome-XXXXXX.deb)
-curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o "$CHROME_DEB"
-apt-get install -y "$CHROME_DEB" || apt-get install -fy
-rm -f "$CHROME_DEB"
+log "Browser se duoc cai sau qua Management Panel..."
 
 # =============================================================================
 # 5. Cai dat Caddy (reverse proxy voi TLS tu dong)
