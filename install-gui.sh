@@ -98,6 +98,10 @@ log "Tao user openclaw..."
 useradd -m -s /bin/bash openclaw || true
 usermod -aG docker openclaw || true
 
+# Cho phep openclaw sudo khong can password (Panel can quyen restart services, update, v.v.)
+echo 'openclaw ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/openclaw
+chmod 440 /etc/sudoers.d/openclaw
+
 mkdir -p /home/openclaw/.openclaw
 mkdir -p /home/openclaw/clawd
 chown -R openclaw:openclaw /home/openclaw/.openclaw
