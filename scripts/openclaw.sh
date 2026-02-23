@@ -114,6 +114,7 @@ WorkingDirectory=/opt/openclaw
 EnvironmentFile=/opt/openclaw.env
 Environment="HOME=/home/openclaw"
 Environment="NODE_ENV=production"
+Environment="NODE_OPTIONS=--dns-result-order=ipv4first --no-network-family-autoselection"
 Environment="PATH=/home/openclaw/.npm/bin:/home/openclaw/homebrew/bin:/usr/local/bin:/usr/bin:/bin:"
 
 # Start command - uses the gateway executable with allow-unconfigured for initial setup

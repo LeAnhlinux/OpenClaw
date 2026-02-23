@@ -2516,7 +2516,19 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req); const ch = CHANNELS[body.channel];
       if (!ch) return json(res, 400, { ok: false, error: 'Invalid channel' });
       for (const [key, val] of Object.entries(body.tokens || {})) { if (ch.envKeys.includes(key) && val) setEnvValue(key, val); }
-      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      // Auto-enable plugin for channel
+      try {
+        const cfgPath = '/home/openclaw/.openclaw/openclaw.json';
+        const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        if (!cfg.plugins) cfg.plugins = {};
+        if (!cfg.plugins.entries) cfg.plugins.entries = {};
+        if (!cfg.plugins.entries[body.channel] || !cfg.plugins.entries[body.channel].enabled) {
+          cfg.plugins.entries[body.channel] = { enabled: true };
+          fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+          try { execSync('chown openclaw:openclaw ' + cfgPath); } catch {}
+        }
+      } catch (pe) { console.error('[Panel] Auto-enable plugin error:', pe.message); }
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 3000));
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }

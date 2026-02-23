@@ -907,9 +907,26 @@ const server = http.createServer(async (req, res) => {
       envContent = envContent.trim() + '\n';
       fs.writeFileSync('/opt/openclaw.env', envContent, 'utf8');
 
-      // Restart de nhan token moi
+      // Auto-enable plugin cho channel trong openclaw.json
+      try {
+        const configPath = '/home/openclaw/.openclaw/openclaw.json';
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (!config.plugins) config.plugins = {};
+        if (!config.plugins.entries) config.plugins.entries = {};
+        if (!config.plugins.entries[body.channel]) {
+          config.plugins.entries[body.channel] = { enabled: true };
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+          execSync(`chown openclaw:openclaw ${configPath}`);
+        } else if (!config.plugins.entries[body.channel].enabled) {
+          config.plugins.entries[body.channel].enabled = true;
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+          execSync(`chown openclaw:openclaw ${configPath}`);
+        }
+      } catch (pe) { console.error('[Setup UI] Auto-enable plugin error:', pe.message); }
+
+      // Restart de nhan token moi + plugin moi
       execSync('systemctl restart openclaw', { timeout: 15000 });
-      execSync('sleep 2');
+      execSync('sleep 3');
 
       return json(res, 200, { ok: true });
     } catch (e) {
