@@ -2294,7 +2294,7 @@ const server = http.createServer(async (req, res) => {
       if (!body.username || !body.password) return json(res, 400, { ok: false, error: 'Missing credentials' });
       if (verifyPassword(body.username, body.password)) {
         const token = createSession();
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `panel_session=${token}; Secure; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}` });
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `panel_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}` });
         return res.end(JSON.stringify({ ok: true }));
       } else {
         recordFailedLogin(ip);
@@ -2338,7 +2338,11 @@ const server = http.createServer(async (req, res) => {
       }
       let domain = '';
       try { const c = fs.readFileSync(CADDYFILE, 'utf8'); const m = c.match(/^([a-z0-9][a-z0-9.-]+\.[a-z]{2,})\s*\{/m); if (m) domain = m[1]; } catch {}
-      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getEnvValue('OPENCLAW_GATEWAY_TOKEN'), version: getEnvValue('OPENCLAW_VERSION'), panelVersion: PANEL_VERSION, serverIP: getServerIP() });
+      let version = getEnvValue('OPENCLAW_VERSION') || '';
+      if (!version || version === 'Latest') {
+        try { version = JSON.parse(fs.readFileSync(OPENCLAW_DIR + '/package.json', 'utf8')).version || ''; } catch {}
+      }
+      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getEnvValue('OPENCLAW_GATEWAY_TOKEN'), version, panelVersion: PANEL_VERSION, serverIP: getServerIP() });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -2652,7 +2656,10 @@ const server = http.createServer(async (req, res) => {
   // Update Check
   if (req.method === 'GET' && url.pathname === '/api/update-check') {
     try {
-      const cur = getEnvValue('OPENCLAW_VERSION') || '';
+      let cur = getEnvValue('OPENCLAW_VERSION') || '';
+      if (!cur || cur === 'Latest') {
+        try { cur = 'v' + JSON.parse(fs.readFileSync(OPENCLAW_DIR + '/package.json', 'utf8')).version; } catch {}
+      }
       safeExec(`cd ${OPENCLAW_DIR} && git fetch --tags 2>/dev/null`, 30000);
       const raw = safeExec(`cd ${OPENCLAW_DIR} && git tag --sort=-version:refname 2>/dev/null`, 10000);
       // Only stable releases: vYYYY.M.D (no -beta, -rc, -2 suffixes)
@@ -3079,7 +3086,7 @@ WantedBy=multi-user.target
         memory: safeExec("free -h | awk '/^Mem:/{print $3\"/\"$2}'") || '-',
         disk: safeExec("df -h / | awk 'NR==2{print $3\"/\"$2\" (\"$5\" used)\"}'") || '-',
         cpu: safeExec("top -bn1 | grep 'Cpu(s)' | awk '{print $2\"%\"}'") || safeExec("nproc") + ' cores',
-        version: getEnvValue('OPENCLAW_VERSION') || '-',
+        version: (() => { let v = getEnvValue('OPENCLAW_VERSION') || ''; if (!v || v === 'Latest') { try { v = JSON.parse(fs.readFileSync(OPENCLAW_DIR + '/package.json', 'utf8')).version || '-'; } catch {} } return v; })(),
         panelVersion: PANEL_VERSION,
         token: getEnvValue('OPENCLAW_GATEWAY_TOKEN') || '-'
       });
