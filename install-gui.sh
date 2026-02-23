@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # =============================================================================
-# OpenClaw - Script cai dat all-in-one (GUI Setup)
-# Thay setup_wizard.sh (CLI) bang Web UI tai http://<IP>:9999
+# OpenClaw - Script cai dat all-in-one (GUI Setup — CO SANDBOX/DOCKER)
+# Co Docker sandbox, Setup UI (1 lan) + Management Panel (vinh vien)
 # Chay: curl -fsSL <url>/install-gui.sh | bash
 # =============================================================================
 

@@ -2,10 +2,10 @@
 set -euo pipefail
 
 # =============================================================================
-# OpenClaw - Script cai dat all-in-one (DEV) — KHONG SANDBOX + Management Panel
+# OpenClaw - Script cai dat all-in-one (GUI Setup — KHONG SANDBOX)
 # Khong cai Docker, khong build sandbox image
 # Co Setup UI (1 lan) + Management Panel (vinh vien)
-# Chay: curl -fsSL <url>/install-dev.sh | bash
+# Chay: curl -fsSL <url>/install-gui-nosandbox.sh | bash
 # =============================================================================
 
 APP_VERSION="Latest"
