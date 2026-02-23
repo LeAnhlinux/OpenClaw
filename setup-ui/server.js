@@ -6,7 +6,7 @@
 // =============================================================================
 
 const http = require('http');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
 
@@ -37,17 +37,18 @@ function recordFailedLogin(ip) {
   if (!loginAttempts[ip]) loginAttempts[ip] = { count: 0, blockedUntil: null };
   loginAttempts[ip].count++;
   if (loginAttempts[ip].count >= MAX_LOGIN_ATTEMPTS) {
-    loginAttempts[ip].blockedUntil = Date.now() + BLOCK_DURATION;
+    const multiplier = Math.min(Math.pow(2, loginAttempts[ip].count - MAX_LOGIN_ATTEMPTS), 8);
+    loginAttempts[ip].blockedUntil = Date.now() + BLOCK_DURATION * multiplier;
   }
 }
 
 function verifyPassword(username, password) {
   try {
-    const out = execSync(
-      `echo '${password.replace(/'/g, "'\\''")}' | su -c 'echo __AUTH_OK__' ${username} 2>/dev/null`,
-      { timeout: 5000, stdio: 'pipe' }
-    ).toString();
-    return out.includes('__AUTH_OK__');
+    if (!/^[a-zA-Z0-9_-]{1,32}$/.test(username)) return false;
+    const r = spawnSync('su', ['-c', 'echo __AUTH_OK__', username], {
+      input: password + '\n', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
+    });
+    return (r.stdout || '').toString().includes('__AUTH_OK__');
   } catch { return false; }
 }
 
@@ -719,7 +720,7 @@ const server = http.createServer(async (req, res) => {
       if (!body.username || !body.password) return json(res, 400, { ok: false, error: 'Thieu username hoac password' });
       if (verifyPassword(body.username, body.password)) {
         const token = createSession();
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}` });
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `session=${token}; Secure; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}` });
         return res.end(JSON.stringify({ ok: true }));
       } else {
         recordFailedLogin(ip);
@@ -758,10 +759,10 @@ const server = http.createServer(async (req, res) => {
           if (m) resolvedIPs = m.map(s => s.replace('has address ', ''));
         } catch {}
       }
-      // Fallback: python3 socket (luon co tren Ubuntu)
+      // Fallback: getent (luon co tren Ubuntu, an toan hon python3)
       if (resolvedIPs.length === 0) {
         try {
-          const out = execSync(`python3 -c "import socket; print(socket.gethostbyname('${domain}'))" 2>/dev/null`, { timeout: 10000, stdio: 'pipe' }).toString().trim();
+          const out = execSync(`getent hosts ${domain} | awk '{print $1}'`, { timeout: 10000, stdio: 'pipe' }).toString().trim();
           if (out && /^\d+\.\d+\.\d+\.\d+$/.test(out)) resolvedIPs = [out];
         } catch {}
       }
@@ -834,11 +835,11 @@ const server = http.createServer(async (req, res) => {
       const serverIP = getServerIP();
       const domain = (body.domain || '').trim();
 
-      // 1. Ghi API key vao /opt/openclaw.env
+      // 1. Ghi API key vao /opt/openclaw.env (mode 0600 — restricted permissions)
       let envContent = fs.readFileSync('/opt/openclaw.env', 'utf8');
       envContent = envContent.replace(new RegExp(`^${provider.envKey}=.*$`, 'm'), '').trim();
       envContent += `\n${provider.envKey}=${body.apiKey}\n`;
-      fs.writeFileSync('/opt/openclaw.env', envContent, 'utf8');
+      fs.writeFileSync('/opt/openclaw.env', envContent, { mode: 0o600 });
 
       // 2. Copy config JSON va thay gateway token + model
       let config;
@@ -861,10 +862,9 @@ const server = http.createServer(async (req, res) => {
       // Gateway luon bind loopback — Caddy reverse proxy tu localhost
       // Khong can thay doi bind khi dung domain vi Caddy va OpenClaw cung server
       const configDir = '/home/openclaw/.openclaw';
-      fs.mkdirSync(configDir, { recursive: true });
-      fs.writeFileSync(`${configDir}/openclaw.json`, JSON.stringify(config, null, 2), 'utf8');
-      execSync(`chown openclaw:openclaw ${configDir}/openclaw.json`);
-      execSync(`chmod 0600 ${configDir}/openclaw.json`);
+      fs.mkdirSync(configDir, { recursive: true, mode: 0o700 });
+      fs.writeFileSync(`${configDir}/openclaw.json`, JSON.stringify(config, null, 2), { mode: 0o600 });
+      execSync(`chown -R openclaw:openclaw ${configDir}`);
 
       // 3. Restart openclaw
       execSync('systemctl restart openclaw', { timeout: 15000 });
@@ -928,10 +928,10 @@ const server = http.createServer(async (req, res) => {
       if (!code) return json(res, 400, { ok: false, error: 'Thieu ma ghep noi' });
 
       try {
-        execSync(
-          `/opt/openclaw-cli.sh pairing approve ${ch.pairCmd} ${code}`,
-          { timeout: 15000, stdio: 'pipe' }
-        );
+        if (!/^[a-zA-Z0-9_-]+$/.test(ch.pairCmd)) return json(res, 400, { ok: false, error: 'Invalid pairing command' });
+        spawnSync('/opt/openclaw-cli.sh', ['pairing', 'approve', ch.pairCmd, code], {
+          timeout: 15000, stdio: 'pipe'
+        });
         return json(res, 200, { ok: true });
       } catch (e) {
         const stderr = e.stderr ? e.stderr.toString() : '';
@@ -952,13 +952,14 @@ const server = http.createServer(async (req, res) => {
 
       // Tim pending pairing requests (dung --json de lay requestId)
       let output = '';
+      if (!/^[a-zA-Z0-9_-]+$/.test(gatewayToken)) return json(res, 500, { ok: false, error: 'Invalid gateway token format' });
       try {
-        output = execSync(
-          `/opt/openclaw-cli.sh devices list --token=${gatewayToken} --json 2>/dev/null`,
-          { timeout: 15000, stdio: 'pipe' }
-        ).toString();
+        const r = spawnSync('/opt/openclaw-cli.sh', ['devices', 'list', `--token=${gatewayToken}`, '--json'], {
+          timeout: 15000, stdio: 'pipe'
+        });
+        output = (r.stdout || '').toString();
       } catch (e) {
-        output = e.stdout ? e.stdout.toString() : '';
+        output = '';
       }
 
       let data;
@@ -973,14 +974,13 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: false, error: `Tim thay ${pending.length} yeu cau. Co nguoi khac dang ket noi. Hay thu lai sau.` });
       }
 
-      const requestId = pending[0].requestId || '';
+      const requestId = (pending[0].requestId || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!requestId) return json(res, 200, { ok: false, error: 'Khong lay duoc request ID' });
 
       // Approve request — KHONG selfDestruct o day, doi /api/finalize
-      execSync(
-        `/opt/openclaw-cli.sh devices approve "${requestId}" --token=${gatewayToken}`,
-        { timeout: 15000, stdio: 'pipe' }
-      );
+      spawnSync('/opt/openclaw-cli.sh', ['devices', 'approve', requestId, `--token=${gatewayToken}`], {
+        timeout: 15000, stdio: 'pipe'
+      });
 
       return json(res, 200, { ok: true });
     } catch (e) {

@@ -75,9 +75,10 @@ corepack prepare pnpm@latest --activate
 # 4b. Cai dat Google Chrome (cho browser tool)
 # =============================================================================
 log "Cai dat Google Chrome..."
-curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o /tmp/google-chrome.deb
-apt-get install -y /tmp/google-chrome.deb || apt-get install -fy
-rm -f /tmp/google-chrome.deb
+CHROME_DEB=$(mktemp /tmp/google-chrome-XXXXXX.deb)
+curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o "$CHROME_DEB"
+apt-get install -y "$CHROME_DEB" || apt-get install -fy
+rm -f "$CHROME_DEB"
 
 # =============================================================================
 # 5. Cai dat Caddy (reverse proxy voi TLS tu dong)
@@ -116,7 +117,7 @@ cd /opt && git clone "$REPO_URL" "$REPO_DIR"
 cd "$REPO_DIR"
 git fetch --tags
 if [ "$APP_VERSION" != "Latest" ]; then
-    git checkout "$APP_VERSION"
+    git checkout "$APP_VERSION" || { log "ERROR: Failed to checkout $APP_VERSION"; exit 1; }
 fi
 chown -R openclaw:openclaw "$REPO_DIR"
 

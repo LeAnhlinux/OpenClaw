@@ -6,9 +6,10 @@
 // =============================================================================
 
 const http = require('http');
-const { execSync, exec } = require('child_process');
+const { execSync, exec, spawnSync } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
+const path = require('path');
 
 const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
@@ -39,14 +40,21 @@ function isBlocked(ip) {
 function recordFailedLogin(ip) {
   if (!loginAttempts[ip]) loginAttempts[ip] = { count: 0, blockedUntil: null };
   loginAttempts[ip].count++;
-  if (loginAttempts[ip].count >= MAX_LOGIN_ATTEMPTS) loginAttempts[ip].blockedUntil = Date.now() + BLOCK_DURATION;
+  if (loginAttempts[ip].count >= MAX_LOGIN_ATTEMPTS) {
+    const multiplier = Math.min(Math.pow(2, loginAttempts[ip].count - MAX_LOGIN_ATTEMPTS), 8);
+    loginAttempts[ip].blockedUntil = Date.now() + BLOCK_DURATION * multiplier;
+  }
 }
 function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function isSafeShellArg(s) { return /^[a-zA-Z0-9@._\/-]+$/.test(s); }
+function isSafeSlug(s) { return /^[a-zA-Z0-9_-]+$/.test(s); }
 function verifyPassword(username, password) {
   try {
     if (!/^[a-zA-Z0-9_-]{1,32}$/.test(username)) return false;
-    const out = execSync(`echo '${password.replace(/'/g, "'\\''")}' | su -c 'echo __AUTH_OK__' ${username} 2>/dev/null`, { timeout: 5000, stdio: 'pipe' }).toString();
-    return out.includes('__AUTH_OK__');
+    const r = spawnSync('su', ['-c', 'echo __AUTH_OK__', username], {
+      input: password + '\n', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
+    });
+    return (r.stdout || '').toString().includes('__AUTH_OK__');
   } catch { return false; }
 }
 function createSession() { const t = crypto.randomBytes(32).toString('hex'); sessions[t] = { created: Date.now() }; return t; }
@@ -72,7 +80,7 @@ function setEnvValue(key, value) {
   let c = ''; try { c = fs.readFileSync(ENV_FILE, 'utf8'); } catch {}
   if (new RegExp(`^${key}=`, 'm').test(c)) c = c.replace(new RegExp(`^${key}=.*$`, 'm'), `${key}=${value}`);
   else c = c.trim() + `\n${key}=${value}\n`;
-  fs.writeFileSync(ENV_FILE, c.trim() + '\n', 'utf8');
+  fs.writeFileSync(ENV_FILE, c.trim() + '\n', { mode: 0o600 });
 }
 function removeEnvValue(key) { try { let c = fs.readFileSync(ENV_FILE, 'utf8'); c = c.replace(new RegExp(`^#?\\s*${key}=.*$`, 'm'), '').trim() + '\n'; fs.writeFileSync(ENV_FILE, c, 'utf8'); } catch {} }
 function getConfig() { try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch { return {}; } }
@@ -2205,7 +2213,7 @@ const server = http.createServer(async (req, res) => {
       if (!body.username || !body.password) return json(res, 400, { ok: false, error: 'Missing credentials' });
       if (verifyPassword(body.username, body.password)) {
         const token = createSession();
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `panel_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}` });
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': `panel_session=${token}; Secure; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_TTL / 1000}` });
         return res.end(JSON.stringify({ ok: true }));
       } else {
         recordFailedLogin(ip);
@@ -2537,7 +2545,7 @@ const server = http.createServer(async (req, res) => {
       let ips = [];
       try { const o = safeExec(`dig +short A ${domain}`, 10000); if (o) ips = o.split('\n').filter(i => /^\d+\.\d+\.\d+\.\d+$/.test(i.trim())); } catch {}
       if (!ips.length) try { const o = safeExec(`host ${domain}`, 10000); const m = o.match(/has address (\d+\.\d+\.\d+\.\d+)/g); if (m) ips = m.map(s => s.replace('has address ', '')); } catch {}
-      if (!ips.length) try { const o = safeExec(`python3 -c "import socket; print(socket.gethostbyname('${domain}'))"`, 10000); if (/^\d+\.\d+\.\d+\.\d+$/.test(o)) ips = [o]; } catch {}
+      if (!ips.length) try { const o = safeExec(`getent hosts ${domain} | awk '{print $1}'`, 10000); if (o && /^\d+\.\d+\.\d+\.\d+$/.test(o.trim())) ips = [o.trim()]; } catch {}
       if (!ips.length) return json(res, 400, { ok: false, error: `DNS resolution failed. Point A record to ${serverIP}.` });
       if (!ips.includes(serverIP)) return json(res, 400, { ok: false, error: `DNS points to ${ips.join(', ')} — not ${serverIP}.` });
       writeCaddyfile(domain, email);
@@ -2611,8 +2619,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/plugins/install') {
     try {
       const body = await parseBody(req);
-      const spec = (body.spec || '').replace(/[;&|`$()]/g, '');
-      if (!spec) return json(res, 400, { ok: false, error: 'Missing package spec' });
+      const spec = (body.spec || '').trim();
+      if (!spec || !isSafeShellArg(spec)) return json(res, 400, { ok: false, error: 'Invalid package spec (only alphanumeric, @, ., /, - allowed)' });
       const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install '${spec}'" 2>&1`, 120000);
       const ok = !out.includes('Error') && !out.includes('error:');
       if (ok) { restartService('openclaw'); await new Promise(r => setTimeout(r, 2000)); }
@@ -2672,8 +2680,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/clawhub/search') {
     try {
       const body = await parseBody(req);
-      const query = (body.query || '').replace(/[;&|`$()'"]/g, '').substring(0, 100);
-      if (!query) return json(res, 400, { ok: false, error: 'Missing query' });
+      const query = (body.query || '').trim().substring(0, 100);
+      if (!query || !isSafeShellArg(query)) return json(res, 400, { ok: false, error: 'Invalid query (only alphanumeric, @, ., /, - allowed)' });
       const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub search '${query}'" 2>/dev/null`, 30000);
       if (!out) return json(res, 200, { ok: true, results: [] });
       const results = out.split('\n').filter(l => l.trim()).map(l => {
@@ -2757,9 +2765,12 @@ const server = http.createServer(async (req, res) => {
       if (!dlResult.includes('OK')) { try { fs.unlinkSync(tmpFile); } catch {} return json(res, 500, { ok: false, error: 'Failed to download panel.js', log }); }
       log += 'Validating...\n';
       const stat = fs.statSync(tmpFile);
-      if (stat.size < 1000) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'Downloaded file too small (' + stat.size + ' bytes)', log }); }
+      if (stat.size < 5000) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'Downloaded file too small (' + stat.size + ' bytes)', log }); }
       const head = fs.readFileSync(tmpFile, 'utf8').substring(0, 300);
       if (!head.includes('#!/usr/bin/env node') || !head.includes('OpenClaw')) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'Invalid file', log }); }
+      // Syntax check — reject if JS is invalid
+      const syntaxCheck = spawnSync('node', ['--check', tmpFile], { timeout: 10000, stdio: 'pipe' });
+      if (syntaxCheck.status !== 0) { fs.unlinkSync(tmpFile); return json(res, 500, { ok: false, error: 'Syntax error in downloaded file', log }); }
       log += 'Backing up current panel...\n';
       try { fs.copyFileSync(PANEL_FILE, PANEL_FILE + '.bak'); } catch {}
       log += 'Replacing panel.js...\n';
@@ -3014,14 +3025,15 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname.startsWith('/api/conversations/')) {
     try {
       const id = url.pathname.replace('/api/conversations/', '').replace(/[^a-zA-Z0-9_.-]/g, '');
+      if (!id || /\.\./.test(id)) return json(res, 400, { ok: false, error: 'Invalid id' });
       // Find session file by sessionId
       let sessionsData = {}; try { sessionsData = JSON.parse(fs.readFileSync(SESSIONS_INDEX, 'utf8')); } catch {}
       let sessionFile = '';
       for (const sess of Object.values(sessionsData)) {
         if (sess?.sessionId === id && sess.sessionFile) { sessionFile = sess.sessionFile; break; }
       }
-      // Fallback: try direct path
-      if (!sessionFile) { const tryPath = `${SESSIONS_DIR}/${id}.jsonl`; if (fs.existsSync(tryPath)) sessionFile = tryPath; }
+      // Fallback: try direct path (with path traversal protection)
+      if (!sessionFile) { const tryPath = path.resolve(SESSIONS_DIR, `${id}.jsonl`); if (tryPath.startsWith(path.resolve(SESSIONS_DIR)) && fs.existsSync(tryPath)) sessionFile = tryPath; }
       if (!sessionFile || !fs.existsSync(sessionFile)) return json(res, 404, { ok: false, error: 'Not found' });
 
       const lines = fs.readFileSync(sessionFile, 'utf8').split('\n').filter(Boolean);
@@ -3062,7 +3074,8 @@ const server = http.createServer(async (req, res) => {
       if (body.newPassword.length < 6) return json(res, 400, { ok: false, error: 'New password too short' });
       if (!verifyPassword('root', body.oldPassword)) return json(res, 401, { ok: false, error: 'Current password incorrect' });
       try {
-        execSync(`echo 'root:${body.newPassword.replace(/'/g,"'\\''")}' | chpasswd`, { timeout: 10000 });
+        const cp = spawnSync('chpasswd', [], { input: `root:${body.newPassword}\n`, timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] });
+        if (cp.status !== 0) throw new Error((cp.stderr || '').toString().trim() || 'chpasswd failed');
         return json(res, 200, { ok: true });
       } catch (e) { return json(res, 500, { ok: false, error: 'Error changing password: ' + e.message }); }
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -3126,8 +3139,9 @@ const server = http.createServer(async (req, res) => {
       if (d.installedPlugins && Array.isArray(d.installedPlugins) && d.installedPlugins.length) {
         for (const p of d.installedPlugins) {
           try {
-            const spec = (p.name || p.id || '').replace(/[;&|`$()]/g, '');
-            if (spec) { restoreLog += 'Installing plugin: ' + spec + '...\n'; safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install '${spec}'" 2>&1`, 120000); }
+            const spec = (p.name || p.id || '').trim();
+            if (spec && isSafeShellArg(spec)) { restoreLog += 'Installing plugin: ' + spec + '...\n'; safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install '${spec}'" 2>&1`, 120000); }
+            else if (spec) { restoreLog += 'Skipping plugin (unsafe chars): ' + spec + '\n'; }
           } catch (e) { restoreLog += 'Plugin install error: ' + e.message + '\n'; }
         }
       }
