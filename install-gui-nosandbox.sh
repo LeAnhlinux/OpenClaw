@@ -74,7 +74,7 @@ if [ "$ENABLE_SANDBOX" = "true" ]; then
     PACKAGES="$PACKAGES docker.io"
 fi
 if [ "$ENABLE_GUI" = "true" ]; then
-    PACKAGES="$PACKAGES dnsutils"
+    PACKAGES="$PACKAGES dnsutils libgtk-3-0t64 libasound2t64 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libdbus-glib-1-2 libgbm1"
 fi
 apt-get -qqy -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' install $PACKAGES
 apt-get -qqy clean

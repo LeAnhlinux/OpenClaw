@@ -45,7 +45,8 @@ apt-get -qqy update
 apt-get -qqy -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' full-upgrade
 apt-get -qqy -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' install \
     procps file apt-transport-https ca-certificates curl software-properties-common \
-    git build-essential libsystemd-dev jq unzip gnupg ufw dnsutils
+    git build-essential libsystemd-dev jq unzip gnupg ufw dnsutils \
+    libgtk-3-0t64 libasound2t64 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libdbus-glib-1-2 libgbm1
 apt-get -qqy clean
 
 # =============================================================================
