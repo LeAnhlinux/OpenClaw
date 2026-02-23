@@ -104,19 +104,37 @@ function clearBrowserSessions() {
     }
   } catch {}
 }
+// Patch status constants
+const PATCH_OK = 'patched';
+const PATCH_ALREADY = 'already_patched';
+const PATCH_NO_FILE = 'no_file';
+const PATCH_MISMATCH = 'pattern_mismatch'; // Source code changed — patch cannot apply
+const PATCH_ERROR = 'error';
+
 function patchCamofoxPlugin() {
   // Patch CamoFox plugin.ts to save screenshots as temp files + add MEDIA: tokens
   // This allows OpenClaw to forward screenshots to Telegram/WhatsApp via TRUSTED_TOOL_RESULT_MEDIA
+  //
+  // Returns: PATCH_OK | PATCH_ALREADY | PATCH_NO_FILE | PATCH_MISMATCH | PATCH_ERROR
   const pluginPath = '/home/openclaw/.openclaw/extensions/camofox-browser/plugin.ts';
   try {
-    if (!fs.existsSync(pluginPath)) return false;
+    if (!fs.existsSync(pluginPath)) return PATCH_NO_FILE;
     let content = fs.readFileSync(pluginPath, 'utf8');
-    if (content.includes('MEDIA:')) return false; // Already patched
+    if (content.includes('MEDIA:')) return PATCH_ALREADY; // Already patched
+
+    // Validate: check key signatures exist before attempting patch
+    // These are stable markers that should exist in any version of plugin.ts
+    const hasScreenshotHandler = content.includes('camofox_screenshot') && content.includes('arrayBuffer');
+    const hasSnapshotHandler = content.includes('camofox_snapshot') && content.includes('screenshot?.data');
+    if (!hasScreenshotHandler && !hasSnapshotHandler) {
+      return PATCH_MISMATCH; // Plugin structure completely changed
+    }
+
     let patched = false;
+    const mismatches = [];
 
     // Add fs import if not present
     if (!content.includes('writeFileSync')) {
-      // Insert after last import statement (find the last "import " line)
       const lines = content.split('\n');
       let lastImportIdx = -1;
       for (let i = 0; i < Math.min(lines.length, 30); i++) {
@@ -125,6 +143,8 @@ function patchCamofoxPlugin() {
       if (lastImportIdx >= 0) {
         lines.splice(lastImportIdx + 1, 0, 'import { writeFileSync, existsSync, mkdirSync } from "fs";');
         content = lines.join('\n');
+      } else {
+        mismatches.push('fs_import: no import statements found');
       }
     }
 
@@ -160,6 +180,8 @@ function patchCamofoxPlugin() {
     if (content.includes(oldScreenshot)) {
       content = content.replace(oldScreenshot, newScreenshot);
       patched = true;
+    } else if (hasScreenshotHandler) {
+      mismatches.push('screenshot: handler exists but code pattern changed');
     }
 
     // Patch camofox_snapshot: save screenshot to temp file + add MEDIA: token
@@ -178,19 +200,27 @@ function patchCamofoxPlugin() {
     if (content.includes(oldSnapshot)) {
       content = content.replace(oldSnapshot, newSnapshot);
       patched = true;
+    } else if (hasSnapshotHandler) {
+      mismatches.push('snapshot: handler exists but code pattern changed');
     }
 
     if (patched) {
       fs.writeFileSync(pluginPath, content);
       safeExec(`chown openclaw:openclaw "${pluginPath}"`, 5000);
     }
-    return patched;
-  } catch { return false; }
+    // Return mismatch if some patterns didn't match (even if others did)
+    if (mismatches.length > 0) {
+      return patched ? `partial:${mismatches.join('; ')}` : PATCH_MISMATCH + ':' + mismatches.join('; ');
+    }
+    return patched ? PATCH_OK : PATCH_MISMATCH;
+  } catch (e) { return PATCH_ERROR + ':' + e.message; }
 }
 
 function patchTrustedMedia() {
   // Add camofox tools to TRUSTED_TOOL_RESULT_MEDIA in dist files
   // This allows OpenClaw to forward local file paths from camofox tools to messaging platforms
+  //
+  // Returns: { status: PATCH_OK|PATCH_ALREADY|PATCH_MISMATCH|PATCH_ERROR, patched: number, details: string }
   const CAMOFOX_TOOLS = [
     'camofox_screenshot', 'camofox_snapshot', 'camofox_create_tab', 'camofox_click',
     'camofox_type', 'camofox_navigate', 'camofox_scroll', 'camofox_close_tab',
@@ -199,7 +229,6 @@ function patchTrustedMedia() {
   const distDir = OPENCLAW_DIR + '/dist';
   const targets = [];
   try {
-    // Find all reply-*.js files
     for (const f of fs.readdirSync(distDir).filter(f => f.startsWith('reply-') && f.endsWith('.js'))) {
       targets.push(distDir + '/' + f);
     }
@@ -209,29 +238,87 @@ function patchTrustedMedia() {
         targets.push(sdkDir + '/' + f);
       }
     }
-  } catch {}
+  } catch (e) { return { status: PATCH_ERROR, patched: 0, details: 'Cannot read dist dir: ' + e.message }; }
+
+  if (targets.length === 0) return { status: PATCH_ERROR, patched: 0, details: 'No reply-*.js files found in dist' };
+
   let patched = 0;
+  let alreadyPatched = 0;
+  const issues = [];
+
   for (const fp of targets) {
+    const fname = fp.split('/').pop();
     try {
       if (!fs.existsSync(fp)) continue;
       let content = fs.readFileSync(fp, 'utf8');
       const marker = 'const TRUSTED_TOOL_RESULT_MEDIA = new Set([';
-      if (!content.includes(marker)) continue;
-      if (content.includes('camofox_screenshot')) continue; // Already patched
+      if (!content.includes(marker)) {
+        // This file doesn't have the TRUSTED set — check if it's expected
+        // Only report if file looks like it SHOULD have it (contains tool result handling)
+        if (content.includes('TRUSTED_TOOL_RESULT_MEDIA')) {
+          issues.push(`${fname}: has TRUSTED_TOOL_RESULT_MEDIA reference but Set declaration pattern changed`);
+        }
+        continue;
+      }
+      if (content.includes('camofox_screenshot')) { alreadyPatched++; continue; } // Already patched
       const idx = content.indexOf(marker);
       const endIdx = content.indexOf(']);', idx);
-      if (endIdx === -1) continue;
+      if (endIdx === -1) { issues.push(`${fname}: found Set marker but no closing ']);'`); continue; }
       const section = content.substring(idx, endIdx + 3);
-      const writeEntry = '\t"write"';
-      if (!section.includes(writeEntry)) continue;
-      const insertEntries = CAMOFOX_TOOLS.map(t => `\t"${t}"`).join(',\n');
-      const newSection = section.replace(writeEntry, writeEntry + ',\n' + insertEntries);
-      content = content.substring(0, idx) + newSection + content.substring(endIdx + 3);
-      fs.writeFileSync(fp, content);
-      patched++;
-    } catch {}
+      // Try multiple anchor patterns for insertion (robust against minor refactors)
+      let anchorFound = false;
+      for (const anchor of ['\t"write"', '"write"', "'write'"]) {
+        if (section.includes(anchor)) {
+          const insertEntries = CAMOFOX_TOOLS.map(t => `\t"${t}"`).join(',\n');
+          const newSection = section.replace(anchor, anchor + ',\n' + insertEntries);
+          content = content.substring(0, idx) + newSection + content.substring(endIdx + 3);
+          fs.writeFileSync(fp, content);
+          patched++;
+          anchorFound = true;
+          break;
+        }
+      }
+      if (!anchorFound) {
+        issues.push(`${fname}: TRUSTED Set found but "write" anchor entry missing — code structure may have changed`);
+      }
+    } catch (e) { issues.push(`${fname}: ${e.message}`); }
   }
-  return patched;
+
+  if (alreadyPatched > 0 && patched === 0 && issues.length === 0) {
+    return { status: PATCH_ALREADY, patched: 0, details: `${alreadyPatched} file(s) already patched` };
+  }
+  if (patched > 0 && issues.length === 0) {
+    return { status: PATCH_OK, patched, details: `${patched} file(s) patched` };
+  }
+  if (patched > 0 && issues.length > 0) {
+    return { status: 'partial', patched, details: issues.join('; ') };
+  }
+  if (issues.length > 0) {
+    return { status: PATCH_MISMATCH, patched: 0, details: issues.join('; ') };
+  }
+  return { status: PATCH_OK, patched: 0, details: 'No files needed patching' };
+}
+
+function formatPatchResult(name, result) {
+  // Format patch result into human-readable log line with warnings
+  if (typeof result === 'string') {
+    // patchCamofoxPlugin returns string
+    if (result === PATCH_OK) return `✓ ${name}: OK\n`;
+    if (result === PATCH_ALREADY) return `✓ ${name}: already applied\n`;
+    if (result === PATCH_NO_FILE) return `⚠ ${name}: plugin file not found\n`;
+    if (result.startsWith('partial:')) return `⚠ ${name}: partially applied — ${result.slice(8)}\n`;
+    if (result.startsWith(PATCH_MISMATCH)) return `⚠ ${name}: PATTERN MISMATCH — plugin code may have been updated! ${result.includes(':') ? result.split(':').slice(1).join(':') : ''}\n`;
+    if (result.startsWith(PATCH_ERROR)) return `⚠ ${name}: ERROR — ${result.split(':').slice(1).join(':')}\n`;
+    return `⚠ ${name}: ${result}\n`;
+  }
+  if (typeof result === 'object' && result !== null) {
+    // patchTrustedMedia returns object
+    if (result.status === PATCH_OK || result.status === PATCH_ALREADY) return `✓ ${name}: ${result.details}\n`;
+    if (result.status === 'partial') return `⚠ ${name}: partially applied (${result.patched} OK) — ${result.details}\n`;
+    if (result.status === PATCH_MISMATCH) return `⚠ ${name}: PATTERN MISMATCH — dist code may have changed! ${result.details}\n`;
+    return `⚠ ${name}: ${result.status} — ${result.details}\n`;
+  }
+  return `⚠ ${name}: unexpected result\n`;
 }
 
 function updateBrowserToolsMd(browserType) {
@@ -2903,7 +2990,9 @@ const server = http.createServer(async (req, res) => {
       // Re-apply CamoFox plugin patch after rebuild (if CamoFox is installed)
       // TOOLS.md handles browser tool selection — no dist patches needed
       if (fs.existsSync('/home/openclaw/.openclaw/extensions/camofox-browser/plugin.ts')) {
-        log += 'Re-patching CamoFox plugin...\n'; patchCamofoxPlugin(); patchTrustedMedia();
+        log += 'Re-patching CamoFox plugin...\n';
+        log += formatPatchResult('CamoFox plugin', patchCamofoxPlugin());
+        log += formatPatchResult('Trusted media', patchTrustedMedia());
       }
       log += 'Start...\n'; restartService('openclaw'); await new Promise(r => setTimeout(r, 3000));
       const ok = isServiceActive('openclaw'); log += ok ? 'OK!\n' : 'FAIL\n';
@@ -3021,7 +3110,9 @@ const server = http.createServer(async (req, res) => {
           fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
           safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
         } catch (e) { log += 'Config note: ' + e.message + '\n'; }
-        log += 'Patching CamoFox plugin for media delivery...\n'; patchCamofoxPlugin(); patchTrustedMedia();
+        log += 'Patching CamoFox plugin for media delivery...\n';
+        log += formatPatchResult('CamoFox plugin', patchCamofoxPlugin());
+        log += formatPatchResult('Trusted media', patchTrustedMedia());
         // Pre-create media directory for screenshot delivery
         const mediaDir = '/home/openclaw/.openclaw/media/camofox';
         safeExec(`mkdir -p "${mediaDir}" && chown openclaw:openclaw "${mediaDir}"`, 5000);
@@ -3069,7 +3160,7 @@ const server = http.createServer(async (req, res) => {
         } catch (e) { log += 'Config error: ' + e.message + '\n'; }
         // Re-apply CamoFox patches if it becomes active
         if (fs.existsSync('/home/openclaw/.openclaw/extensions/camofox-browser/server.js')) {
-          patchTrustedMedia();
+          log += formatPatchResult('Trusted media', patchTrustedMedia());
         }
       } else {
         // CamoFox uninstall: plugin manages server lifecycle, just uninstall plugin
@@ -3150,7 +3241,7 @@ const server = http.createServer(async (req, res) => {
           } catch {}
         }
         // Ensure TRUSTED_TOOL_RESULT_MEDIA has camofox tools (may be missing after OpenClaw update)
-        patchTrustedMedia();
+        log += formatPatchResult('Trusted media', patchTrustedMedia());
       }
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
       safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
