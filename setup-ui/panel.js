@@ -1857,7 +1857,7 @@ async function loadStatus(){
   h+='<div class="info-row"><span class="info-k">Token</span><span class="info-v" style="font-family:monospace;font-size:9px">'+esc(st_masked)+'</span></div>';
   el.innerHTML=h;
 }
-async function loadLogs(){const d=await api('/api/logs');document.getElementById('logsBox').textContent=d.ok?d.logs:'Error'}
+async function loadLogs(){const d=await api('/api/logs');const box=document.getElementById('logsBox');box.textContent=d.ok?d.logs:'Error';box.scrollTop=box.scrollHeight}
 async function restartSvc(n){
   const st=document.getElementById('statusMsg');st.className='status loading';st.textContent='Restarting '+n+'...';
   const d=await api('/api/restart','POST',{service:n});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?n+' OK!':d.error||'Error';
