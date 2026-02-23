@@ -275,7 +275,8 @@ const CHANNELS = {
   discord: { name: 'Discord', icon: '&#x1f3ae;', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Tao bot tai discord.com/developers', canPair: true },
   slack: { name: 'Slack', icon: '&#x1f4bc;', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Tao app tai api.slack.com/apps', canPair: false },
   line: { name: 'LINE', icon: '&#x1f7e2;', envKeys: ['LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET'], pairCmd: null, desc: 'Plugin — tao bot tai developers.line.biz', canPair: false },
-  matrix: { name: 'Matrix', icon: '&#x1f310;', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — cau hinh homeserver + token', canPair: false }
+  matrix: { name: 'Matrix', icon: '&#x1f310;', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — cau hinh homeserver + token', canPair: false },
+  zalo: { name: 'Zalo', icon: '&#x1f4ac;', envKeys: ['ZALO_BOT_TOKEN'], pairCmd: 'zalo', desc: 'Tao bot tai bot.zaloplatforms.com', canPair: true }
 };
 
 // --- Self-destruct ---

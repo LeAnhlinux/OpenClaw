@@ -141,6 +141,7 @@ OPENCLAW_GATEWAY_TOKEN=PLACEHOLDER_WILL_BE_REPLACED
 # DISCORD_BOT_TOKEN=your_bot_token_here
 # SLACK_BOT_TOKEN=your_bot_token_here
 # SLACK_APP_TOKEN=your_app_token_here
+# ZALO_BOT_TOKEN=your_bot_token_here
 EOF
 
 # =============================================================================

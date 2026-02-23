@@ -141,6 +141,7 @@ OPENCLAW_GATEWAY_TOKEN=PLACEHOLDER_WILL_BE_REPLACED
 # DISCORD_BOT_TOKEN=your_bot_token_here
 # SLACK_BOT_TOKEN=your_bot_token_here
 # SLACK_APP_TOKEN=your_app_token_here
+# ZALO_BOT_TOKEN=your_bot_token_here
 EOF
 
 # =============================================================================
@@ -475,7 +476,7 @@ cat <<EOF
 Chao mung den OpenClaw - Tro ly AI ca nhan cua ban
 
 OpenClaw la tro ly AI tu host, tra loi ban tren cac kenh ban dang dung
-(Telegram, Slack, Discord, va nhieu hon nua).
+(Telegram, Slack, Discord, Zalo va nhieu hon nua).
 
 🌐 Truy cap Dashboard & Gateway:
   Dashboard URL: https://$myip?token=$gateway_token

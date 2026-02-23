@@ -736,6 +736,8 @@ function panelPage() {
     <div class="nav-group-label">Infrastructure</div>
     <div class="nav-item" onclick="showTab('gateway',this)"><span class="nav-icon">\ud83d\udd11</span>Gateway</div>
     <div class="nav-item" onclick="showTab('domain',this)"><span class="nav-icon">\ud83c\udf10</span>Domain & SSL</div>
+    <div class="nav-item" onclick="showTab('plugins',this)"><span class="nav-icon">\ud83e\udde9</span>Plugins</div>
+    <div class="nav-item" onclick="showTab('skills',this)"><span class="nav-icon">\u26a1</span>Skills</div>
     <div class="nav-item" onclick="showTab('config',this)"><span class="nav-icon">\ud83d\udd27</span>Config</div>
     <div class="nav-item" onclick="showTab('qr',this)"><span class="nav-icon">\ud83d\udcf1</span>QR Code</div>
     <div class="nav-group-label">Monitoring</div>
@@ -1079,6 +1081,74 @@ function panelPage() {
     </div>
   </div>
 
+  <!-- TAB: Plugins -->
+  <div class="section" id="sec-plugins">
+    <div class="page-title">\ud83e\udde9 Plugins</div>
+    <div class="page-desc">Manage extensions: enable, disable, install or remove plugins.</div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\ud83d\udce6</span> Installed Plugins</div>
+      <div class="btn-row" style="margin-bottom:12px">
+        <button class="btn btn-outline" onclick="loadPlugins()">Refresh</button>
+        <button class="btn btn-outline" onclick="updateAllPlugins()">Update All</button>
+      </div>
+      <div id="pluginsList"></div>
+      <div class="status" id="pluginsStatus"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\u2795</span> Install Plugin</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Install from npm registry or local archive (.tgz, .zip).</p>
+      <div class="field"><label>Package name or path</label><input type="text" id="pluginInstallInput" placeholder="e.g. @openclaw/plugin-name or ./plugin.tgz"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="installPlugin()">Install</button>
+      </div>
+      <div class="status" id="pluginInstallStatus"></div>
+      <div id="pluginInstallLog" style="display:none;margin-top:12px"><div class="log-box" id="pluginInstallLogBox" style="max-height:200px;overflow-y:auto"></div></div>
+    </div>
+  </div>
+
+  <!-- TAB: Skills -->
+  <div class="section" id="sec-skills">
+    <div class="page-title">\u26a1 Skills</div>
+    <div class="page-desc">Manage AI skills: view eligibility, enable or disable bundled skills.</div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Overview</div>
+      <div id="skillsSummary" class="info-grid"></div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn btn-outline" onclick="loadSkills()">Refresh</button>
+        <select id="skillsFilter" onchange="filterSkills()" style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px">
+          <option value="all">All Skills</option>
+          <option value="eligible">Eligible</option>
+          <option value="disabled">Disabled</option>
+          <option value="missing">Missing Requirements</option>
+        </select>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\u26a1</span> Skills List</div>
+      <div id="skillsList"></div>
+      <div class="status" id="skillsStatus"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\ud83c\udf10</span> ClawHub — Skill Registry</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Search and install skills from the ClawHub public registry.</p>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input type="text" id="clawhubSearchInput" placeholder="Search skills... e.g. docker, weather, git" style="flex:1;padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px" onkeydown="if(event.key==='Enter')searchClawHub()">
+        <button class="btn btn-primary" style="padding:8px 20px" onclick="searchClawHub()">Search</button>
+      </div>
+      <div id="clawhubResults"></div>
+      <div class="status" id="clawhubStatus"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\ud83d\udce6</span> Installed from ClawHub</div>
+      <div class="btn-row" style="margin-bottom:12px">
+        <button class="btn btn-outline" onclick="loadClawHubInstalled()">Refresh</button>
+        <button class="btn btn-outline" onclick="updateAllClawHub()">Update All</button>
+      </div>
+      <div id="clawhubInstalled"></div>
+      <div class="status" id="clawhubInstalledStatus"></div>
+    </div>
+  </div>
+
   <!-- TAB: Config Editor -->
   <div class="section" id="sec-config">
     <div class="page-title">\ud83d\udd27 Config Editor</div>
@@ -1132,7 +1202,7 @@ function showTab(name,el){
   document.querySelector('.sidebar').classList.remove('open');
   const loaders={provider:loadProvider,fallback:loadFallback,agents:loadAgents,channels:loadChannels,gateway:loadGateway,domain:loadDomain,update:loadUpdate,
     chat:loadChat,analytics:loadAnalytics,history:loadHistory,users:loadUsers,backup:()=>{},config:loadConfigEditor,qr:loadQR,
-    doctor:loadDoctor,status:()=>{loadStatus();loadLogs()}};
+    plugins:loadPlugins,skills:loadSkills,doctor:loadDoctor,status:()=>{loadStatus();loadLogs()}};
   if(loaders[name]){if(el)el.style.opacity='.6';Promise.resolve(loaders[name]()).finally(()=>{if(el)el.style.opacity='1'})}
 }
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -1474,6 +1544,213 @@ async function doPanelUpdate(){
     st.className='status ok';st.textContent='Panel restarting... Reloading in 5 seconds.';
     setTimeout(()=>{window.location.reload()},5000);
   }
+}
+
+// === Plugins ===
+async function loadPlugins(){
+  const el=document.getElementById('pluginsList');const st=document.getElementById('pluginsStatus');
+  el.innerHTML='<div style="color:var(--text2);font-size:13px">Loading plugins...</div>';st.className='';st.textContent='';
+  const d=await api('/api/plugins');
+  if(!d.ok){el.innerHTML='';st.className='status fail';st.textContent=d.error||'Error loading plugins';return}
+  const plugins=d.plugins||[];
+  if(!plugins.length){el.innerHTML='<div style="color:var(--text2);font-size:13px">No plugins found.</div>';return}
+  let h='<div style="display:flex;flex-direction:column;gap:8px">';
+  plugins.forEach(p=>{
+    const isOn=p.status==='loaded'||p.enabled;
+    const badge=isOn?'<span class="badge bg-green">Loaded</span>':'<span class="badge" style="background:#fee2e2;color:#dc2626">Disabled</span>';
+    const origin=p.origin==='bundled'?'<span style="font-size:11px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">bundled</span>'
+      :p.origin==='npm'?'<span style="font-size:11px;color:#7c3aed;background:#ede9fe;padding:1px 6px;border-radius:4px">npm</span>'
+      :'<span style="font-size:11px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">'+esc(p.origin||'unknown')+'</span>';
+    const ver=p.version?'<span style="font-size:11px;color:var(--text2)">v'+esc(p.version)+'</span>':'';
+    const desc=p.description?'<div style="font-size:12px;color:var(--text2);margin-top:2px">'+esc(p.description)+'</div>':'';
+    const details=[];
+    if(p.channelIds&&p.channelIds.length)details.push('Channels: '+p.channelIds.join(', '));
+    if(p.providerIds&&p.providerIds.length)details.push('Providers: '+p.providerIds.join(', '));
+    if(p.toolNames&&p.toolNames.length)details.push('Tools: '+p.toolNames.join(', '));
+    const detailLine=details.length?'<div style="font-size:11px;color:var(--accent);margin-top:2px">'+esc(details.join(' | '))+'</div>':'';
+    const toggleBtn=isOn
+      ?'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#fecaca;color:#ef4444" onclick="togglePlugin(\\''+esc(p.id)+'\\',false)">Disable</button>'
+      :'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#bbf7d0;color:#16a34a" onclick="togglePlugin(\\''+esc(p.id)+'\\',true)">Enable</button>';
+    const updateBtn=p.origin==='npm'?'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="updatePlugin(\\''+esc(p.id)+'\\')">Update</button>':'';
+    const uninstallBtn=p.origin!=='bundled'?'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#fecaca;color:#ef4444" onclick="uninstallPlugin(\\''+esc(p.id)+'\\')">Uninstall</button>':'';
+    h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">'
+      +'<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong style="font-size:13px">'+esc(p.name||p.id)+'</strong> '+badge+' '+origin+' '+ver+'</div>'+desc+detailLine+'</div>'
+      +'<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:12px">'+toggleBtn+updateBtn+uninstallBtn+'</div>'
+      +'</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+  st.className='status ok';st.textContent=plugins.length+' plugin(s) found. '+plugins.filter(p=>p.status==='loaded'||p.enabled).length+' loaded.';
+}
+async function togglePlugin(id,enable){
+  const st=document.getElementById('pluginsStatus');st.className='status loading';st.textContent=(enable?'Enabling':'Disabling')+' '+id+'...';
+  const d=await api('/api/plugins/toggle','POST',{id,enable});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?(enable?'Enabled':'Disabled')+' '+id+'. Restart required.':d.error||'Error';
+  if(d.ok)setTimeout(loadPlugins,1500);
+}
+async function installPlugin(){
+  const input=document.getElementById('pluginInstallInput');const spec=input.value.trim();
+  if(!spec){document.getElementById('pluginInstallStatus').className='status fail';document.getElementById('pluginInstallStatus').textContent='Enter a package name.';return}
+  const st=document.getElementById('pluginInstallStatus');st.className='status loading';st.textContent='Installing '+spec+'...';
+  document.getElementById('pluginInstallLog').style.display='block';document.getElementById('pluginInstallLogBox').textContent='Installing...\\n';
+  const d=await api('/api/plugins/install','POST',{spec});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Installed '+spec+' successfully!':d.error||'Error';
+  document.getElementById('pluginInstallLogBox').textContent=d.log||'';
+  if(d.ok){input.value='';setTimeout(loadPlugins,1500)}
+}
+async function uninstallPlugin(id){
+  if(!confirm('Uninstall plugin "'+id+'"? This will remove plugin files.'))return;
+  const st=document.getElementById('pluginsStatus');st.className='status loading';st.textContent='Uninstalling '+id+'...';
+  const d=await api('/api/plugins/uninstall','POST',{id});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Uninstalled '+id+'.':d.error||'Error';
+  if(d.ok)setTimeout(loadPlugins,1500);
+}
+async function updatePlugin(id){
+  const st=document.getElementById('pluginsStatus');st.className='status loading';st.textContent='Updating '+id+'...';
+  const d=await api('/api/plugins/update','POST',{id});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Updated '+id+'.':d.error||'Error';
+  if(d.ok)setTimeout(loadPlugins,1500);
+}
+async function updateAllPlugins(){
+  if(!confirm('Update all npm-installed plugins?'))return;
+  const st=document.getElementById('pluginsStatus');st.className='status loading';st.textContent='Updating all plugins...';
+  const d=await api('/api/plugins/update','POST',{id:'--all'});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'All plugins updated.':d.error||'Error';
+  if(d.ok)setTimeout(loadPlugins,1500);
+}
+
+// === Skills ===
+let allSkills=[];
+async function loadSkills(){
+  const el=document.getElementById('skillsList');const st=document.getElementById('skillsStatus');const sum=document.getElementById('skillsSummary');
+  el.innerHTML='<div style="color:var(--text2);font-size:13px">Loading skills...</div>';st.className='';st.textContent='';
+  const d=await api('/api/skills');
+  if(!d.ok){el.innerHTML='';st.className='status fail';st.textContent=d.error||'Error loading skills';return}
+  allSkills=d.skills||[];
+  const total=allSkills.length,eligible=allSkills.filter(s=>s.eligible).length,disabled=allSkills.filter(s=>s.disabled).length,missing=allSkills.filter(s=>!s.eligible&&!s.disabled).length;
+  sum.innerHTML='<div class="info-row"><span class="info-k">Total</span><span class="info-v">'+total+'</span></div>'
+    +'<div class="info-row"><span class="info-k">Eligible</span><span class="info-v" style="color:#16a34a;font-weight:600">'+eligible+'</span></div>'
+    +'<div class="info-row"><span class="info-k">Disabled</span><span class="info-v" style="color:#dc2626">'+disabled+'</span></div>'
+    +'<div class="info-row"><span class="info-k">Missing requirements</span><span class="info-v" style="color:#d97706">'+missing+'</span></div>';
+  filterSkills();
+  loadClawHubInstalled();
+}
+function filterSkills(){
+  const f=document.getElementById('skillsFilter').value;
+  let list=allSkills;
+  if(f==='eligible')list=allSkills.filter(s=>s.eligible&&!s.disabled);
+  else if(f==='disabled')list=allSkills.filter(s=>s.disabled);
+  else if(f==='missing')list=allSkills.filter(s=>!s.eligible&&!s.disabled);
+  renderSkills(list);
+}
+function renderSkills(skills){
+  const el=document.getElementById('skillsList');const st=document.getElementById('skillsStatus');
+  if(!skills.length){el.innerHTML='<div style="color:var(--text2);font-size:13px">No skills match this filter.</div>';st.className='';st.textContent='';return}
+  let h='<div style="display:flex;flex-direction:column;gap:8px">';
+  skills.forEach(s=>{
+    const badge=s.disabled?'<span class="badge" style="background:#fee2e2;color:#dc2626">Disabled</span>'
+      :s.eligible?'<span class="badge bg-green">Eligible</span>'
+      :'<span class="badge" style="background:#fef3c7;color:#b45309">Missing Reqs</span>';
+    const emoji=s.emoji?'<span style="font-size:16px;margin-right:4px">'+s.emoji+'</span>':'';
+    const desc=s.description?'<div style="font-size:12px;color:var(--text2);margin-top:2px;max-width:600px">'+esc(s.description)+'</div>':'';
+    const src='<span style="font-size:11px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">'+esc(s.source||'bundled')+'</span>';
+    let missingHtml='';
+    if(s.missing){
+      const parts=[];
+      if(s.missing.bins&&s.missing.bins.length)parts.push('Bins: '+s.missing.bins.join(', '));
+      if(s.missing.env&&s.missing.env.length)parts.push('Env: '+s.missing.env.join(', '));
+      if(s.missing.os&&s.missing.os.length)parts.push('OS: '+s.missing.os.join(', '));
+      if(parts.length)missingHtml='<div style="font-size:11px;color:#d97706;margin-top:2px">\u26a0 '+esc(parts.join(' | '))+'</div>';
+    }
+    const link=s.homepage?'<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent);text-decoration:none">\ud83d\udd17 Docs</a>':'';
+    let toggleBtn='';
+    if(s.eligible&&!s.disabled){toggleBtn='<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#fecaca;color:#ef4444" onclick="toggleSkill(\\''+esc(s.name)+'\\',true)">Disable</button>'}
+    else if(s.disabled){toggleBtn='<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#bbf7d0;color:#16a34a" onclick="toggleSkill(\\''+esc(s.name)+'\\',false)">Enable</button>'}
+    h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">'
+      +'<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+emoji+'<strong style="font-size:13px">'+esc(s.name)+'</strong> '+badge+' '+src+' '+link+'</div>'+desc+missingHtml+'</div>'
+      +'<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:12px">'+toggleBtn+'</div>'
+      +'</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+  st.className='status ok';st.textContent=skills.length+' skill(s) shown.';
+}
+async function toggleSkill(name,disable){
+  const st=document.getElementById('skillsStatus');st.className='status loading';st.textContent=(disable?'Disabling':'Enabling')+' '+name+'...';
+  const d=await api('/api/skills/toggle','POST',{name,disable});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?(disable?'Disabled':'Enabled')+' '+name+'. Restarting...':d.error||'Error';
+  if(d.ok)setTimeout(loadSkills,2000);
+}
+
+// === ClawHub ===
+async function searchClawHub(){
+  const q=document.getElementById('clawhubSearchInput').value.trim();
+  if(!q){document.getElementById('clawhubStatus').className='status fail';document.getElementById('clawhubStatus').textContent='Enter a search query.';return}
+  const st=document.getElementById('clawhubStatus');const el=document.getElementById('clawhubResults');
+  st.className='status loading';st.textContent='Searching "'+q+'"...';el.innerHTML='';
+  const d=await api('/api/clawhub/search','POST',{query:q});
+  if(!d.ok){st.className='status fail';st.textContent=d.error||'Search error';return}
+  const results=d.results||[];
+  if(!results.length){st.className='status ok';st.textContent='No results found.';return}
+  let h='<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">';
+  results.forEach(r=>{
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">'
+      +'<div style="flex:1;min-width:0"><strong style="font-size:13px">'+esc(r.slug)+'</strong> <span style="font-size:11px;color:var(--text2)">'+esc(r.version)+'</span>'
+      +(r.name?' <span style="font-size:12px;color:var(--text2)">'+esc(r.name)+'</span>':'')
+      +'</div>'
+      +'<button class="btn btn-primary" style="font-size:12px;padding:4px 14px;flex-shrink:0" onclick="installClawHubSkill(\\''+esc(r.slug)+'\\')">Install</button>'
+      +'</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+  st.className='status ok';st.textContent=results.length+' result(s).';
+}
+async function installClawHubSkill(slug){
+  if(!confirm('Install skill "'+slug+'" from ClawHub?'))return;
+  const st=document.getElementById('clawhubStatus');st.className='status loading';st.textContent='Installing '+slug+'...';
+  const d=await api('/api/clawhub/install','POST',{slug});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Installed '+slug+'!':d.error||'Error';
+  if(d.ok){loadClawHubInstalled();setTimeout(loadSkills,2000)}
+}
+async function loadClawHubInstalled(){
+  const el=document.getElementById('clawhubInstalled');const st=document.getElementById('clawhubInstalledStatus');
+  el.innerHTML='<div style="color:var(--text2);font-size:13px">Loading...</div>';st.className='';st.textContent='';
+  const d=await api('/api/clawhub/list');
+  if(!d.ok){el.innerHTML='';st.className='status fail';st.textContent=d.error||'Error';return}
+  const items=d.items||[];
+  if(!items.length){el.innerHTML='<div style="color:var(--text2);font-size:13px">No skills installed from ClawHub yet.</div>';st.className='';st.textContent='';return}
+  let h='<div style="display:flex;flex-direction:column;gap:6px">';
+  items.forEach(i=>{
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">'
+      +'<div style="flex:1;min-width:0"><strong style="font-size:13px">'+esc(i.slug)+'</strong> <span style="font-size:11px;color:var(--text2)">'+esc(i.version||'')+'</span></div>'
+      +'<div style="display:flex;gap:6px;flex-shrink:0">'
+      +'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="updateClawHubSkill(\\''+esc(i.slug)+'\\')">Update</button>'
+      +'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#fecaca;color:#ef4444" onclick="uninstallClawHubSkill(\\''+esc(i.slug)+'\\')">Uninstall</button>'
+      +'</div></div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+  st.className='status ok';st.textContent=items.length+' skill(s) installed from ClawHub.';
+}
+async function uninstallClawHubSkill(slug){
+  if(!confirm('Uninstall skill "'+slug+'"?'))return;
+  const st=document.getElementById('clawhubInstalledStatus');st.className='status loading';st.textContent='Uninstalling '+slug+'...';
+  const d=await api('/api/clawhub/uninstall','POST',{slug});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Uninstalled '+slug+'.':d.error||'Error';
+  if(d.ok){loadClawHubInstalled();setTimeout(loadSkills,2000)}
+}
+async function updateClawHubSkill(slug){
+  const st=document.getElementById('clawhubInstalledStatus');st.className='status loading';st.textContent='Updating '+slug+'...';
+  const d=await api('/api/clawhub/update','POST',{slug});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Updated '+slug+'.':d.error||'Error';
+  if(d.ok)loadClawHubInstalled();
+}
+async function updateAllClawHub(){
+  if(!confirm('Update all ClawHub skills?'))return;
+  const st=document.getElementById('clawhubInstalledStatus');st.className='status loading';st.textContent='Updating all...';
+  const d=await api('/api/clawhub/update','POST',{slug:'--all'});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'All ClawHub skills updated.':d.error||'Error';
+  if(d.ok)loadClawHubInstalled();
 }
 
 // === Status ===
@@ -2299,6 +2576,157 @@ const server = http.createServer(async (req, res) => {
       const ok = isServiceActive('openclaw'); log += ok ? 'OK!\n' : 'FAIL\n';
       return json(res, 200, { ok, log, error: ok ? null : 'Unable to start' });
     } catch (e) { return json(res, 500, { ok: false, error: e.message, log: e.message }); }
+  }
+
+  // Plugins List
+  if (req.method === 'GET' && url.pathname === '/api/plugins') {
+    try {
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins list --json" 2>/dev/null`, 30000);
+      if (!out) return json(res, 500, { ok: false, error: 'Failed to list plugins' });
+      const data = JSON.parse(out);
+      return json(res, 200, { ok: true, plugins: data.plugins || [] });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Plugin Toggle (enable/disable)
+  if (req.method === 'POST' && url.pathname === '/api/plugins/toggle') {
+    try {
+      const body = await parseBody(req);
+      const id = (body.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!id) return json(res, 400, { ok: false, error: 'Missing plugin id' });
+      const action = body.enable ? 'enable' : 'disable';
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins ${action} ${id}" 2>&1`, 30000);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true, log: out });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Plugin Install
+  if (req.method === 'POST' && url.pathname === '/api/plugins/install') {
+    try {
+      const body = await parseBody(req);
+      const spec = (body.spec || '').replace(/[;&|`$()]/g, '');
+      if (!spec) return json(res, 400, { ok: false, error: 'Missing package spec' });
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install '${spec}'" 2>&1`, 120000);
+      const ok = !out.includes('Error') && !out.includes('error:');
+      if (ok) { restartService('openclaw'); await new Promise(r => setTimeout(r, 2000)); }
+      return json(res, 200, { ok, log: out, error: ok ? null : out });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Plugin Uninstall
+  if (req.method === 'POST' && url.pathname === '/api/plugins/uninstall') {
+    try {
+      const body = await parseBody(req);
+      const id = (body.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!id) return json(res, 400, { ok: false, error: 'Missing plugin id' });
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins uninstall ${id} --yes" 2>&1`, 60000);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true, log: out });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Plugin Update
+  if (req.method === 'POST' && url.pathname === '/api/plugins/update') {
+    try {
+      const body = await parseBody(req);
+      const id = (body.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!id) return json(res, 400, { ok: false, error: 'Missing plugin id' });
+      const cmd = id === '--all' ? 'plugins update --all --yes' : `plugins update ${id} --yes`;
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js ${cmd}" 2>&1`, 120000);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true, log: out });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Skills List
+  if (req.method === 'GET' && url.pathname === '/api/skills') {
+    try {
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js skills list --json" 2>/dev/null`, 30000);
+      if (!out) return json(res, 500, { ok: false, error: 'Failed to list skills' });
+      const data = JSON.parse(out);
+      return json(res, 200, { ok: true, skills: data.skills || [] });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Skills Toggle (enable/disable)
+  if (req.method === 'POST' && url.pathname === '/api/skills/toggle') {
+    try {
+      const body = await parseBody(req);
+      const name = (body.name || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!name) return json(res, 400, { ok: false, error: 'Missing skill name' });
+      const action = body.disable ? 'disable' : 'enable';
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js skills ${action} ${name}" 2>&1`, 30000);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true, log: out });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // ClawHub Search
+  if (req.method === 'POST' && url.pathname === '/api/clawhub/search') {
+    try {
+      const body = await parseBody(req);
+      const query = (body.query || '').replace(/[;&|`$()'"]/g, '').substring(0, 100);
+      if (!query) return json(res, 400, { ok: false, error: 'Missing query' });
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub search '${query}'" 2>/dev/null`, 30000);
+      if (!out) return json(res, 200, { ok: true, results: [] });
+      const results = out.split('\n').filter(l => l.trim()).map(l => {
+        const m = l.match(/^(\S+)\s+(v[\d.]+)\s+(.+?)\s+\(([\d.]+)\)$/);
+        return m ? { slug: m[1], version: m[2], name: m[3].trim(), score: parseFloat(m[4]) } : null;
+      }).filter(Boolean);
+      return json(res, 200, { ok: true, results });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // ClawHub Install
+  if (req.method === 'POST' && url.pathname === '/api/clawhub/install') {
+    try {
+      const body = await parseBody(req);
+      const slug = (body.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!slug) return json(res, 400, { ok: false, error: 'Missing slug' });
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub install ${slug} --force" 2>&1`, 60000);
+      const ok = !out.includes('Error:') && !out.includes('error:') && !out.includes('ENOENT');
+      if (ok) { restartService('openclaw'); await new Promise(r => setTimeout(r, 2000)); }
+      return json(res, 200, { ok, log: out, error: ok ? null : out });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // ClawHub Uninstall
+  if (req.method === 'POST' && url.pathname === '/api/clawhub/uninstall') {
+    try {
+      const body = await parseBody(req);
+      const slug = (body.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!slug) return json(res, 400, { ok: false, error: 'Missing slug' });
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub uninstall ${slug} --yes" 2>&1`, 30000);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true, log: out });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // ClawHub Update
+  if (req.method === 'POST' && url.pathname === '/api/clawhub/update') {
+    try {
+      const body = await parseBody(req);
+      const slug = (body.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!slug) return json(res, 400, { ok: false, error: 'Missing slug' });
+      const cmd = slug === '--all' ? 'update --all' : `update ${slug}`;
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub ${cmd}" 2>&1`, 60000);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true, log: out });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // ClawHub List Installed
+  if (req.method === 'GET' && url.pathname === '/api/clawhub/list') {
+    try {
+      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub list" 2>/dev/null`, 30000);
+      if (!out || out.includes('No installed skills')) return json(res, 200, { ok: true, items: [] });
+      const items = out.split('\n').filter(l => l.trim() && !l.includes('Installed skills')).map(l => {
+        const m = l.match(/^(\S+)\s+(v[\d.]+)?/);
+        return m ? { slug: m[1], version: (m[2] || '').trim() } : null;
+      }).filter(Boolean);
+      return json(res, 200, { ok: true, items });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
   // Panel Update Check
