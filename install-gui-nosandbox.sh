@@ -87,7 +87,6 @@ ufw allow 80
 ufw allow 443
 ufw allow 9999/tcp comment 'OpenClaw Panel HTTP'
 if [ "$ENABLE_GUI" = "true" ]; then
-    ufw allow 18789/tcp comment 'OpenClaw Gateway'
     ufw allow ${SETUP_UI_PORT}/tcp comment 'OpenClaw Setup UI (tam thoi)'
 fi
 ufw allow ssh/tcp

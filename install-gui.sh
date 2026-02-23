@@ -53,7 +53,6 @@ apt-get -qqy clean
 log "Cau hinh tuong lua..."
 ufw allow 80
 ufw allow 443
-ufw allow 18789/tcp comment 'OpenClaw Gateway'
 ufw allow 9999/tcp comment 'OpenClaw Panel HTTP'
 ufw allow ssh/tcp
 ufw allow ${SETUP_UI_PORT}/tcp comment 'OpenClaw Setup UI (tam thoi)'
