@@ -2699,12 +2699,12 @@ const server = http.createServer(async (req, res) => {
       const camofoxDir = '/opt/camofox-browser';
       const camofoxInstalled = fs.existsSync(camofoxDir + '/server.js');
       const camofoxRunning = camofoxInstalled && isServiceActive('camofox');
-      // Detect active browser: Chrome = browser.executablePath set, CamoFox = browser.enabled===false + service running
+      // Detect active browser: Chrome = browser.executablePath set, CamoFox = plugin enabled + service running
       let current = 'none';
       try {
         const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
         if (cfg.browser && cfg.browser.executablePath && cfg.browser.executablePath.includes('chrome')) current = 'chrome';
-        else if (camofoxRunning && cfg.browser && cfg.browser.enabled === false) current = 'camofox';
+        else if (camofoxRunning && cfg.plugins && cfg.plugins.entries && cfg.plugins.entries['camofox-browser'] && cfg.plugins.entries['camofox-browser'].enabled) current = 'camofox';
       } catch {}
       return json(res, 200, { ok: true, current,
         chrome: { installed: chromeInstalled, active: current === 'chrome' },
@@ -2797,11 +2797,11 @@ WantedBy=multi-user.target
         log += 'Installing CamoFox plugin...\n';
         const pluginOut = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install @askjo/camofox-browser" 2>&1`, 120000);
         log += pluginOut + '\n';
-        // Disable built-in browser tool (CamoFox plugin provides its own tools)
-        log += 'Disabling built-in browser (using CamoFox plugin instead)...\n';
+        // Configure browser for CamoFox plugin (remove built-in browser paths)
+        log += 'Configuring browser for CamoFox plugin...\n';
         try {
           const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-          cfg.browser = { enabled: false };
+          cfg.browser = { enabled: true };
           fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
           safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
         } catch (e) { log += 'Config note: ' + e.message + '\n'; }
@@ -2867,8 +2867,8 @@ WantedBy=multi-user.target
           cfg.plugins.entries['camofox-browser'].enabled = false;
         }
       } else {
-        // CamoFox: disable built-in browser, ensure service running, enable plugin
-        cfg.browser = { enabled: false };
+        // CamoFox: remove built-in browser paths, ensure service running, enable plugin
+        cfg.browser = { enabled: true };
         if (!isServiceActive('camofox')) { safeExec('systemctl start camofox', 15000); await new Promise(r => setTimeout(r, 2000)); }
         if (!cfg.plugins) cfg.plugins = { entries: {} };
         if (!cfg.plugins.entries) cfg.plugins.entries = {};
