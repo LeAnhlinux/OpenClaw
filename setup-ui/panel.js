@@ -423,7 +423,8 @@ const CHANNELS = {
   discord: { name: 'Discord', icon: '\ud83c\udfae', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Create bot at discord.com/developers', canPair: true },
   slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Create app at api.slack.com/apps', canPair: false },
   line: { name: 'LINE', icon: '\ud83d\udfe2', envKeys: ['LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET'], pairCmd: null, desc: 'Plugin — create bot at developers.line.biz', canPair: false },
-  matrix: { name: 'Matrix', icon: '\ud83c\udf10', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — configure homeserver + token', canPair: false }
+  matrix: { name: 'Matrix', icon: '\ud83c\udf10', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — configure homeserver + token', canPair: false },
+  zalo: { name: 'Zalo', icon: '\ud83d\udcac', envKeys: ['ZALO_BOT_TOKEN'], pairCmd: 'zalo', desc: 'Create bot at bot.zaloplatforms.com', canPair: true }
 };
 
 // --- CSS ---
