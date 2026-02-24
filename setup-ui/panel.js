@@ -1226,25 +1226,26 @@ function panelPage() {
     <div class="page-title">Multi-Agent Management</div>
     <div class="page-desc">Manage agents — each agent has its own workspace, model and routing.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83e\udd16</span> Agent List</div>
-      <div id="agentList" class="fb-chain"><div class="muted">Loading...</div></div>
+      <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Overview</div>
+      <div id="agentSummary" class="stat-grid"><div class="muted">Loading...</div></div>
+      <div class="btn-row" style="margin-top:10px"><button class="btn btn-outline btn-sm" onclick="loadAgents()">↻ Refresh</button></div>
     </div>
-    <div class="card" id="agentIdentityCard" style="display:none">
-      <div class="card-title"><span class="ct-icon">\u270f\ufe0f</span> Identity — <span id="agentIdentityName"></span></div>
-      <div class="field"><label>Display Name</label><input type="text" id="agentIdName" placeholder="e.g. Support Bot"></div>
-      <div class="field"><label>Emoji</label><input type="text" id="agentIdEmoji" placeholder="e.g. \ud83e\udd16"></div>
-      <div class="field"><label>Theme</label><input type="text" id="agentIdTheme" placeholder="e.g. professional, casual"></div>
-      <div class="btn-row"><button class="btn btn-outline" onclick="cancelEditIdentity()">Cancel</button> <button class="btn btn-primary" onclick="saveAgentIdentity()">Save Identity</button></div>
-      <div class="status" id="agentIdentityStatus"></div>
+    <div class="card">
+      <div class="card-title"><span class="ct-icon">\ud83e\udd16</span> Agents</div>
+      <div class="search-wrap"><input type="text" class="search-input" id="agentSearch" placeholder="\ud83d\udd0d Search agents..." oninput="filterAgents()"></div>
+      <div id="agentFilterPills" class="filter-pills"></div>
+      <div id="agentGrid" class="skill-grid"><div class="muted">Loading...</div></div>
     </div>
     <div class="card">
       <div class="card-title"><span class="ct-icon">\u2795</span> Add New Agent</div>
+      <div class="field"><label>Template</label><select id="agentTemplate" onchange="applyAgentTemplate()"><option value="">-- Custom --</option><option value="support">\ud83c\udfa7 Support Bot</option><option value="community">\ud83c\udf89 Community Manager</option><option value="developer">\ud83d\udcbb Developer Assistant</option></select></div>
       <div class="field"><label>Agent Name (ID)</label><input type="text" id="newAgentName" placeholder="e.g. support, sales, dev"></div>
       <div class="field"><label>Model</label><select id="newAgentModel"><option value="">-- Select model --</option></select></div>
       <div class="field"><label>Channel Binding (optional)</label><select id="newAgentBind"><option value="">-- No binding --</option></select></div>
       <div class="btn-row"><button class="btn btn-primary" onclick="addAgent()">Add Agent</button></div>
       <div class="status" id="addAgentStatus"></div>
     </div>
+    <div id="agentModalContainer"></div>
   </div>
 
   <!-- TAB: Channels -->
@@ -1646,12 +1647,13 @@ async function loadProvider(){
   const gateway=providers.filter(p=>p.category==='gateway').length;
   const local=providers.filter(p=>p.category==='local').length;
   const curName=d.provider?esc(d.providerName||d.provider):'<span style="color:var(--warn)">Not set</span>';
-  const curModel=d.model?esc((d.model||'').split('/').pop()):'—';
+  const curModel=d.model?esc((d.model||'').split('/').pop()):'\\u2014';
+  const cfgCount=(d.configuredProviders||[]).length;
   sum.innerHTML=
     '<div class="stat-card"><div class="stat-num" style="font-size:16px;line-height:1.3">'+curName+'</div><div class="stat-label">Active Provider</div></div>'
     +'<div class="stat-card"><div class="stat-num" style="font-size:16px;line-height:1.3">'+curModel+'</div><div class="stat-label">Current Model</div></div>'
-    +'<div class="stat-card"><div class="stat-num">'+cloud+'</div><div class="stat-label">\\u2601\\ufe0f Cloud</div></div>'
-    +'<div class="stat-card"><div class="stat-num">'+(gateway+local)+'</div><div class="stat-label">\\ud83d\\udd00 Gateway/Local</div></div>';
+    +'<div class="stat-card"><div class="stat-num">'+cfgCount+'</div><div class="stat-label">\\ud83d\\udd11 Configured</div></div>'
+    +'<div class="stat-card"><div class="stat-num">'+(cloud+gateway+local)+'</div><div class="stat-label">\\ud83c\\udf10 Available</div></div>';
   renderProviderFilterPills(providers.length,cloud,gateway,local);
   filterProviders();
 }
@@ -1683,8 +1685,9 @@ function renderProviderGrid(list){
   let h='<div class="skill-grid">';
   list.forEach(p=>{
     const isCurrent=currentProviderData&&currentProviderData.provider===p.id;
-    const cardClass='skill-card'+(isCurrent?' enabled':'');
-    const activeBadge=isCurrent?'<span class="badge bg-green">ACTIVE</span>':'';
+    const hasKey=currentProviderData&&currentProviderData.configuredProviders&&currentProviderData.configuredProviders.includes(p.id);
+    const cardClass='skill-card'+((isCurrent||hasKey)?' enabled':'');
+    const activeBadge=isCurrent?'<span class="badge bg-green">ACTIVE</span>':(hasKey?'<span class="badge bg-blue">CONFIGURED</span>':'');
     const cat=p.category||'cloud';
     const catClass=cat==='gateway'?'cat-gateway':cat==='local'?'cat-local':'cat-cloud';
     const catLabel=cat==='gateway'?'Gateway':cat==='local'?'Local':'Cloud';
@@ -1710,11 +1713,13 @@ function showProviderDetail(id){
   selectedProvider=id;
   const container=document.getElementById('providerModalContainer');if(!container)return;
   const isCurrent=currentProviderData&&currentProviderData.provider===id;
+  const hasKey=currentProviderData&&currentProviderData.configuredProviders&&currentProviderData.configuredProviders.includes(id);
   const currentModel=isCurrent?(currentProviderData.model||''):'';
   const statusDot=isCurrent
     ?'<span class="status-dot dot-green"></span> <span style="color:#16a34a;font-weight:600;font-size:13px">Active</span>'
-    :'<span class="status-dot dot-amber"></span> <span style="color:var(--text2);font-weight:600;font-size:13px">Not active</span>';
-  const activeBadge=isCurrent?'<span class="badge bg-green">ACTIVE</span>':'';
+    :(hasKey?'<span class="status-dot dot-green"></span> <span style="color:#3b82f6;font-weight:600;font-size:13px">Configured</span>'
+    :'<span class="status-dot dot-amber"></span> <span style="color:var(--text2);font-weight:600;font-size:13px">Not configured</span>');
+  const activeBadge=isCurrent?'<span class="badge bg-green">ACTIVE</span>':(hasKey?'<span class="badge bg-blue">CONFIGURED</span>':'');
   const cat=p.category||'cloud';
   const catClass=cat==='gateway'?'cat-gateway':cat==='local'?'cat-local':'cat-cloud';
   const catLabel=cat==='gateway'?'Gateway':cat==='local'?'Local':'Cloud';
@@ -1741,10 +1746,11 @@ function showProviderDetail(id){
     +'<div class="field"><label>Model</label><select id="provModel">'+modelOptions+'</select></div>'
     +'<div class="field"><label>API Key</label><input type="password" id="provKey" placeholder="Enter API key"></div>'
     +extraHtml
-    +'<div class="btn-row" style="margin-top:16px">'
+    +'<div class="btn-row" style="margin-top:16px;flex-wrap:wrap">'
     +'<button class="btn btn-outline btn-sm" onclick="testProviderKey()">\\ud83e\\uddea Test Key</button>'
     +'<button class="btn btn-outline btn-sm" style="border-color:var(--accent2);color:var(--accent2)" onclick="saveProviderKey()">\\ud83d\\udcbe Save Key</button>'
     +'<button class="btn btn-primary btn-sm" onclick="applyProvider()">\\u26a1 Apply & Switch</button>'
+    +(hasKey&&!isCurrent?'<button class="btn btn-outline btn-sm" style="border-color:var(--danger);color:var(--danger)" onclick="removeProviderKey()">\\ud83d\\uddd1 Remove Key</button>':'')
     +'</div>'
     +'<div class="status" id="provModalStatus"></div>'
     +'</div>'
@@ -1776,12 +1782,28 @@ async function saveProviderKey(){
 async function applyProvider(){
   const st=document.getElementById('provModalStatus')||document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim(),m=document.getElementById('provModel').value;
   if(!selectedProvider){st.className='status fail';st.textContent='Select a provider';return}
-  if(!k){st.className='status fail';st.textContent='Enter API key';return}
+  const alreadyConfigured=currentProviderData&&currentProviderData.configuredProviders&&currentProviderData.configuredProviders.includes(selectedProvider);
+  if(!k&&!alreadyConfigured){st.className='status fail';st.textContent='Enter API key';return}
   st.className='status loading';st.textContent='Applying...';
   const prov=providers.find(p=>p.id===selectedProvider);const extraEnv={};
   if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('provExtra-'+ek)||document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
   const d=await api('/api/provider','POST',{provider:selectedProvider,model:m,apiKey:k,extraEnv});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Success! OpenClaw restarted.':d.error||'Error';
+  if(d.ok)setTimeout(()=>{closeProviderModal();loadProvider()},1500);
+}
+async function removeProviderKey(force){
+  if(!selectedProvider)return;
+  const prov=providers.find(p=>p.id===selectedProvider);
+  const name=prov?prov.name:selectedProvider;
+  if(!force&&!confirm('Remove API key for '+name+'? This provider will no longer be available.'))return;
+  const st=document.getElementById('provModalStatus')||document.getElementById('provStatus');
+  st.className='status loading';st.textContent='Removing key...';
+  const d=await api('/api/provider-remove-key','POST',{provider:selectedProvider,force:!!force});
+  if(!d.ok&&d.confirm){
+    if(confirm(d.error)){removeProviderKey(true);return}
+    st.className='status';st.textContent='';return;
+  }
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'API key removed for '+esc(name)+'.':d.error||'Error';
   if(d.ok)setTimeout(()=>{closeProviderModal();loadProvider()},1500);
 }
 
@@ -1831,90 +1853,241 @@ async function pairChannel(){
 }
 
 // === Agents ===
-let editingAgentId=null;
+let allAgents=[],allAgentSkills=[],agentActiveProviders=[],agentActiveChannels=[],agentFilterMode='all';
+const AGENT_TEMPLATES={support:{name:'support',emoji:'🎧',theme:'professional'},community:{name:'community',emoji:'🎉',theme:'casual'},developer:{name:'developer',emoji:'💻',theme:'technical'}};
 async function loadAgents(){
   const d=await api('/api/agents');
-  const el=document.getElementById('agentList');
-  if(!d.ok){el.innerHTML='<div class="fb-empty">Error: '+esc(d.error||'Unable to load')+'</div>';return}
-  const agents=d.agents||[];
-  if(!agents.length){el.innerHTML='<div class="fb-empty">No agents yet.</div>';return}
-  let h='';
-  agents.forEach(a=>{
-    const isDefault=a.isDefault;
-    const emoji=a.identity&&a.identity.emoji?a.identity.emoji:'\ud83e\udd16';
-    const displayName=a.identity&&a.identity.name?a.identity.name:a.id;
-    const model=a.model||'N/A';
-    const bindText=a.bindings>0?a.bindings+' binding(s)':'No bindings';
-    const routeText=a.routes&&a.routes.length?a.routes.join(', '):'No routes';
-    h+='<div class="fb-item">';
-    h+='<div class="fb-icon" style="font-size:28px">'+emoji+'</div>';
-    h+='<div class="fb-info"><div class="fb-name">'+esc(displayName)+' <span style="color:var(--text2);font-weight:400;font-size:12px">('+esc(a.id)+')</span></div>';
-    h+='<div class="fb-model">'+esc(model)+' &middot; '+esc(bindText)+'</div>';
-    h+='<div style="font-size:11px;color:var(--text2);margin-top:3px">'+esc(routeText)+'</div></div>';
-    h+='<span class="fb-badge '+(isDefault?'primary':'fallback')+'">'+(isDefault?'DEFAULT':'AGENT')+'</span>';
-    h+='<button class="btn btn-sm btn-outline" style="margin-left:8px" onclick="editAgentIdentity(\\x27'+esc(a.id)+'\\x27)">Identity</button>';
-    if(!isDefault)h+='<button class="fb-remove" style="margin-left:6px" onclick="deleteAgent(\\x27'+esc(a.id)+'\\x27)">Delete</button>';
-    h+='</div>';
-  });
-  el.innerHTML=h;
-  // Populate model dropdown (only active providers with API key)
+  const grid=document.getElementById('agentGrid');
+  if(!d.ok){grid.innerHTML='<div class="muted">Error: '+esc(d.error||'Unable to load')+'</div>';return}
+  allAgents=d.agents||[];
+  allAgentSkills=d.availableSkills||[];
+  agentActiveProviders=d.activeProviders||[];
+  agentActiveChannels=d.activeChannels||[];
+  renderAgentSummary(allAgents);
+  const defCount=allAgents.filter(a=>a.isDefault).length;
+  const customCount=allAgents.length-defCount;
+  renderAgentFilterPills(allAgents.length,defCount,customCount);
+  filterAgents();
+  populateAgentFormDropdowns();
+}
+function populateAgentFormDropdowns(){
   const modelSel=document.getElementById('newAgentModel');
   modelSel.innerHTML='<option value="">-- Select model --</option>';
-  const ap=d.activeProviders||[];
-  if(ap.length){ap.forEach(p=>{p.models.forEach(m=>{modelSel.innerHTML+='<option value="'+m.id+'">'+esc(p.name)+' — '+esc(m.name)+'</option>'})})}
+  if(agentActiveProviders.length){agentActiveProviders.forEach(p=>{p.models.forEach(m=>{modelSel.innerHTML+='<option value="'+m.id+'">'+esc(p.name)+' \\u2014 '+esc(m.name)+'</option>'})})}
   else{modelSel.innerHTML='<option value="">No AI Provider configured</option>'}
-  // Populate channel binding dropdown
   const bindSel=document.getElementById('newAgentBind');
   bindSel.innerHTML='<option value="">-- No binding --</option>';
-  channels.forEach(c=>{bindSel.innerHTML+='<option value="'+c.id+'">'+c.icon+' '+esc(c.name)+'</option>'});
-  // Hide identity editor
-  document.getElementById('agentIdentityCard').style.display='none';
-  editingAgentId=null;
+  agentActiveChannels.forEach(c=>{bindSel.innerHTML+='<option value="'+c.id+'">'+c.icon+' '+esc(c.name)+'</option>'});
+}
+function renderAgentSummary(agents){
+  const el=document.getElementById('agentSummary');if(!el)return;
+  const total=agents.length;
+  const defAgent=agents.find(a=>a.isDefault);
+  const defName=defAgent?(defAgent.identity&&defAgent.identity.name?defAgent.identity.name:defAgent.id):'N/A';
+  const totalBindings=agents.reduce((s,a)=>s+(a.bindings||0),0);
+  const totalRoutes=agents.reduce((s,a)=>s+(a.routes?a.routes.length:0),0);
+  el.innerHTML='<div class="stat-card"><div class="stat-value">'+total+'</div><div class="stat-label">Agents</div></div>'
+    +'<div class="stat-card"><div class="stat-value">'+esc(defName)+'</div><div class="stat-label">Default Agent</div></div>'
+    +'<div class="stat-card"><div class="stat-value">'+totalBindings+'</div><div class="stat-label">Bindings</div></div>'
+    +'<div class="stat-card"><div class="stat-value">'+totalRoutes+'</div><div class="stat-label">Routes</div></div>';
+}
+function renderAgentFilterPills(total,def,custom){
+  const el=document.getElementById('agentFilterPills');if(!el)return;
+  const pills=[{key:'all',label:'All',count:total},{key:'default',label:'\\u2b50 Default',count:def},{key:'custom',label:'\\ud83e\\udd16 Custom',count:custom}];
+  el.innerHTML=pills.map(p=>
+    '<button class="filter-pill'+(agentFilterMode===p.key?' active':'')+'" onclick="setAgentFilter(\\''+p.key+'\\')">'+p.label+'<span class="pill-count">'+p.count+'</span></button>'
+  ).join('');
+}
+function setAgentFilter(mode){agentFilterMode=mode;filterAgents();const defCount=allAgents.filter(a=>a.isDefault).length;renderAgentFilterPills(allAgents.length,defCount,allAgents.length-defCount)}
+function filterAgents(){
+  const search=(document.getElementById('agentSearch')||{}).value||'';
+  const q=search.toLowerCase().trim();
+  let filtered=allAgents;
+  if(agentFilterMode==='default')filtered=filtered.filter(a=>a.isDefault);
+  else if(agentFilterMode==='custom')filtered=filtered.filter(a=>!a.isDefault);
+  if(q)filtered=filtered.filter(a=>{
+    const name=a.identity&&a.identity.name?a.identity.name.toLowerCase():'';
+    return a.id.toLowerCase().includes(q)||name.includes(q)||(a.model||'').toLowerCase().includes(q)
+  });
+  renderAgentGrid(filtered);
+}
+function renderAgentGrid(agents){
+  const el=document.getElementById('agentGrid');if(!el)return;
+  if(!agents.length){el.innerHTML='<div class="muted" style="padding:20px;text-align:center">No agents found</div>';return}
+  let h='';
+  agents.forEach(a=>{
+    const emoji=a.identity&&a.identity.emoji?a.identity.emoji:'\\ud83e\\udd16';
+    const displayName=a.identity&&a.identity.name?a.identity.name:a.id;
+    const model=(a.model||'N/A').split('/').pop();
+    const isDefault=a.isDefault;
+    const bindChannels=a.bindingChannels&&a.bindingChannels.length?a.bindingChannels:[];
+    const cardClass='skill-card'+(isDefault?' enabled':'');
+    const defaultBadge=isDefault?'<span class="badge bg-green">DEFAULT</span>':'<span class="badge bg-blue">AGENT</span>';
+    const bindBadge=bindChannels.length>0?bindChannels.map(function(ch){return '<span class="badge" style="background:var(--border);color:var(--text2)">'+esc(ch)+'</span>'}).join(''):'';
+    const routeText=a.routes&&a.routes.length?a.routes.join(', '):(bindChannels.length?bindChannels.join(', '):'No routes');
+    h+='<div class="'+cardClass+'" style="cursor:pointer" onclick="showAgentDetail(\\''+esc(a.id).replace(/'/g,"\\\\'")+'\\')">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+      +'<span style="font-size:28px">'+emoji+'</span>'
+      +'<div><div class="skill-name">'+esc(displayName)+'</div>'
+      +'<div style="font-size:11px;color:var(--text2)">'+esc(a.id)+'</div></div></div>'
+      +'<div class="skill-badges">'+defaultBadge+bindBadge+'</div>'
+      +'<div class="skill-desc" style="margin-top:6px">'+esc(model)+'</div>'
+      +'<div style="font-size:11px;color:var(--text2);margin-top:4px">'+esc(routeText)+'</div>'
+      +'</div>';
+  });
+  el.innerHTML=h;
+}
+function showAgentDetail(id){
+  const a=allAgents.find(ag=>ag.id===id);if(!a)return;
+  const container=document.getElementById('agentModalContainer');if(!container)return;
+  const emoji=a.identity&&a.identity.emoji?a.identity.emoji:'\\ud83e\\udd16';
+  const displayName=a.identity&&a.identity.name?a.identity.name:a.id;
+  const theme=a.identity&&a.identity.theme?a.identity.theme:'';
+  const isDefault=a.isDefault;
+  const defaultBadge=isDefault?'<span class="badge bg-green">DEFAULT</span>':'<span class="badge bg-blue">AGENT</span>';
+  const bindChannels=a.bindingChannels&&a.bindingChannels.length?a.bindingChannels:[];
+  const bindText=bindChannels.length?bindChannels.map(function(ch){return '<span class="badge" style="background:var(--border);color:var(--text2)">'+esc(ch)+'</span>'}).join(' '):'<span style="color:var(--text2)">None</span>';
+  const routeText=a.routes&&a.routes.length?a.routes.join(', '):(bindChannels.length?bindChannels.join(', '):'No routes');
+  const skillsData=a.skills;
+  const useAll=skillsData===null||skillsData===undefined;
+  // Build model options for per-agent override
+  let modelOpts='<option value="">-- Use default model --</option>';
+  agentActiveProviders.forEach(p=>{p.models.forEach(m=>{
+    const sel=(a.model===m.id)?' selected':'';
+    modelOpts+='<option value="'+m.id+'"'+sel+'>'+esc(p.name)+' \\u2014 '+esc(m.name)+'</option>';
+  })});
+  // Build skills checkboxes
+  let skillsHtml='';
+  if(allAgentSkills.length){
+    allAgentSkills.forEach(s=>{
+      const checked=useAll||( Array.isArray(skillsData)&&skillsData.includes(s.name));
+      skillsHtml+='<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:13px">'
+        +'<input type="checkbox" class="agent-skill-cb" value="'+esc(s.name)+'"'+(checked?' checked':'')+(useAll?' disabled':'')+' style="accent-color:var(--accent)">'
+        +'<span>'+s.emoji+' '+esc(s.name)+'</span></label>';
+    });
+  } else {
+    skillsHtml='<div class="muted" style="padding:12px">No skills available</div>';
+  }
+  const escId=esc(id).replace(/'/g,"\\\\'");
+  container.innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeAgentModal()">'
+    +'<div class="modal-card">'
+    +'<div class="modal-header"><div style="display:flex;align-items:center;gap:12px"><span style="font-size:32px">'+emoji+'</span>'
+    +'<div><div style="font-size:18px;font-weight:700">'+esc(displayName)+'</div>'
+    +'<div style="margin-top:4px">'+defaultBadge+'</div></div></div>'
+    +'<button class="modal-close" onclick="closeAgentModal()">\\u2715</button></div>'
+    +'<div class="modal-tabs"><button class="modal-tab active" onclick="switchAgentModalTab(\\'info\\',this)">\\u2139\\ufe0f Info & Identity</button>'
+    +'<button class="modal-tab" onclick="switchAgentModalTab(\\'skills\\',this)">\\u26a1 Skills</button></div>'
+    +'<div class="modal-body">'
+    +'<div id="agentTabInfo">'
+    +'<div class="info-grid">'
+    +'<div class="info-row"><span class="info-k">Agent ID</span><span class="info-v" style="font-family:monospace">'+esc(id)+'</span></div>'
+    +'<div class="info-row"><span class="info-k">Model</span><span class="info-v">'+esc(a.model||'N/A')+'</span></div>'
+    +'<div class="info-row"><span class="info-k">Bindings</span><span class="info-v">'+bindText+'</span></div>'
+    +'<div class="info-row"><span class="info-k">Routes</span><span class="info-v">'+esc(routeText)+'</span></div>'
+    +'</div>'
+    +'<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">'
+    +'<div style="font-weight:600;margin-bottom:12px">Edit Identity</div>'
+    +'<div class="field"><label>Display Name</label><input type="text" id="agentModalName" value="'+esc(displayName).replace(/"/g,'&quot;')+'" placeholder="e.g. Support Bot"></div>'
+    +'<div class="field"><label>Emoji</label><input type="text" id="agentModalEmoji" value="'+esc(emoji)+'" placeholder="e.g. \\ud83e\\udd16"></div>'
+    +'<div class="field"><label>Theme</label><input type="text" id="agentModalTheme" value="'+esc(theme)+'" placeholder="e.g. professional, casual"></div>'
+    +'</div>'
+    +'<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">'
+    +'<div style="font-weight:600;margin-bottom:12px">Model Override</div>'
+    +'<div class="field"><label>Per-Agent Model</label><select id="agentModalModel">'+modelOpts+'</select></div>'
+    +'</div>'
+    +'<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" onclick="saveAgentFromModal(\\''+escId+'\\')">\\ud83d\\udcbe Save Changes</button>'
+    +(isDefault?'':'<button class="btn btn-outline" style="color:var(--danger)" onclick="deleteAgent(\\''+escId+'\\')">\\ud83d\\uddd1 Delete</button>')
+    +'</div><div class="status" id="agentModalStatus"></div>'
+    +'</div>'
+    +'<div id="agentTabSkills" style="display:none">'
+    +'<div style="margin-bottom:12px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">'
+    +'<input type="checkbox" id="agentUseAllSkills"'+(useAll?' checked':'')+' onchange="toggleAllAgentSkills(this.checked)" style="accent-color:var(--accent)">'
+    +' Use all skills (default)</label></div>'
+    +'<div id="agentSkillsList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">'
+    +skillsHtml+'</div>'
+    +'<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" onclick="saveAgentSkills(\\''+escId+'\\')">\\ud83d\\udcbe Save Skills</button></div>'
+    +'<div class="status" id="agentSkillsStatus"></div>'
+    +'</div>'
+    +'</div>'
+    +'<div class="modal-footer"><span class="status-dot dot-green"></span> Active <span style="margin-left:auto;color:var(--text2);font-size:12px;font-family:monospace">'+esc(id)+'</span></div>'
+    +'</div></div>';
+}
+function closeAgentModal(){const c=document.getElementById('agentModalContainer');if(c)c.innerHTML=''}
+function switchAgentModalTab(tab,btn){
+  const info=document.getElementById('agentTabInfo'),skills=document.getElementById('agentTabSkills');
+  if(!info||!skills)return;
+  info.style.display=tab==='info'?'block':'none';
+  skills.style.display=tab==='skills'?'block':'none';
+  const tabs=btn?btn.parentElement.querySelectorAll('.modal-tab'):[];
+  tabs.forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+}
+function toggleAllAgentSkills(checked){
+  const cbs=document.querySelectorAll('.agent-skill-cb');
+  cbs.forEach(cb=>{cb.disabled=checked;if(checked)cb.checked=true});
+}
+async function saveAgentFromModal(id){
+  const st=document.getElementById('agentModalStatus');
+  const name=(document.getElementById('agentModalName')||{}).value||'';
+  const emoji=(document.getElementById('agentModalEmoji')||{}).value||'';
+  const theme=(document.getElementById('agentModalTheme')||{}).value||'';
+  const model=(document.getElementById('agentModalModel')||{}).value||'';
+  st.className='status loading';st.textContent='Saving...';
+  // Save identity
+  const idRes=await api('/api/agents/identity','POST',{agent:id,name:name.trim(),emoji:emoji.trim(),theme:theme.trim()});
+  if(!idRes.ok){st.className='status fail';st.textContent=idRes.error||'Error saving identity';return}
+  // Save model override
+  const cfgRes=await api('/api/agents/update-config','POST',{agent:id,model:model});
+  if(!cfgRes.ok){st.className='status fail';st.textContent=cfgRes.error||'Error saving model';return}
+  st.className='status ok';st.textContent='Saved! Restarting...';
+  setTimeout(()=>{closeAgentModal();loadAgents()},2000);
+}
+async function saveAgentSkills(id){
+  const st=document.getElementById('agentSkillsStatus');
+  const useAll=document.getElementById('agentUseAllSkills');
+  let skills=null;
+  if(!useAll||!useAll.checked){
+    skills=[];
+    document.querySelectorAll('.agent-skill-cb:checked').forEach(cb=>skills.push(cb.value));
+  }
+  st.className='status loading';st.textContent='Saving skills...';
+  const d=await api('/api/agents/update-config','POST',{agent:id,skills:skills});
+  st.className=d.ok?'status ok':'status fail';
+  st.textContent=d.ok?'Skills saved! Restarting...':d.error||'Error';
+  if(d.ok)setTimeout(()=>{closeAgentModal();loadAgents()},2000);
+}
+function applyAgentTemplate(){
+  const sel=document.getElementById('agentTemplate');
+  const tpl=AGENT_TEMPLATES[sel.value];
+  const nameEl=document.getElementById('newAgentName');
+  if(tpl){nameEl.value=tpl.name}else{nameEl.value=''}
 }
 async function addAgent(){
   const name=document.getElementById('newAgentName').value.trim();
   const model=document.getElementById('newAgentModel').value;
   const bind=document.getElementById('newAgentBind').value;
   const st=document.getElementById('addAgentStatus');
+  const tplKey=document.getElementById('agentTemplate').value;
   if(!name){st.className='status fail';st.textContent='Enter agent name';return}
   if(!/^[a-zA-Z0-9_-]+$/.test(name)){st.className='status fail';st.textContent='Name must contain only letters, numbers, -, _';return}
   if(name.length>32){st.className='status fail';st.textContent='Name too long (max 32 chars)';return}
   st.className='status loading';st.textContent='Adding agent...';
   const d=await api('/api/agents/add','POST',{name,model,bind});
-  st.className=d.ok?'status ok':'status fail';
-  st.textContent=d.ok?'Added agent '+name+'!':d.error||'Error';
-  if(d.ok){document.getElementById('newAgentName').value='';setTimeout(loadAgents,1500)}
-}
-function editAgentIdentity(agentId){
-  editingAgentId=agentId;
-  document.getElementById('agentIdentityCard').style.display='block';
-  document.getElementById('agentIdentityName').textContent=agentId;
-  document.getElementById('agentIdName').value='';
-  document.getElementById('agentIdEmoji').value='';
-  document.getElementById('agentIdTheme').value='';
-  document.getElementById('agentIdentityStatus').className='status';
-}
-function cancelEditIdentity(){
-  editingAgentId=null;
-  document.getElementById('agentIdentityCard').style.display='none';
-}
-async function saveAgentIdentity(){
-  if(!editingAgentId)return;
-  const name=document.getElementById('agentIdName').value.trim();
-  const emoji=document.getElementById('agentIdEmoji').value.trim();
-  const theme=document.getElementById('agentIdTheme').value.trim();
-  const st=document.getElementById('agentIdentityStatus');
-  if(!name&&!emoji&&!theme){st.className='status fail';st.textContent='Enter at least 1 field';return}
-  st.className='status loading';st.textContent='Saving identity...';
-  const d=await api('/api/agents/identity','POST',{agent:editingAgentId,name,emoji,theme});
-  st.className=d.ok?'status ok':'status fail';
-  st.textContent=d.ok?'Identity updated!':d.error||'Error';
-  if(d.ok)setTimeout(()=>{cancelEditIdentity();loadAgents()},1500);
+  if(!d.ok){st.className='status fail';st.textContent=d.error||'Error';return}
+  // Apply template identity if selected
+  const tpl=AGENT_TEMPLATES[tplKey];
+  if(tpl){
+    await api('/api/agents/identity','POST',{agent:name,name:tpl.name,emoji:tpl.emoji,theme:tpl.theme});
+  }
+  st.className='status ok';st.textContent='Added agent '+name+'!';
+  document.getElementById('newAgentName').value='';
+  document.getElementById('agentTemplate').value='';
+  setTimeout(loadAgents,1500);
 }
 async function deleteAgent(agentId){
   if(!confirm('Delete agent "'+agentId+'"? Workspace and state will be deleted. This cannot be undone.'))return;
   const d=await api('/api/agents/delete','DELETE',{agent:agentId});
-  if(d.ok){loadAgents()}else{alert(d.error||'Error deleting agent')}
+  if(d.ok){closeAgentModal();loadAgents()}else{alert(d.error||'Error deleting agent')}
 }
 
 // === Gateway ===
@@ -3005,7 +3178,13 @@ const server = http.createServer(async (req, res) => {
       if (!version || version === 'Latest') {
         try { version = JSON.parse(fs.readFileSync(OPENCLAW_DIR + '/package.json', 'utf8')).version || ''; } catch {}
       }
-      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getEnvValue('OPENCLAW_GATEWAY_TOKEN'), version, panelVersion: PANEL_VERSION, serverIP: getServerIP() });
+      // Collect providers with API key configured
+      const configuredProviders = [];
+      for (const [k, p] of Object.entries(PROVIDERS)) {
+        const key = getEnvValue(p.envKey);
+        if (key && !key.startsWith('#')) configuredProviders.push(k);
+      }
+      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getEnvValue('OPENCLAW_GATEWAY_TOKEN'), version, panelVersion: PANEL_VERSION, serverIP: getServerIP(), configuredProviders });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -3031,14 +3210,48 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
+  // Remove Provider Key
+  if (req.method === 'POST' && url.pathname === '/api/provider-remove-key') {
+    try {
+      const body = await parseBody(req); const prov = PROVIDERS[body.provider];
+      if (!prov) return json(res, 400, { ok: false, error: 'Invalid provider' });
+      // Prevent removing key of active provider
+      const config = getConfig();
+      const primaryModel = config?.agents?.defaults?.model?.primary || '';
+      const isPrimary = primaryModel.startsWith(body.provider + '/') || (body.provider === 'gemini' && primaryModel.startsWith('google/')) || (body.provider === 'bedrock' && primaryModel.startsWith('amazon-bedrock/'));
+      if (isPrimary) return json(res, 400, { ok: false, error: 'Cannot remove key of active provider. Switch to another provider first.' });
+      // Check if any agent uses a model from this provider
+      const provModels = prov.models.map(m => m.id);
+      const agentList = Array.isArray(config?.agents?.list) ? config.agents.list : Object.values(config?.agents?.list || {});
+      const affectedAgents = agentList.filter(a => a.model && provModels.some(pm => a.model === pm || a.model.startsWith(body.provider + '/'))).map(a => a.id || a.name);
+      if (affectedAgents.length > 0 && !body.force) {
+        return json(res, 200, { ok: false, confirm: true, error: 'Agent(s) using this provider: ' + affectedAgents.join(', ') + '. Remove key and reset these agents to default model?', affectedAgents });
+      }
+      // Reset affected agents' model to default
+      if (affectedAgents.length > 0 && body.force) {
+        const list = config.agents.list;
+        if (Array.isArray(list)) list.forEach(a => { if (affectedAgents.includes(a.id || a.name)) delete a.model; });
+        else for (const [k, a] of Object.entries(list)) { if (affectedAgents.includes(k)) delete a.model; }
+        saveConfig(config);
+      }
+      removeEnvValue(prov.envKey);
+      if (prov.extraEnvKeys) prov.extraEnvKeys.forEach(ek => removeEnvValue(ek));
+      if (affectedAgents.length > 0) { restartService('openclaw'); await new Promise(r => setTimeout(r, 2000)); }
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
   // Apply Provider (save key + change model + restart)
   if (req.method === 'POST' && url.pathname === '/api/provider') {
     try {
       const body = await parseBody(req); const prov = PROVIDERS[body.provider];
       if (!prov) return json(res, 400, { ok: false, error: 'Invalid provider' });
       const token = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
-      setEnvValue(prov.envKey, body.apiKey);
+      if (body.apiKey) setEnvValue(prov.envKey, body.apiKey);
       if (body.extraEnv && prov.extraEnvKeys) { for (const [ek, ev] of Object.entries(body.extraEnv)) { if (prov.extraEnvKeys.includes(ek) && ev) setEnvValue(ek, ev); } }
+      // Verify provider has a key (either new or existing)
+      const existingKey = getEnvValue(prov.envKey);
+      if (!existingKey || existingKey.startsWith('#')) return json(res, 400, { ok: false, error: 'No API key configured for this provider' });
       let config; try { config = JSON.parse(fs.readFileSync(prov.configFile, 'utf8')); } catch { config = getConfig(); }
       config.gateway = config.gateway || {}; config.gateway.auth = config.gateway.auth || {}; config.gateway.auth.token = token;
       config.agents = config.agents || { defaults: { model: {} } }; config.agents.defaults = config.agents.defaults || { model: {} }; config.agents.defaults.model = config.agents.defaults.model || {};
@@ -3119,14 +3332,39 @@ const server = http.createServer(async (req, res) => {
       try { agents = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Unable to read agent list' }); }
       const config = getConfig();
       const defaultModel = config?.agents?.defaults?.model?.primary || '';
-      agents = (Array.isArray(agents) ? agents : []).map(a => ({ ...a, model: a.model || defaultModel, identity: a.identity || {} }));
+      const agentCfg = config?.agents?.list || {};
+      const cfgBindings = config?.bindings || [];
+      agents = (Array.isArray(agents) ? agents : []).map(a => {
+        const agentBindings = cfgBindings.filter(b => b.agentId === a.id).map(b => b.match?.channel || 'unknown');
+        return {
+          ...a,
+          model: a.model || agentCfg[a.id]?.model || defaultModel,
+          identity: a.identity || {},
+          skills: agentCfg[a.id]?.skills !== undefined ? agentCfg[a.id].skills : null,
+          bindingChannels: agentBindings
+        };
+      });
       // Collect active providers (have API key set)
       const activeProviders = [];
       for (const [k, p] of Object.entries(PROVIDERS)) {
         const key = getEnvValue(p.envKey);
         if (key && !key.startsWith('#')) activeProviders.push({ id: k, name: p.name, icon: p.icon, models: p.models });
       }
-      return json(res, 200, { ok: true, agents, activeProviders });
+      // Collect available skill names
+      let availableSkills = [];
+      try {
+        const skillOut = execSync('/opt/openclaw-cli.sh skills list --json 2>/dev/null', { timeout: 15000, stdio: 'pipe' }).toString();
+        const skillList = JSON.parse(skillOut);
+        if (Array.isArray(skillList)) availableSkills = skillList.map(s => ({ name: s.name || s.id, description: s.description || '', emoji: s.emoji || '🧩' }));
+      } catch {}
+      // Collect active channels (have credentials configured)
+      const activeChannels = [];
+      for (const [id, ch] of Object.entries(CHANNELS)) {
+        if (ch.envKeys.length === 0) continue;
+        if (ch.envKeys.every(k => { const v = getEnvValue(k); return v && !v.startsWith('#'); }))
+          activeChannels.push({ id, name: ch.name, icon: ch.icon });
+      }
+      return json(res, 200, { ok: true, agents, activeProviders, availableSkills, activeChannels });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -3136,11 +3374,21 @@ const server = http.createServer(async (req, res) => {
       const name = (body.name || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!name) return json(res, 400, { ok: false, error: 'Missing agent name' });
       if (name.length > 32) return json(res, 400, { ok: false, error: 'Name too long (max 32 chars)' });
-      let cmd = `agents add "${name}" --non-interactive --json`;
+      const ws = `/home/openclaw/.openclaw/agents/${name}`;
+      let cmd = `agents add "${name}" --non-interactive --workspace "${ws}" --json`;
       if (body.model) { const m = body.model.replace(/[^a-zA-Z0-9/_.-]/g, ''); cmd += ` --model "${m}"`; }
-      if (body.bind) { const b = body.bind.replace(/[^a-zA-Z0-9_:-]/g, ''); cmd += ` --bind "${b}"`; }
       try { execSync(`/opt/openclaw-cli.sh ${cmd}`, { timeout: 30000, stdio: 'pipe' }); }
       catch (e) { const err = ((e.stderr || '') + (e.stdout || '')).toString().trim(); return json(res, 200, { ok: false, error: err.substring(0, 300) || e.message }); }
+      // Add channel binding directly to config (CLI --bind doesn't work in non-interactive mode)
+      if (body.bind) {
+        try {
+          const b = body.bind.replace(/[^a-zA-Z0-9_:-]/g, '');
+          const cfg = getConfig();
+          if (!cfg.bindings) cfg.bindings = [];
+          cfg.bindings.push({ agentId: name, match: { channel: b } });
+          saveConfig(cfg);
+        } catch (be) { console.error('[Panel] Binding error:', be.message); }
+      }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -3169,6 +3417,34 @@ const server = http.createServer(async (req, res) => {
       if (agent === 'main') return json(res, 400, { ok: false, error: 'Cannot delete default agent (main)' });
       try { execSync(`/opt/openclaw-cli.sh agents delete "${agent}" --force --json`, { timeout: 15000, stdio: 'pipe' }); }
       catch (e) { const err = ((e.stderr || '') + (e.stdout || '')).toString().trim(); return json(res, 200, { ok: false, error: err.substring(0, 300) || e.message }); }
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Agent config update (per-agent model + skills)
+  if (req.method === 'POST' && url.pathname === '/api/agents/update-config') {
+    try {
+      const body = await parseBody(req);
+      const agent = (body.agent || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!agent) return json(res, 400, { ok: false, error: 'Missing agent ID' });
+      const config = getConfig();
+      if (!config.agents) config.agents = {};
+      if (!config.agents.list) config.agents.list = {};
+      if (!config.agents.list[agent]) config.agents.list[agent] = {};
+      // Update per-agent model
+      if (body.model !== undefined) {
+        if (body.model) config.agents.list[agent].model = body.model;
+        else delete config.agents.list[agent].model;
+      }
+      // Update per-agent skills allowlist (null=all, []=none, ['x','y']=specific)
+      if (body.skills !== undefined) {
+        if (body.skills === null) delete config.agents.list[agent].skills;
+        else if (Array.isArray(body.skills)) config.agents.list[agent].skills = body.skills;
+      }
+      // Clean up empty entries
+      if (Object.keys(config.agents.list[agent]).length === 0) delete config.agents.list[agent];
+      saveConfig(config);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -3242,11 +3518,16 @@ const server = http.createServer(async (req, res) => {
       let data; try { data = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Unable to read device list' }); }
       const pending = data.pending || [];
       if (!pending.length) return json(res, 200, { ok: false, error: 'No pairing request found. Open dashboard first then try again.' });
-      if (pending.length > 1) return json(res, 200, { ok: false, error: 'Found ' + pending.length + ' request(s). Try again later.' });
-      const requestId = pending[0].requestId || '';
-      if (!requestId) return json(res, 200, { ok: false, error: 'Unable to get request ID' });
-      execSync(`/opt/openclaw-cli.sh devices approve "${requestId}" --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
-      return json(res, 200, { ok: true });
+      // Approve all pending requests
+      let approved = 0, errors = [];
+      for (const req of pending) {
+        const requestId = req.requestId || '';
+        if (!requestId) continue;
+        try { execSync(`/opt/openclaw-cli.sh devices approve "${requestId}" --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' }); approved++; }
+        catch (ae) { errors.push(requestId.substring(0, 8)); }
+      }
+      if (approved === 0) return json(res, 200, { ok: false, error: 'Unable to approve requests' });
+      return json(res, 200, { ok: true, approved });
     } catch (e) { return json(res, 500, { ok: false, error: 'Pairing error: ' + e.message }); }
   }
 
