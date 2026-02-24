@@ -426,19 +426,25 @@ function getProviderBaseUrl(provKey) {
   const urls = {
     xai:'https://api.x.ai/v1', minimax:'https://api.minimax.io/v1',
     moonshot:'https://api.moonshot.ai/v1', 'kimi-coding':'https://api.moonshot.ai/v1',
-    zai:'https://api.z.ai/v1', venice:'https://api.venice.ai/api/v1',
+    zai:'https://api.z.ai/api/paas/v4', venice:'https://api.venice.ai/api/v1',
     nvidia:'https://integrate.api.nvidia.com/v1', huggingface:'https://router.huggingface.co/v1',
     together:'https://api.together.xyz/v1', openrouter:'https://openrouter.ai/api/v1',
-    synthetic:'https://api.synthetic.new/openai/v1', ollama:'http://127.0.0.1:11434/v1',
-    vllm:'http://127.0.0.1:8000/v1', litellm:'http://localhost:4000/v1'
+    synthetic:'https://api.synthetic.new/anthropic', xiaomi:'https://api.xiaomimimo.com/anthropic',
+    ollama:'http://127.0.0.1:11434/v1', vllm:'http://127.0.0.1:8000/v1', litellm:'http://localhost:4000/v1'
   };
   return urls[provKey] || 'https://api.openai.com/v1';
 }
 function callProvider(provKey, model, apiKey, messages) {
   const actualModel = model.includes('/') ? model.split('/').slice(1).join('/') : model;
   try {
-    if (provKey === 'anthropic') {
-      const r = safeExec(`curl -s -X POST https://api.anthropic.com/v1/messages -H 'x-api-key: ${apiKey.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '${JSON.stringify({model:actualModel,max_tokens:1024,messages}).replace(/'/g,"'\\''")}'`, 60000);
+    if (provKey === 'anthropic' || provKey === 'xiaomi' || provKey === 'synthetic' || provKey === 'cloudflare-ai-gateway') {
+      let anthropicUrl;
+      if (provKey === 'cloudflare-ai-gateway') { const acct = getEnvValue('CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID') || ''; const gw = getEnvValue('CLOUDFLARE_AI_GATEWAY_GATEWAY_ID') || ''; anthropicUrl = acct && gw ? `https://gateway.ai.cloudflare.com/v1/${acct.trim()}/${gw.trim()}/anthropic/v1/messages` : ''; }
+      else if (provKey === 'xiaomi') anthropicUrl = 'https://api.xiaomimimo.com/anthropic/v1/messages';
+      else if (provKey === 'synthetic') anthropicUrl = 'https://api.synthetic.new/anthropic/v1/messages';
+      else anthropicUrl = 'https://api.anthropic.com/v1/messages';
+      if (!anthropicUrl) return { ok: false, error: 'Missing Cloudflare Account ID or Gateway ID' };
+      const r = safeExec(`curl -s -X POST ${anthropicUrl} -H 'x-api-key: ${apiKey.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '${JSON.stringify({model:actualModel,max_tokens:1024,messages}).replace(/'/g,"'\\''")}'`, 60000);
       if (!r) return { ok: false, error: 'Empty response' };
       const j = JSON.parse(r);
       if (j.error) return { ok: false, error: j.error.message || j.error.type || 'API error' };
@@ -488,11 +494,13 @@ const PROVIDERS = {
     color: '#d97706', icon: '\u2728', category: 'cloud',
     models: [
       { id: 'anthropic/claude-opus-4-6', name: 'Claude Opus 4.6', desc: 'Flagship — smartest' },
-      { id: 'anthropic/claude-opus-4-5', name: 'Claude Opus 4.5', desc: 'Powerful — deep thinking' },
-      { id: 'anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', desc: 'Balanced — fast' },
-      { id: 'anthropic/claude-haiku-3-5-20241022', name: 'Claude Haiku 3.5', desc: 'Fastest — low cost' }
+      { id: 'anthropic/claude-sonnet-4-6', name: 'Claude Sonnet 4.6', desc: 'Latest — balanced & fast' },
+      { id: 'anthropic/claude-haiku-4-5', name: 'Claude Haiku 4.5', desc: 'Fastest — low cost' },
+      { id: 'anthropic/claude-sonnet-4-5', name: 'Claude Sonnet 4.5', desc: 'Previous gen — balanced' },
+      { id: 'anthropic/claude-opus-4-5', name: 'Claude Opus 4.5', desc: 'Previous gen — powerful' },
+      { id: 'anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', desc: 'Legacy — stable' }
     ],
-    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST https://api.anthropic.com/v1/messages -H 'x-api-key: ${k.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '{"model":"claude-sonnet-4-20250514","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`, 15000) === '200'; } catch { return false; } }
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST https://api.anthropic.com/v1/messages -H 'x-api-key: ${k.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '{"model":"claude-haiku-4-5","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`, 15000) === '200'; } catch { return false; } }
   },
   openai: {
     name: 'OpenAI', envKey: 'OPENAI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
@@ -523,6 +531,8 @@ const PROVIDERS = {
     models: [
       { id: 'xai/grok-4-1-fast-reasoning', name: 'Grok 4.1 Fast', desc: 'Reasoning — 2M context' },
       { id: 'xai/grok-4-1-fast-non-reasoning', name: 'Grok 4.1 Instant', desc: 'Non-reasoning — 2M context' },
+      { id: 'xai/grok-4-fast-reasoning', name: 'Grok 4 Fast', desc: 'Reasoning — fast' },
+      { id: 'xai/grok-4-fast-non-reasoning', name: 'Grok 4 Instant', desc: 'Non-reasoning — fast' },
       { id: 'xai/grok-4-0709', name: 'Grok 4', desc: 'Flagship — strongest reasoning' },
       { id: 'xai/grok-3', name: 'Grok 3', desc: 'Stable — 131K context' },
       { id: 'xai/grok-3-mini', name: 'Grok 3 Mini', desc: 'Light reasoning — low cost' },
@@ -557,7 +567,9 @@ const PROVIDERS = {
     name: 'Kimi Coding', envKey: 'KIMI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
     color: '#8b5cf6', icon: '\ud83d\udcbb', category: 'cloud',
     models: [
-      { id: 'kimi-coding/k2p5', name: 'Kimi K2P5', desc: 'Code optimized' }
+      { id: 'kimi-coding/kimi-k2.5', name: 'Kimi K2.5', desc: 'Latest — code optimized' },
+      { id: 'kimi-coding/kimi-k2-thinking', name: 'Kimi K2 Thinking', desc: 'Reasoning — deep thinking' },
+      { id: 'kimi-coding/kimi-k2-thinking-turbo', name: 'K2 Thinking Turbo', desc: 'Fast reasoning' }
     ],
     testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.moonshot.ai/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
   },
@@ -565,11 +577,12 @@ const PROVIDERS = {
     name: 'Z.AI (GLM)', envKey: 'ZAI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
     color: '#0ea5e9', icon: '\ud83e\udd16', category: 'cloud',
     models: [
-      { id: 'zai/glm-5', name: 'GLM-5', desc: 'Latest — most powerful' },
-      { id: 'zai/glm-4.7', name: 'GLM-4.7', desc: 'Balanced — reliable' },
-      { id: 'zai/glm-4.6', name: 'GLM-4.6', desc: 'Stable — cost efficient' }
+      { id: 'zai/glm-5', name: 'GLM-5', desc: 'Flagship — most powerful' },
+      { id: 'zai/glm-4.7', name: 'GLM-4.7', desc: 'Balanced — reasoning' },
+      { id: 'zai/glm-4.7-flash', name: 'GLM-4.7 Flash', desc: 'Fast — reasoning' },
+      { id: 'zai/glm-4.7-flashx', name: 'GLM-4.7 FlashX', desc: 'Fastest — low cost' }
     ],
-    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.z.ai/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+    testFn: (k) => { try { const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST https://api.z.ai/api/paas/v4/chat/completions -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' -H 'Content-Type: application/json' -d '{"model":"glm-4.7-flash","messages":[{"role":"user","content":"hi"}],"max_tokens":1}'`, 15000); return r === '200' || r === '429'; } catch { return false; } }
   },
   venice: {
     name: 'Venice AI', envKey: 'VENICE_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
@@ -584,43 +597,65 @@ const PROVIDERS = {
     testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.venice.ai/api/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
   },
   xiaomi: {
-    name: 'Xiaomi MiMo', envKey: 'XIAOMI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
+    name: 'Xiaomi MiMo', envKey: 'XIAOMI_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
     color: '#ff6900', icon: '\ud83d\udcf1', category: 'cloud',
     models: [
       { id: 'xiaomi/mimo-v2-flash', name: 'MiMo V2 Flash', desc: '262K context — fast' }
     ],
-    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.xiaomimimo.com/anthropic/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+    testFn: (k) => { try { const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST https://api.xiaomimimo.com/anthropic/v1/messages -H 'x-api-key: ${k.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '{"model":"mimo-v2-flash","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`, 15000); return r === '200'; } catch { return false; } }
   },
   nvidia: {
     name: 'NVIDIA', envKey: 'NVIDIA_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
     color: '#76b900', icon: '\ud83d\udfe2', category: 'cloud',
     models: [
-      { id: 'nvidia/nvidia/llama-3.1-nemotron-70b-instruct', name: 'Nemotron 70B', desc: 'Instruct — 131K context' },
-      { id: 'nvidia/meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', desc: 'Meta — balanced' }
+      { id: 'nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1', name: 'Nemotron Ultra 253B', desc: 'Flagship — strongest reasoning' },
+      { id: 'nvidia/meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', desc: 'Meta — balanced' },
+      { id: 'nvidia/nvidia/llama-3.3-nemotron-super-49b-v1', name: 'Nemotron Super 49B', desc: 'Balanced reasoning' },
+      { id: 'nvidia/meta/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick', desc: 'Meta — 128 experts MoE' },
+      { id: 'nvidia/meta/llama-4-scout-17b-16e-instruct', name: 'Llama 4 Scout', desc: 'Meta — 16 experts MoE' },
+      { id: 'nvidia/nvidia/llama-3.1-nemotron-nano-4b-v1.1', name: 'Nemotron Nano 4B', desc: 'Lightweight — edge' },
+      { id: 'nvidia/deepseek-ai/deepseek-v3.2', name: 'DeepSeek V3.2', desc: 'Powerful — open source' }
     ],
-    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://integrate.api.nvidia.com/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+    testFn: (k) => { try { const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST https://integrate.api.nvidia.com/v1/chat/completions -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' -H 'Content-Type: application/json' -d '{"model":"meta/llama-3.3-70b-instruct","messages":[{"role":"user","content":"hi"}],"max_tokens":1}'`, 15000); return r === '200'; } catch { return false; } }
   },
   bedrock: {
     name: 'Amazon Bedrock', envKey: 'AWS_ACCESS_KEY_ID', configFile: `${CONFIG_DIR}/anthropic.json`,
     color: '#ff9900', icon: '\u2601\ufe0f', category: 'cloud',
+    keyLabel: 'Access Key ID',
+    keyPlaceholder: 'e.g. AKIA...',
     extraEnvKeys: ['AWS_SECRET_ACCESS_KEY', 'AWS_REGION'],
+    extraEnvLabels: { 'AWS_SECRET_ACCESS_KEY': 'Secret Access Key', 'AWS_REGION': 'AWS Region' },
+    extraEnvPlaceholders: { 'AWS_SECRET_ACCESS_KEY': 'e.g. U6Rj...', 'AWS_REGION': 'e.g. us-east-1, ap-southeast-1' },
     models: [
-      { id: 'amazon-bedrock/us.anthropic.claude-opus-4-6-v1:0', name: 'Claude Opus 4.6', desc: 'Anthropic via AWS' },
-      { id: 'amazon-bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0', name: 'Claude Sonnet 4', desc: 'Balanced via AWS' }
+      { id: 'amazon-bedrock/anthropic.claude-opus-4-6-v1', name: 'Claude Opus 4.6', desc: 'Flagship — strongest' },
+      { id: 'amazon-bedrock/anthropic.claude-sonnet-4-6', name: 'Claude Sonnet 4.6', desc: 'Latest — balanced' },
+      { id: 'amazon-bedrock/anthropic.claude-sonnet-4-20250514-v1:0', name: 'Claude Sonnet 4', desc: 'Stable — balanced' },
+      { id: 'amazon-bedrock/anthropic.claude-opus-4-5-20251101-v1:0', name: 'Claude Opus 4.5', desc: 'Previous flagship' },
+      { id: 'amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0', name: 'Claude Sonnet 4.5', desc: 'Previous balanced' },
+      { id: 'amazon-bedrock/anthropic.claude-haiku-4-5-20251001-v1:0', name: 'Claude Haiku 4.5', desc: 'Fast — low cost' },
+      { id: 'amazon-bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0', name: 'Claude 3.7 Sonnet', desc: 'Legacy — reasoning' }
     ],
-    testFn: () => { try { return !!safeExec('aws sts get-caller-identity 2>/dev/null', 10000); } catch { return false; } }
+    testFn: (k) => { try { const secret = getEnvValue('AWS_SECRET_ACCESS_KEY'); const region = getEnvValue('AWS_REGION') || 'us-east-1'; if (!k || !secret) return false; const r = safeExec(`cd /opt/openclaw && node -e "const{BedrockClient,ListFoundationModelsCommand}=require('@aws-sdk/client-bedrock');new BedrockClient({region:'${region}',credentials:{accessKeyId:'${k.replace(/'/g,"\\'")}',secretAccessKey:'${secret.replace(/'/g,"\\'")}'}}).send(new ListFoundationModelsCommand({})).then(()=>console.log('OK')).catch(e=>console.error(e.name))"`, 15000); return r && r.trim() === 'OK'; } catch { return false; } }
   },
   synthetic: {
-    name: 'Synthetic', envKey: 'SYNTHETIC_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
+    name: 'Synthetic', envKey: 'SYNTHETIC_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
     color: '#a855f7', icon: '\ud83e\uddec', category: 'cloud',
     models: [
-      { id: 'synthetic/hf:MiniMaxAI/MiniMax-M2.1', name: 'MiniMax M2.1', desc: 'Via Synthetic' },
-      { id: 'synthetic/hf:moonshotai/Kimi-K2-Thinking', name: 'Kimi K2 Thinking', desc: 'Reasoning via Synthetic' },
-      { id: 'synthetic/hf:deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', desc: 'Open source via Synthetic' },
-      { id: 'synthetic/hf:Qwen/Qwen3-Coder-480B-A35B-Instruct', name: 'Qwen3 Coder 480B', desc: 'Code via Synthetic' },
-      { id: 'synthetic/hf:openai/gpt-oss-120b', name: 'GPT-OSS 120B', desc: 'Open source GPT' }
+      { id: 'synthetic/hf:nvidia/Kimi-K2.5-NVFP4', name: 'Kimi K2.5 NVFP4', desc: 'Reasoning — multimodal' },
+      { id: 'synthetic/hf:Qwen/Qwen3.5-397B-A17B', name: 'Qwen 3.5 397B', desc: 'Reasoning — multimodal' },
+      { id: 'synthetic/hf:MiniMaxAI/MiniMax-M2.5', name: 'MiniMax M2.5', desc: 'Multimodal — latest' },
+      { id: 'synthetic/hf:MiniMaxAI/MiniMax-M2.1', name: 'MiniMax M2.1', desc: 'Balanced — 192K context' },
+      { id: 'synthetic/hf:moonshotai/Kimi-K2.5', name: 'Kimi K2.5', desc: 'Multimodal — reasoning' },
+      { id: 'synthetic/hf:moonshotai/Kimi-K2-Thinking', name: 'Kimi K2 Thinking', desc: 'Deep reasoning' },
+      { id: 'synthetic/hf:deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', desc: 'Open source — powerful' },
+      { id: 'synthetic/hf:deepseek-ai/DeepSeek-R1-0528', name: 'DeepSeek R1', desc: 'Reasoning — open source' },
+      { id: 'synthetic/hf:Qwen/Qwen3-Coder-480B-A35B-Instruct', name: 'Qwen3 Coder 480B', desc: 'Code specialist' },
+      { id: 'synthetic/hf:Qwen/Qwen3-235B-A22B-Thinking-2507', name: 'Qwen3 235B Thinking', desc: 'Reasoning — 256K' },
+      { id: 'synthetic/hf:zai-org/GLM-4.7', name: 'GLM-4.7', desc: '128K output' },
+      { id: 'synthetic/hf:openai/gpt-oss-120b', name: 'GPT-OSS 120B', desc: 'Open source GPT' },
+      { id: 'synthetic/hf:meta-llama/Llama-3.3-70B-Instruct', name: 'Llama 3.3 70B', desc: 'Meta — balanced' }
     ],
-    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.synthetic.new/anthropic/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+    testFn: (k) => { try { const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST https://api.synthetic.new/anthropic/v1/messages -H 'x-api-key: ${k.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '{"model":"hf:MiniMaxAI/MiniMax-M2.1","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`, 15000); return r === '200' || r === '402'; } catch { return false; } }
   },
   huggingface: {
     name: 'Hugging Face', envKey: 'HF_TOKEN', configFile: `${CONFIG_DIR}/openai.json`,
@@ -685,12 +720,21 @@ const PROVIDERS = {
     testFn: (k) => { try { return !!k && k.length > 10; } catch { return false; } }
   },
   'cloudflare-ai-gateway': {
-    name: 'Cloudflare AI Gateway', envKey: 'CLOUDFLARE_AI_GATEWAY_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
+    name: 'Cloudflare AI Gateway', envKey: 'CLOUDFLARE_AI_GATEWAY_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
     color: '#f38020', icon: '\u2601\ufe0f', category: 'gateway',
+    keyLabel: 'Anthropic API Key',
+    keyPlaceholder: 'sk-ant-... (key proxied through Cloudflare)',
+    extraEnvKeys: ['CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID', 'CLOUDFLARE_AI_GATEWAY_GATEWAY_ID'],
+    extraEnvLabels: { 'CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID': 'Account ID', 'CLOUDFLARE_AI_GATEWAY_GATEWAY_ID': 'Gateway ID' },
+    extraEnvPlaceholders: { 'CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID': 'e.g. abc123def456', 'CLOUDFLARE_AI_GATEWAY_GATEWAY_ID': 'e.g. my-gateway' },
     models: [
-      { id: 'cloudflare-ai-gateway/claude-sonnet-4-5', name: 'Claude Sonnet 4.5', desc: 'Default model' }
+      { id: 'cloudflare-ai-gateway/claude-sonnet-4-6', name: 'Claude Sonnet 4.6', desc: 'Latest — balanced & fast' },
+      { id: 'cloudflare-ai-gateway/claude-sonnet-4-5', name: 'Claude Sonnet 4.5', desc: 'Default — balanced' },
+      { id: 'cloudflare-ai-gateway/claude-opus-4-6', name: 'Claude Opus 4.6', desc: 'Flagship — smartest' },
+      { id: 'cloudflare-ai-gateway/claude-haiku-4-5', name: 'Claude Haiku 4.5', desc: 'Fastest — low cost' },
+      { id: 'cloudflare-ai-gateway/claude-opus-4-5', name: 'Claude Opus 4.5', desc: 'Previous gen — powerful' }
     ],
-    testFn: (k) => { try { return !!k && k.length > 10; } catch { return false; } }
+    testFn: (k, extra) => { try { const acct = (extra && extra.CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID) || getEnvValue('CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID') || ''; const gw = (extra && extra.CLOUDFLARE_AI_GATEWAY_GATEWAY_ID) || getEnvValue('CLOUDFLARE_AI_GATEWAY_GATEWAY_ID') || ''; if (!acct || !gw) return false; const url = `https://gateway.ai.cloudflare.com/v1/${acct.trim()}/${gw.trim()}/anthropic/v1/messages`; const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST ${url} -H 'x-api-key: ${k.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '{"model":"claude-haiku-4-5","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`, 15000); return r === '200'; } catch { return false; } }
   },
   litellm: {
     name: 'LiteLLM Proxy', envKey: 'LITELLM_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
@@ -1121,7 +1165,7 @@ document.getElementById('f').addEventListener('submit',async e=>{
 
 // --- Panel HTML ---
 function panelPage() {
-  const provJSON = JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,color:v.color,icon:v.icon,models:v.models,category:v.category||'cloud',extraEnvKeys:v.extraEnvKeys||[]})));
+  const provJSON = JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,color:v.color,icon:v.icon,models:v.models,category:v.category||'cloud',extraEnvKeys:v.extraEnvKeys||[],keyLabel:v.keyLabel||'',keyPlaceholder:v.keyPlaceholder||'',extraEnvLabels:v.extraEnvLabels||{},extraEnvPlaceholders:v.extraEnvPlaceholders||{}})));
   const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair})));
 
   return `<!DOCTYPE html><html lang="vi"><head>
@@ -1240,7 +1284,8 @@ function panelPage() {
       <div class="card-title"><span class="ct-icon">\u2795</span> Add New Agent</div>
       <div class="field"><label>Template</label><select id="agentTemplate" onchange="applyAgentTemplate()"><option value="">-- Custom --</option><option value="support">\ud83c\udfa7 Support Bot</option><option value="community">\ud83c\udf89 Community Manager</option><option value="developer">\ud83d\udcbb Developer Assistant</option></select></div>
       <div class="field"><label>Agent Name (ID)</label><input type="text" id="newAgentName" placeholder="e.g. support, sales, dev"></div>
-      <div class="field"><label>Model</label><select id="newAgentModel"><option value="">-- Select model --</option></select></div>
+      <div class="field"><label>Model</label><select id="newAgentModel" onchange="toggleNewAgentCustomModel()"><option value="">-- Select model --</option></select></div>
+      <div class="field" id="newAgentCustomModelField" style="display:none"><label>Custom Model ID</label><input type="text" id="newAgentCustomModel" placeholder="e.g. openai/gpt-4o-2024-08-06"><div style="font-size:11px;color:var(--text2);margin-top:4px">Format: provider/model-id</div></div>
       <div class="field"><label>Channel Binding (optional)</label><select id="newAgentBind"><option value="">-- No binding --</option></select></div>
       <div class="btn-row"><button class="btn btn-primary" onclick="addAgent()">Add Agent</button></div>
       <div class="status" id="addAgentStatus"></div>
@@ -1724,9 +1769,10 @@ function showProviderDetail(id){
   const catClass=cat==='gateway'?'cat-gateway':cat==='local'?'cat-local':'cat-cloud';
   const catLabel=cat==='gateway'?'Gateway':cat==='local'?'Local':'Cloud';
   const catBadge='<span class="badge '+catClass+'">'+catLabel+'</span>';
-  const modelOptions=p.models.map(m=>'<option value="'+esc(m.id)+'"'+(m.id===currentModel?' selected':'')+'>'+esc(m.name)+' \\u2014 '+esc(m.desc)+'</option>').join('');
+  const isCustomModel=currentModel&&currentModel.startsWith(id+'/')&&!p.models.some(m=>m.id===currentModel);
+  const modelOptions=p.models.map(m=>'<option value="'+esc(m.id)+'"'+(m.id===currentModel?' selected':'')+'>'+esc(m.name)+' \\u2014 '+esc(m.desc)+'</option>').join('')+'<option value="__custom__"'+(isCustomModel?' selected':'')+'>\\u270f Custom model...</option>';
   let extraHtml='';
-  if(p.extraEnvKeys&&p.extraEnvKeys.length>0)p.extraEnvKeys.forEach(ek=>{extraHtml+='<div class="field"><label>'+esc(ek)+'</label><input type="text" id="provExtra-'+esc(ek)+'" placeholder="Enter '+esc(ek)+'"></div>'});
+  if(p.extraEnvKeys&&p.extraEnvKeys.length>0)p.extraEnvKeys.forEach(ek=>{const ekLabel=(p.extraEnvLabels&&p.extraEnvLabels[ek])||ek;const ekPh=(p.extraEnvPlaceholders&&p.extraEnvPlaceholders[ek])||('Enter '+ek);extraHtml+='<div class="field"><label>'+esc(ekLabel)+'</label><input type="text" id="provExtra-'+esc(ek)+'" placeholder="'+esc(ekPh)+'"></div>'});
   let infoHtml='<div class="info-grid" style="margin-bottom:16px">'
     +'<div class="info-row"><span class="info-k">Models</span><span class="info-v">'+p.models.length+' available</span></div>'
     +'<div class="info-row"><span class="info-k">Category</span><span class="info-v">'+catBadge+'</span></div>';
@@ -1743,8 +1789,10 @@ function showProviderDetail(id){
     +'</div>'
     +'<div class="modal-body">'
     +infoHtml
-    +'<div class="field"><label>Model</label><select id="provModel">'+modelOptions+'</select></div>'
-    +'<div class="field"><label>API Key</label><input type="password" id="provKey" placeholder="Enter API key"></div>'
+    +'<div class="field"><label>Model</label><select id="provModel" onchange="toggleProvCustomModel()">'+modelOptions+'</select></div>'
+    +'<div class="field" id="provCustomModelField" style="display:'+(isCustomModel?'block':'none')+'"><label>Custom Model ID</label><input type="text" id="provCustomModel" placeholder="e.g. gpt-4o-2024-08-06" value="'+(isCustomModel?esc(currentModel.split('/').slice(1).join('/')):'')+'">'
+    +'<div style="font-size:11px;color:var(--text2);margin-top:4px">Enter the exact model ID from the provider\\u2019s API docs</div></div>'
+    +'<div class="field"><label>'+(p.keyLabel||'API Key')+'</label><input type="password" id="provKey" placeholder="'+(p.keyPlaceholder||'Enter API key')+'"></div>'
     +extraHtml
     +'<div class="btn-row" style="margin-top:16px;flex-wrap:wrap">'
     +'<button class="btn btn-outline btn-sm" onclick="testProviderKey()">\\ud83e\\uddea Test Key</button>'
@@ -1756,16 +1804,35 @@ function showProviderDetail(id){
     +'</div>'
     +'<div class="modal-footer">'
     +'<div style="display:flex;align-items:center;gap:8px">'+statusDot+'</div>'
-    +'<div style="font-size:12px;color:var(--text2)">'+p.models.length+' model'+(p.models.length>1?'s':'')+' available</div>'
+    +'<div style="font-size:12px;color:var(--text2)">'+p.models.length+' model'+(p.models.length>1?'s':'')+' + custom</div>'
     +'</div>'
     +'</div></div>';
+}
+function toggleProvCustomModel(){
+  const sel=document.getElementById('provModel');const f=document.getElementById('provCustomModelField');
+  if(sel&&f)f.style.display=sel.value==='__custom__'?'block':'none';
+}
+function getSelectedProvModel(){
+  const sel=document.getElementById('provModel');if(!sel)return'';
+  if(sel.value==='__custom__'){const ci=document.getElementById('provCustomModel');return ci?selectedProvider+'/'+ci.value.trim():''}
+  return sel.value;
+}
+function toggleAgentCustomModel(){
+  const sel=document.getElementById('agentModalModel');const f=document.getElementById('agentCustomModelField');
+  if(sel&&f)f.style.display=sel.value==='__custom__'?'block':'none';
+}
+function toggleNewAgentCustomModel(){
+  const sel=document.getElementById('newAgentModel');const f=document.getElementById('newAgentCustomModelField');
+  if(sel&&f)f.style.display=sel.value==='__custom__'?'block':'none';
 }
 function closeProviderModal(){const c=document.getElementById('providerModalContainer');if(c)c.innerHTML=''}
 async function testProviderKey(){
   const st=document.getElementById('provModalStatus')||document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim();
   if(!k){st.className='status fail';st.textContent='Enter API key';return}
   st.className='status loading';st.textContent='Checking...';
-  const d=await api('/api/test-key','POST',{provider:selectedProvider,apiKey:k});
+  const prov=providers.find(p=>p.id===selectedProvider);const extraEnv={};
+  if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('provExtra-'+ek)||document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
+  const d=await api('/api/test-key','POST',{provider:selectedProvider,apiKey:k,extraEnv});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'API key is valid!':d.error||'Invalid key';
 }
 async function saveProviderKey(){
@@ -1780,10 +1847,11 @@ async function saveProviderKey(){
   if(d.ok)setTimeout(()=>{closeProviderModal();loadProvider()},1500);
 }
 async function applyProvider(){
-  const st=document.getElementById('provModalStatus')||document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim(),m=document.getElementById('provModel').value;
+  const st=document.getElementById('provModalStatus')||document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim(),m=getSelectedProvModel();
   if(!selectedProvider){st.className='status fail';st.textContent='Select a provider';return}
   const alreadyConfigured=currentProviderData&&currentProviderData.configuredProviders&&currentProviderData.configuredProviders.includes(selectedProvider);
   if(!k&&!alreadyConfigured){st.className='status fail';st.textContent='Enter API key';return}
+  if(!m||m.endsWith('/')){st.className='status fail';st.textContent='Enter a valid model ID';return}
   st.className='status loading';st.textContent='Applying...';
   const prov=providers.find(p=>p.id===selectedProvider);const extraEnv={};
   if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('provExtra-'+ek)||document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
@@ -1873,7 +1941,7 @@ async function loadAgents(){
 function populateAgentFormDropdowns(){
   const modelSel=document.getElementById('newAgentModel');
   modelSel.innerHTML='<option value="">-- Select model --</option>';
-  if(agentActiveProviders.length){agentActiveProviders.forEach(p=>{p.models.forEach(m=>{modelSel.innerHTML+='<option value="'+m.id+'">'+esc(p.name)+' \\u2014 '+esc(m.name)+'</option>'})})}
+  if(agentActiveProviders.length){agentActiveProviders.forEach(p=>{p.models.forEach(m=>{modelSel.innerHTML+='<option value="'+m.id+'">'+esc(p.name)+' \\u2014 '+esc(m.name)+'</option>'})});modelSel.innerHTML+='<option value="__custom__">\\u270f Custom model...</option>'}
   else{modelSel.innerHTML='<option value="">No AI Provider configured</option>'}
   const bindSel=document.getElementById('newAgentBind');
   bindSel.innerHTML='<option value="">-- No binding --</option>';
@@ -1951,11 +2019,13 @@ function showAgentDetail(id){
   const skillsData=a.skills;
   const useAll=skillsData===null||skillsData===undefined;
   // Build model options for per-agent override
+  const isCustomAgentModel=a.model&&!agentActiveProviders.some(p=>p.models.some(m=>m.id===a.model));
   let modelOpts='<option value="">-- Use default model --</option>';
   agentActiveProviders.forEach(p=>{p.models.forEach(m=>{
     const sel=(a.model===m.id)?' selected':'';
     modelOpts+='<option value="'+m.id+'"'+sel+'>'+esc(p.name)+' \\u2014 '+esc(m.name)+'</option>';
   })});
+  modelOpts+='<option value="__custom__"'+(isCustomAgentModel?' selected':'')+'">\\u270f Custom model...</option>';
   // Build skills checkboxes
   let skillsHtml='';
   if(allAgentSkills.length){
@@ -1993,7 +2063,9 @@ function showAgentDetail(id){
     +'</div>'
     +'<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">'
     +'<div style="font-weight:600;margin-bottom:12px">Model Override</div>'
-    +'<div class="field"><label>Per-Agent Model</label><select id="agentModalModel">'+modelOpts+'</select></div>'
+    +'<div class="field"><label>Per-Agent Model</label><select id="agentModalModel" onchange="toggleAgentCustomModel()">'+modelOpts+'</select></div>'
+    +'<div class="field" id="agentCustomModelField" style="display:'+(isCustomAgentModel?'block':'none')+'"><label>Custom Model ID</label><input type="text" id="agentCustomModel" placeholder="e.g. openai/gpt-4o-2024-08-06" value="'+(isCustomAgentModel?esc(a.model):'')+'">'
+    +'<div style="font-size:11px;color:var(--text2);margin-top:4px">Format: provider/model-id</div></div>'
     +'</div>'
     +'<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" onclick="saveAgentFromModal(\\''+escId+'\\')">\\ud83d\\udcbe Save Changes</button>'
     +(isDefault?'':'<button class="btn btn-outline" style="color:var(--danger)" onclick="deleteAgent(\\''+escId+'\\')">\\ud83d\\uddd1 Delete</button>')
@@ -2031,7 +2103,8 @@ async function saveAgentFromModal(id){
   const name=(document.getElementById('agentModalName')||{}).value||'';
   const emoji=(document.getElementById('agentModalEmoji')||{}).value||'';
   const theme=(document.getElementById('agentModalTheme')||{}).value||'';
-  const model=(document.getElementById('agentModalModel')||{}).value||'';
+  let model=(document.getElementById('agentModalModel')||{}).value||'';
+  if(model==='__custom__'){model=(document.getElementById('agentCustomModel')||{}).value.trim();if(!model){st.className='status fail';st.textContent='Enter a custom model ID';return}}
   st.className='status loading';st.textContent='Saving...';
   // Save identity
   const idRes=await api('/api/agents/identity','POST',{agent:id,name:name.trim(),emoji:emoji.trim(),theme:theme.trim()});
@@ -2064,7 +2137,8 @@ function applyAgentTemplate(){
 }
 async function addAgent(){
   const name=document.getElementById('newAgentName').value.trim();
-  const model=document.getElementById('newAgentModel').value;
+  let model=document.getElementById('newAgentModel').value;
+  if(model==='__custom__'){model=(document.getElementById('newAgentCustomModel')||{}).value.trim();if(!model){document.getElementById('addAgentStatus').className='status fail';document.getElementById('addAgentStatus').textContent='Enter a custom model ID';return}}
   const bind=document.getElementById('newAgentBind').value;
   const st=document.getElementById('addAgentStatus');
   const tplKey=document.getElementById('agentTemplate').value;
@@ -3193,7 +3267,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req); const p = PROVIDERS[body.provider];
       if (!p) return json(res, 400, { ok: false, error: 'Invalid provider' });
-      const ok = p.testFn(body.apiKey);
+      const ok = p.testFn(body.apiKey, body.extraEnv || {});
       return json(res, 200, { ok, error: ok ? null : 'Invalid API key' });
     } catch { return json(res, 500, { ok: false, error: 'Error' }); }
   }
@@ -3204,6 +3278,8 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req); const prov = PROVIDERS[body.provider];
       if (!prov) return json(res, 400, { ok: false, error: 'Invalid provider' });
       if (!body.apiKey) return json(res, 400, { ok: false, error: 'Missing API key' });
+      // Validate key before saving
+      if (prov.testFn) { try { const valid = prov.testFn(body.apiKey, body.extraEnv || {}); if (!valid) return json(res, 400, { ok: false, error: 'Invalid API key for ' + prov.name + '. Key not saved.' }); } catch {} }
       setEnvValue(prov.envKey, body.apiKey);
       if (body.extraEnv && prov.extraEnvKeys) { for (const [ek, ev] of Object.entries(body.extraEnv)) { if (prov.extraEnvKeys.includes(ek) && ev) setEnvValue(ek, ev); } }
       return json(res, 200, { ok: true });
@@ -3247,11 +3323,17 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req); const prov = PROVIDERS[body.provider];
       if (!prov) return json(res, 400, { ok: false, error: 'Invalid provider' });
       const token = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+      // Validate new key before saving
+      if (body.apiKey && prov.testFn) { try { const valid = prov.testFn(body.apiKey); if (!valid) return json(res, 400, { ok: false, error: 'Invalid API key for ' + prov.name }); } catch {} }
       if (body.apiKey) setEnvValue(prov.envKey, body.apiKey);
       if (body.extraEnv && prov.extraEnvKeys) { for (const [ek, ev] of Object.entries(body.extraEnv)) { if (prov.extraEnvKeys.includes(ek) && ev) setEnvValue(ek, ev); } }
       // Verify provider has a key (either new or existing)
       const existingKey = getEnvValue(prov.envKey);
       if (!existingKey || existingKey.startsWith('#')) return json(res, 400, { ok: false, error: 'No API key configured for this provider' });
+      // Validate key when switching provider without entering a new key
+      if (!body.apiKey && prov.testFn) {
+        try { const valid = prov.testFn(existingKey); if (!valid) return json(res, 400, { ok: false, error: 'Stored API key is invalid for ' + prov.name + '. Please enter a valid key.' }); } catch {}
+      }
       let config; try { config = JSON.parse(fs.readFileSync(prov.configFile, 'utf8')); } catch { config = getConfig(); }
       config.gateway = config.gateway || {}; config.gateway.auth = config.gateway.auth || {}; config.gateway.auth.token = token;
       config.agents = config.agents || { defaults: { model: {} } }; config.agents.defaults = config.agents.defaults || { model: {} }; config.agents.defaults.model = config.agents.defaults.model || {};
