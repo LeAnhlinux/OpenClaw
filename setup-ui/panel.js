@@ -780,17 +780,13 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .card-title .ct-icon{font-size:20px}
 
 /* Provider list */
-.prov-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;max-height:520px;overflow-y:auto;padding-right:4px}
-.prov-list::-webkit-scrollbar{width:5px} .prov-list::-webkit-scrollbar-track{background:#f1f1f1;border-radius:4px} .prov-list::-webkit-scrollbar-thumb{background:#c1c1c1;border-radius:4px}
-.prov-item{display:flex;align-items:center;gap:14px;padding:16px 18px;border:2px solid var(--border);border-radius:12px;cursor:pointer;transition:all .3s ease;background:#fff}
-.prov-item:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.12)}
-.prov-item.selected{border-color:var(--accent);background:linear-gradient(135deg,#e8f0fe,#e6f4ea);box-shadow:0 4px 20px rgba(66,133,244,.15)}
-.prov-item.current{border-color:var(--accent2);background:linear-gradient(135deg,#e6f4ea,#dcfce7)}
-.prov-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.prov-info{flex:1;min-width:0}
-.prov-name{font-size:15px;font-weight:700;color:var(--text)}
-.prov-desc{font-size:12px;color:var(--text2);margin-top:2px}
-.prov-badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:8px;flex-shrink:0}
+/* Provider card icon */
+.prov-card-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;transition:transform .2s}
+.skill-card:hover .prov-card-icon{transform:scale(1.08)}
+/* Category badges */
+.cat-cloud{background:#dbeafe;color:#1e40af}
+.cat-gateway{background:#ede9fe;color:#6d28d9}
+.cat-local{background:#fef3c7;color:#92400e}
 
 /* Channel list */
 .ch-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
@@ -915,9 +911,11 @@ body.dark .sidebar-action-btn{background:rgba(255,255,255,.04);border-color:rgba
 body.dark .sidebar-action-btn:hover{background:rgba(255,255,255,.1);color:rgba(255,255,255,.9)}
 body.dark .sidebar-logout-btn:hover{background:rgba(234,67,53,.12);color:#f87171;border-color:rgba(234,67,53,.25)}
 body.dark .card{background:linear-gradient(135deg,var(--card-bg) 0%,#1a2438 100%);border-color:var(--border)}
-body.dark .prov-item,body.dark .ch-item{background:var(--card-bg);border-color:var(--border)}
-body.dark .prov-item.current{background:#1a3a2a;border-color:var(--accent2)}
-body.dark .prov-item.selected,body.dark .ch-item.selected{background:#1a2a4a;border-color:var(--accent)}
+body.dark .ch-item{background:var(--card-bg);border-color:var(--border)}
+body.dark .ch-item.selected{background:#1a2a4a;border-color:var(--accent)}
+body.dark .cat-cloud{background:rgba(37,99,235,.15);color:#93c5fd}
+body.dark .cat-gateway{background:rgba(109,40,217,.15);color:#c4b5fd}
+body.dark .cat-local{background:rgba(217,119,6,.15);color:#fcd34d}
 body.dark .config-pane{background:#1a2438;border-color:var(--border)}
 body.dark .field input,body.dark .field select,body.dark .field textarea{background:#0f172a;border-color:var(--border);color:var(--text)}
 body.dark .btn-outline{background:var(--card-bg);border-color:var(--border);color:var(--text2)}
@@ -1063,7 +1061,7 @@ body.dark .modal-close:hover{background:rgba(255,255,255,.1)}
   .sidebar{transform:translateX(-100%);transition:transform .25s} .sidebar.open{transform:translateX(0)}
   .main{margin-left:0;padding:20px 16px;padding-top:56px}
   .hamburger{display:block}
-  .prov-list,.ch-list{gap:6px}
+  .ch-list{gap:6px}
   .skill-grid{grid-template-columns:1fr}
   .stat-grid{grid-template-columns:repeat(2,1fr)}
   .filter-pills{gap:6px}
@@ -1187,23 +1185,16 @@ function panelPage() {
   <!-- TAB: Provider -->
   <div class="section active" id="sec-provider">
     <div class="page-title">AI Provider</div>
-    <div class="page-desc">Select AI provider, model and enter API key.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udccc</span> Current</div><div id="currentProvider" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Change Provider</div>
-      <div class="prov-list" id="providerList"></div>
-      <div id="providerConfig" style="display:none" class="config-pane">
-        <div class="field"><label>Model</label><select id="provModel"></select></div>
-        <div class="field"><label>API Key</label><input type="password" id="provKey" placeholder="Enter API key"></div>
-        <div id="provExtraFields"></div>
-        <div class="btn-row">
-          <button class="btn btn-outline" onclick="testProviderKey()">Test Key</button>
-          <button class="btn btn-outline" onclick="saveProviderKey()" style="border-color:var(--accent2);color:var(--accent2)">Save Key</button>
-          <button class="btn btn-primary" onclick="applyProvider()">Apply & Switch Model</button>
-        </div>
-        <div class="status" id="provStatus"></div>
-      </div>
+    <div class="page-desc">Select AI provider, configure API key and choose your model.</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Overview</div><div id="providerSummary" class="stat-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> All Providers</div>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap"><div class="search-wrap" style="flex:1;min-width:200px"><input type="text" class="search-input" id="providerSearchInput" placeholder="Search providers..." oninput="filterProviders()"></div></div>
+      <div class="filter-pills" id="providerFilterPills" style="margin-bottom:14px"></div>
+      <div id="providerGrid"></div>
+      <div class="status" id="provStatus"></div>
     </div>
   </div>
+  <div id="providerModalContainer"></div>
 
   <!-- TAB: Fallback -->
   <div class="section" id="sec-fallback">
@@ -1621,7 +1612,7 @@ function panelPage() {
 </div>
 
 <script>
-let selectedProvider=null,selectedChannel=null,availVersions=[];
+let selectedProvider=null,selectedChannel=null,availVersions=[],providerFilterMode='all',currentProviderData=null;
 const PANEL_VER='${PANEL_VERSION}';
 const providers=${provJSON};
 const channels=${chJSON};
@@ -1649,57 +1640,149 @@ function toggleTokenVis(){const el=document.getElementById('tokenDisplay');if(!e
 // === Provider ===
 async function loadProvider(){
   const d=await api('/api/current-config');
-  const el=document.getElementById('currentProvider');
-  el.innerHTML=d.provider
-    ?'<div class="info-row"><span class="info-k">Provider</span><span class="info-v">'+esc(d.providerName)+'</span></div><div class="info-row"><span class="info-k">Model</span><span class="info-v">'+esc(d.model)+'</span></div>'
-    :'<div class="info-row"><span class="info-v" style="color:var(--warn)">Not configured</span></div>';
-  const list=document.getElementById('providerList');list.innerHTML='';
-  const cats={cloud:{label:'\\u2601\\ufe0f Cloud Providers',items:[]},gateway:{label:'\\ud83d\\udd00 Gateway / Proxy',items:[]},local:{label:'\\ud83d\\udda5\\ufe0f Self-hosted',items:[]}};
-  providers.forEach(p=>{(cats[p.category||'cloud']||cats.cloud).items.push(p)});
-  Object.values(cats).forEach(cat=>{
-    if(!cat.items.length)return;
-    const hdr=document.createElement('div');hdr.style.cssText='font-size:12px;font-weight:800;color:var(--text2);padding:8px 4px 4px;margin-top:8px;text-transform:uppercase;letter-spacing:.5px';hdr.textContent=cat.label;list.appendChild(hdr);
-    cat.items.forEach(p=>{
-      const isCurrent=d.provider===p.id;
-      const div=document.createElement('div');div.className='prov-item'+(isCurrent?' current':'');
-      div.innerHTML='<div class="prov-icon" style="background:'+p.color+'15;color:'+p.color+'">'+p.icon+'</div><div class="prov-info"><div class="prov-name">'+p.name+'</div><div class="prov-desc">'+p.models.length+' model'+(p.models.length>1?'s':'')+'</div></div>'+(isCurrent?'<span class="prov-badge bg-green">ACTIVE</span>':'');
-      div.onclick=()=>{selectedProvider=p.id;document.querySelectorAll('.prov-item').forEach(i=>i.classList.remove('selected'));div.classList.add('selected');
-        const sel=document.getElementById('provModel');sel.innerHTML=p.models.map(m=>'<option value="'+m.id+'">'+m.name+' \\u2014 '+m.desc+'</option>').join('');
-        let extraHtml='';if(p.extraEnvKeys&&p.extraEnvKeys.length>0)p.extraEnvKeys.forEach(ek=>{extraHtml+='<div class="field"><label>'+ek+'</label><input type="text" id="extraEnv-'+ek+'" placeholder="Enter '+ek+'"></div>'});
-        document.getElementById('provExtraFields').innerHTML=extraHtml;
-        document.getElementById('providerConfig').style.display='block';document.getElementById('provStatus').className='status';};
-      list.appendChild(div);
-    });
-  });
+  currentProviderData=d;
+  const sum=document.getElementById('providerSummary');
+  const cloud=providers.filter(p=>(p.category||'cloud')==='cloud').length;
+  const gateway=providers.filter(p=>p.category==='gateway').length;
+  const local=providers.filter(p=>p.category==='local').length;
+  const curName=d.provider?esc(d.providerName||d.provider):'<span style="color:var(--warn)">Not set</span>';
+  const curModel=d.model?esc((d.model||'').split('/').pop()):'—';
+  sum.innerHTML=
+    '<div class="stat-card"><div class="stat-num" style="font-size:16px;line-height:1.3">'+curName+'</div><div class="stat-label">Active Provider</div></div>'
+    +'<div class="stat-card"><div class="stat-num" style="font-size:16px;line-height:1.3">'+curModel+'</div><div class="stat-label">Current Model</div></div>'
+    +'<div class="stat-card"><div class="stat-num">'+cloud+'</div><div class="stat-label">\\u2601\\ufe0f Cloud</div></div>'
+    +'<div class="stat-card"><div class="stat-num">'+(gateway+local)+'</div><div class="stat-label">\\ud83d\\udd00 Gateway/Local</div></div>';
+  renderProviderFilterPills(providers.length,cloud,gateway,local);
+  filterProviders();
 }
+function renderProviderFilterPills(total,cloud,gateway,local){
+  const el=document.getElementById('providerFilterPills');if(!el)return;
+  const pills=[{key:'all',label:'All',count:total},{key:'cloud',label:'\\u2601\\ufe0f Cloud',count:cloud},{key:'gateway',label:'\\ud83d\\udd00 Gateway',count:gateway},{key:'local',label:'\\ud83d\\udda5\\ufe0f Local',count:local}];
+  el.innerHTML=pills.map(p=>
+    '<button class="filter-pill'+(providerFilterMode===p.key?' active':'')+'" onclick="setProviderFilter(\\''+p.key+'\\')">'+p.label+'<span class="pill-count">'+p.count+'</span></button>'
+  ).join('');
+}
+function setProviderFilter(mode){
+  providerFilterMode=mode;
+  const cloud=providers.filter(p=>(p.category||'cloud')==='cloud').length;
+  const gateway=providers.filter(p=>p.category==='gateway').length;
+  const local=providers.filter(p=>p.category==='local').length;
+  renderProviderFilterPills(providers.length,cloud,gateway,local);
+  filterProviders();
+}
+function filterProviders(){
+  let list=providers.slice();
+  if(providerFilterMode!=='all')list=list.filter(p=>(p.category||'cloud')===providerFilterMode);
+  const q=(document.getElementById('providerSearchInput')||{}).value;
+  if(q&&q.trim()){const lq=q.trim().toLowerCase();list=list.filter(p=>(p.name||'').toLowerCase().includes(lq)||(p.id||'').toLowerCase().includes(lq))}
+  renderProviderGrid(list);
+}
+function renderProviderGrid(list){
+  const el=document.getElementById('providerGrid');if(!el)return;
+  if(!list.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">\\ud83d\\udd0d</div><div class="empty-text">No providers match this filter.</div></div>';return}
+  let h='<div class="skill-grid">';
+  list.forEach(p=>{
+    const isCurrent=currentProviderData&&currentProviderData.provider===p.id;
+    const cardClass='skill-card'+(isCurrent?' enabled':'');
+    const activeBadge=isCurrent?'<span class="badge bg-green">ACTIVE</span>':'';
+    const cat=p.category||'cloud';
+    const catClass=cat==='gateway'?'cat-gateway':cat==='local'?'cat-local':'cat-cloud';
+    const catLabel=cat==='gateway'?'Gateway':cat==='local'?'Local':'Cloud';
+    const catBadge='<span class="badge '+catClass+'">'+catLabel+'</span>';
+    const modelCount='<span style="font-size:10px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">'+p.models.length+' model'+(p.models.length>1?'s':'')+'</span>';
+    const preview=p.models.slice(0,3).map(m=>esc(m.name)).join(', ')+(p.models.length>3?' +'+( p.models.length-3)+' more':'');
+    h+='<div class="'+cardClass+'" onclick="showProviderDetail(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\')">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+      +'<div style="display:flex;align-items:center;gap:12px">'
+      +'<div class="prov-card-icon" style="background:'+p.color+'15;color:'+p.color+'">'+p.icon+'</div>'
+      +'<div><div class="skill-name">'+esc(p.name)+'</div>'
+      +'<div class="skill-badges">'+activeBadge+catBadge+' '+modelCount+'</div></div></div>'
+      +'</div>'
+      +'<div class="skill-desc" style="margin-top:8px;font-size:12px;color:var(--text2)">'+preview+'</div>'
+      +'</div>';
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+function showProviderDetail(id){
+  const p=providers.find(pr=>pr.id===id);
+  if(!p)return;
+  selectedProvider=id;
+  const container=document.getElementById('providerModalContainer');if(!container)return;
+  const isCurrent=currentProviderData&&currentProviderData.provider===id;
+  const currentModel=isCurrent?(currentProviderData.model||''):'';
+  const statusDot=isCurrent
+    ?'<span class="status-dot dot-green"></span> <span style="color:#16a34a;font-weight:600;font-size:13px">Active</span>'
+    :'<span class="status-dot dot-amber"></span> <span style="color:var(--text2);font-weight:600;font-size:13px">Not active</span>';
+  const activeBadge=isCurrent?'<span class="badge bg-green">ACTIVE</span>':'';
+  const cat=p.category||'cloud';
+  const catClass=cat==='gateway'?'cat-gateway':cat==='local'?'cat-local':'cat-cloud';
+  const catLabel=cat==='gateway'?'Gateway':cat==='local'?'Local':'Cloud';
+  const catBadge='<span class="badge '+catClass+'">'+catLabel+'</span>';
+  const modelOptions=p.models.map(m=>'<option value="'+esc(m.id)+'"'+(m.id===currentModel?' selected':'')+'>'+esc(m.name)+' \\u2014 '+esc(m.desc)+'</option>').join('');
+  let extraHtml='';
+  if(p.extraEnvKeys&&p.extraEnvKeys.length>0)p.extraEnvKeys.forEach(ek=>{extraHtml+='<div class="field"><label>'+esc(ek)+'</label><input type="text" id="provExtra-'+esc(ek)+'" placeholder="Enter '+esc(ek)+'"></div>'});
+  let infoHtml='<div class="info-grid" style="margin-bottom:16px">'
+    +'<div class="info-row"><span class="info-k">Models</span><span class="info-v">'+p.models.length+' available</span></div>'
+    +'<div class="info-row"><span class="info-k">Category</span><span class="info-v">'+catBadge+'</span></div>';
+  if(isCurrent)infoHtml+='<div class="info-row"><span class="info-k">Current Model</span><span class="info-v" style="font-size:12px">'+esc(currentModel.split('/').pop())+'</span></div>';
+  infoHtml+='</div>';
+  container.innerHTML='<div class="modal-overlay" onclick="closeProviderModal()">'
+    +'<div class="modal-card" onclick="event.stopPropagation()">'
+    +'<div class="modal-header">'
+    +'<div style="display:flex;align-items:center;gap:16px">'
+    +'<div class="prov-card-icon" style="background:'+p.color+'15;color:'+p.color+';width:52px;height:52px;font-size:28px">'+p.icon+'</div>'
+    +'<div><div style="font-size:18px;font-weight:800;color:var(--text)">'+esc(p.name)+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:6px;align-items:center">'+activeBadge+catBadge+'</div></div></div>'
+    +'<button class="modal-close" onclick="closeProviderModal()">\\u2715</button>'
+    +'</div>'
+    +'<div class="modal-body">'
+    +infoHtml
+    +'<div class="field"><label>Model</label><select id="provModel">'+modelOptions+'</select></div>'
+    +'<div class="field"><label>API Key</label><input type="password" id="provKey" placeholder="Enter API key"></div>'
+    +extraHtml
+    +'<div class="btn-row" style="margin-top:16px">'
+    +'<button class="btn btn-outline btn-sm" onclick="testProviderKey()">\\ud83e\\uddea Test Key</button>'
+    +'<button class="btn btn-outline btn-sm" style="border-color:var(--accent2);color:var(--accent2)" onclick="saveProviderKey()">\\ud83d\\udcbe Save Key</button>'
+    +'<button class="btn btn-primary btn-sm" onclick="applyProvider()">\\u26a1 Apply & Switch</button>'
+    +'</div>'
+    +'<div class="status" id="provModalStatus"></div>'
+    +'</div>'
+    +'<div class="modal-footer">'
+    +'<div style="display:flex;align-items:center;gap:8px">'+statusDot+'</div>'
+    +'<div style="font-size:12px;color:var(--text2)">'+p.models.length+' model'+(p.models.length>1?'s':'')+' available</div>'
+    +'</div>'
+    +'</div></div>';
+}
+function closeProviderModal(){const c=document.getElementById('providerModalContainer');if(c)c.innerHTML=''}
 async function testProviderKey(){
-  const st=document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim();
+  const st=document.getElementById('provModalStatus')||document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim();
   if(!k){st.className='status fail';st.textContent='Enter API key';return}
   st.className='status loading';st.textContent='Checking...';
   const d=await api('/api/test-key','POST',{provider:selectedProvider,apiKey:k});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'API key is valid!':d.error||'Invalid key';
 }
 async function saveProviderKey(){
-  const st=document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim();
+  const st=document.getElementById('provModalStatus')||document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim();
   if(!selectedProvider){st.className='status fail';st.textContent='Select a provider';return}
   if(!k){st.className='status fail';st.textContent='Enter API key';return}
   st.className='status loading';st.textContent='Saving key...';
   const prov=providers.find(p=>p.id===selectedProvider);const extraEnv={};
-  if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
+  if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('provExtra-'+ek)||document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
   const d=await api('/api/provider-save-key','POST',{provider:selectedProvider,apiKey:k,extraEnv});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'API key saved for '+esc(prov?prov.name:selectedProvider)+'! Current model unchanged.':d.error||'Error';
-  if(d.ok)setTimeout(loadProvider,1500);
+  if(d.ok)setTimeout(()=>{closeProviderModal();loadProvider()},1500);
 }
 async function applyProvider(){
-  const st=document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim(),m=document.getElementById('provModel').value;
+  const st=document.getElementById('provModalStatus')||document.getElementById('provStatus'),k=document.getElementById('provKey').value.trim(),m=document.getElementById('provModel').value;
   if(!selectedProvider){st.className='status fail';st.textContent='Select a provider';return}
   if(!k){st.className='status fail';st.textContent='Enter API key';return}
   st.className='status loading';st.textContent='Applying...';
   const prov=providers.find(p=>p.id===selectedProvider);const extraEnv={};
-  if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
+  if(prov&&prov.extraEnvKeys)prov.extraEnvKeys.forEach(ek=>{const el=document.getElementById('provExtra-'+ek)||document.getElementById('extraEnv-'+ek);if(el)extraEnv[ek]=el.value.trim()});
   const d=await api('/api/provider','POST',{provider:selectedProvider,model:m,apiKey:k,extraEnv});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Success! OpenClaw restarted.':d.error||'Error';
-  if(d.ok)setTimeout(loadProvider,1500);
+  if(d.ok)setTimeout(()=>{closeProviderModal();loadProvider()},1500);
 }
 
 // === Channels ===
