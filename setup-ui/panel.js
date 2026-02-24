@@ -3288,13 +3288,21 @@ const server = http.createServer(async (req, res) => {
       // CamoFox server is managed by OpenClaw plugin — check if port 9377 responds
       let camofoxRunning = false;
       if (camofoxInstalled) { try { camofoxRunning = !!safeExec('curl -sf http://localhost:9377/health 2>/dev/null', 5000); } catch {} }
-      // Detect active browser: Chrome = browser.executablePath set, CamoFox = plugin enabled
+      // Detect active browser — use both config AND runtime state
+      // OpenClaw may normalize config on restart, stripping plugins.entries,
+      // so also check runtime indicators (port responding, browser.enabled flag)
       let current = 'none';
       try {
         const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-        if (cfg.browser && cfg.browser.executablePath && cfg.browser.executablePath.includes('chrome')) current = 'chrome';
-        else if (camofoxInstalled && cfg.plugins?.entries?.['camofox-browser']?.enabled) current = 'camofox';
-      } catch {}
+        const hasChromeExec = cfg.browser && cfg.browser.executablePath && cfg.browser.executablePath.includes('chrome');
+        const browserDisabled = cfg.browser && cfg.browser.enabled === false;
+        const camofoxEntryEnabled = cfg.plugins?.entries?.['camofox-browser']?.enabled;
+        if (hasChromeExec && !browserDisabled) current = 'chrome';
+        else if (camofoxInstalled && (camofoxEntryEnabled || camofoxRunning || browserDisabled)) current = 'camofox';
+      } catch {
+        // Config unreadable — fall back to runtime detection
+        if (camofoxInstalled && camofoxRunning) current = 'camofox';
+      }
       return json(res, 200, { ok: true, current,
         chrome: { installed: chromeInstalled, active: current === 'chrome' },
         camofox: { installed: camofoxInstalled, running: camofoxRunning, active: current === 'camofox' }
