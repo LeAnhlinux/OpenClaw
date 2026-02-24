@@ -2077,8 +2077,8 @@ function renderPlugins(plugins){
     if(p.channelIds&&p.channelIds.length)detailParts.push(p.channelIds.length+' channel'+(p.channelIds.length>1?'s':''));
     if(p.toolNames&&p.toolNames.length)detailParts.push(p.toolNames.length+' tool'+(p.toolNames.length>1?'s':''));
     const detailLine=detailParts.length?'<div style="font-size:11px;color:var(--accent);margin-top:6px;display:flex;align-items:center;gap:4px">\ud83d\udd27 '+esc(detailParts.join(' \u2022 '))+'</div>':'';
-    const toggleHtml='<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isOn?'checked':'')+' onchange="togglePlugin(\''+esc(p.id).replace(/'/g,"\\'")+'\',!this.checked)"><span class="toggle-slider"></span></label>';
-    h+='<div class="'+cardClass+'" onclick="showPluginDetail(\''+esc(p.id).replace(/'/g,"\\'")+'\')">'
+    const toggleHtml='<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isOn?'checked':'')+' onchange="togglePlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  ,!this.checked)"><span class="toggle-slider"></span></label>';
+    h+='<div class="'+cardClass+'" onclick="showPluginDetail(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\')">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
       +'<div style="display:flex;align-items:center;gap:12px"><span class="skill-emoji">'+(p.icon||'\ud83e\udde9')+'</span>'
       +'<div><div class="skill-name">'+esc(p.name||p.id)+'</div>'
@@ -2110,10 +2110,10 @@ function showPluginDetail(id){
   if(p.toolNames&&p.toolNames.length)detailsHtml+='<div class="info-row"><span class="info-k">Tools</span><span class="info-v" style="font-size:11px">'+p.toolNames.map(t=>esc(t)).join(', ')+'</span></div>';
   const statusDot=isOn?'<span class="status-dot dot-green"></span> <span style="color:#16a34a;font-weight:600;font-size:13px">Loaded</span>'
     :'<span class="status-dot dot-red"></span> <span style="color:#dc2626;font-weight:600;font-size:13px">Disabled</span>';
-  const toggleHtml='<label class="toggle-switch"><input type="checkbox" '+(isOn?'checked':'')+' onchange="togglePlugin(\''+esc(p.id).replace(/'/g,"\\'")+'\','+(isOn?'false':'true')+');closePluginModal()"><span class="toggle-slider"></span></label>';
+  const toggleHtml='<label class="toggle-switch"><input type="checkbox" '+(isOn?'checked':'')+' onchange="togglePlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  ,'+(isOn?'false':'true')+');closePluginModal()"><span class="toggle-slider"></span></label>';
   const actionBtns=[];
-  if(p.origin==='npm')actionBtns.push('<button class="btn btn-outline btn-sm" onclick="updatePlugin(\''+esc(p.id).replace(/'/g,"\\'")+'\');closePluginModal()">\u2b06 Update</button>');
-  if(p.origin!=='bundled')actionBtns.push('<button class="btn btn-outline btn-sm" style="border-color:#fecaca;color:#ef4444" onclick="uninstallPlugin(\''+esc(p.id).replace(/'/g,"\\'")+'\');closePluginModal()">\ud83d\uddd1 Uninstall</button>');
+  if(p.origin==='npm')actionBtns.push('<button class="btn btn-outline btn-sm" onclick="updatePlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  );closePluginModal()">\u2b06 Update</button>');
+  if(p.origin!=='bundled')actionBtns.push('<button class="btn btn-outline btn-sm" style="border-color:#fecaca;color:#ef4444" onclick="uninstallPlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  );closePluginModal()">\ud83d\uddd1 Uninstall</button>');
 
   container.innerHTML='<div class="modal-overlay" onclick="closePluginModal()">'
     +'<div class="modal-card" onclick="event.stopPropagation()">'
@@ -2206,7 +2206,7 @@ function renderSkillFilterPills(total,eligible,disabled,missing){
     {key:'missing',label:'Missing Reqs',count:missing}
   ];
   el.innerHTML=pills.map(p=>
-    '<button class="filter-pill'+(skillsFilterMode===p.key?' active':'')+'" onclick="setSkillFilter(\''+p.key+'\')">'+p.label+'<span class="pill-count">'+p.count+'</span></button>'
+    '<button class="filter-pill'+(skillsFilterMode===p.key?' active':'')+'" onclick="setSkillFilter(\\''+p.key+'\\')">'+p.label+'<span class="pill-count">'+p.count+'</span></button>'
   ).join('');
 }
 
@@ -2259,8 +2259,8 @@ function renderSkills(skills){
       if(parts.length)missingHtml='<div class="skill-missing">\u26a0\ufe0f '+esc(parts.join(' \u2022 '))+'</div>';
     }
     const canToggle=s.eligible||s.disabled;
-    const toggleHtml=canToggle?'<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\''+esc(s.name).replace(/'/g,"\\'")+'\',!this.checked)"><span class="toggle-slider"></span></label>':'';
-    h+='<div class="'+cardClass+'" onclick="showSkillDetail(\''+esc(s.name).replace(/'/g,"\\'")+'\')">'
+    const toggleHtml=canToggle?'<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked)"><span class="toggle-slider"></span></label>':'';
+    h+='<div class="'+cardClass+'" onclick="showSkillDetail(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\')">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
       +'<div style="display:flex;align-items:center;gap:12px"><span class="skill-emoji">'+(s.emoji||'\ud83e\udde9')+'</span>'
       +'<div><div class="skill-name">'+esc(s.name)+'</div><div class="skill-badges">'+badge+' '+src+'</div></div></div>'
@@ -2305,7 +2305,7 @@ function showSkillDetail(name){
   }
   const docsLink=s.homepage?'<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" style="font-size:13px;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px">\ud83d\udd17 Documentation</a>':'';
   const canToggle=s.eligible||s.disabled;
-  const toggleHtml=canToggle?'<label class="toggle-switch"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\''+esc(name).replace(/'/g,"\\'")+'\',!this.checked);closeSkillModal()"><span class="toggle-slider"></span></label>':'';
+  const toggleHtml=canToggle?'<label class="toggle-switch"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\\''+esc(name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked);closeSkillModal()"><span class="toggle-slider"></span></label>':'';
   const statusDot=isEnabled?'<span class="status-dot dot-green"></span> <span style="color:#16a34a;font-weight:600;font-size:13px">Enabled</span>'
     :s.disabled?'<span class="status-dot dot-red"></span> <span style="color:#dc2626;font-weight:600;font-size:13px">Disabled</span>'
     :'<span class="status-dot dot-amber"></span> <span style="color:#d97706;font-weight:600;font-size:13px">Missing Requirements</span>';
@@ -2364,7 +2364,7 @@ async function searchClawHub(){
       +'<div class="market-icon">\ud83d\udce6</div>'
       +'<div><div class="market-name">'+esc(name)+'</div>'
       +'<div class="market-meta">'+ver+author+'</div></div></div>'
-      +'<button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();installClawHubSkill(\''+esc(r.slug).replace(/'/g,"\\'")+'\')">\u2b07 Install</button>'
+      +'<button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();installClawHubSkill(\\''+esc(r.slug).replace(/'/g,"\\\\'")+'\\')">\u2b07 Install</button>'
       +'</div>'
       +desc
       +statsHtml
