@@ -961,6 +961,101 @@ body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scroll
 .empty-state .empty-icon{font-size:36px;margin-bottom:12px;opacity:.5}
 .empty-state .empty-text{font-size:14px;line-height:1.6}
 
+/* Toggle Switch */
+.toggle-switch{position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:24px;transition:all .3s ease}
+.toggle-slider::before{content:'';position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:all .3s ease;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.toggle-switch input:checked+.toggle-slider{background:linear-gradient(135deg,#4285f4,#34a853)}
+.toggle-switch input:checked+.toggle-slider::before{transform:translateX(18px)}
+.toggle-switch input:disabled+.toggle-slider{opacity:.4;cursor:not-allowed}
+
+/* Stat Grid */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:18px}
+.stat-card{padding:16px 12px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(135deg,#f8f9fa,#f0f4ff);text-align:center;transition:all .3s ease}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.stat-card .stat-num{font-size:28px;font-weight:800;line-height:1;color:var(--text)}
+.stat-card .stat-label{font-size:11px;color:var(--text2);margin-top:6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.stat-card.green .stat-num{color:#16a34a} .stat-card.red .stat-num{color:#dc2626} .stat-card.amber .stat-num{color:#d97706} .stat-card.blue .stat-num{color:#2563eb}
+
+/* Filter Pills */
+.filter-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.filter-pill{padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;border:2px solid var(--border);background:var(--card-bg);color:var(--text2);cursor:pointer;transition:all .2s ease;user-select:none}
+.filter-pill:hover{border-color:var(--accent);color:var(--accent);background:rgba(66,133,244,.04)}
+.filter-pill.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 8px rgba(66,133,244,.25)}
+.filter-pill .pill-count{font-size:11px;opacity:.7;margin-left:4px}
+
+/* Skill/Plugin Card Grid */
+.skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+
+/* Skill/Plugin Card */
+.skill-card{border:2px solid var(--border);border-radius:14px;padding:18px;cursor:pointer;transition:all .3s ease;background:var(--card-bg);position:relative;overflow:hidden}
+.skill-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.12)}
+.skill-card.enabled{border-color:rgba(52,168,83,.35);background:linear-gradient(135deg,#f0fdf4,#ecfdf5)}
+.skill-card.enabled::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#34a853,#22c55e)}
+.skill-card.disabled-card{opacity:.65}
+.skill-card .skill-emoji{font-size:28px;line-height:1;flex-shrink:0}
+.skill-card .skill-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.2}
+.skill-card .skill-desc{font-size:12px;color:var(--text2);margin-top:10px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.skill-card .skill-badges{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center}
+.skill-card .skill-missing{font-size:11px;color:#d97706;margin-top:6px;display:flex;align-items:center;gap:4px}
+
+/* Marketplace Card */
+.market-card{border:2px solid var(--border);border-radius:14px;padding:18px;transition:all .3s ease;background:var(--card-bg);cursor:pointer}
+.market-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.12)}
+.market-card .market-icon{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,rgba(66,133,244,.12),rgba(52,168,83,.12));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;transition:transform .2s ease}
+.market-card:hover .market-icon{transform:scale(1.1)}
+.market-card .market-name{font-size:14px;font-weight:700;color:var(--text);transition:color .2s}
+.market-card:hover .market-name{color:var(--accent)}
+.market-card .market-meta{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;margin-top:2px}
+.market-card .market-desc{font-size:12px;color:var(--text2);margin-top:10px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.market-card .market-stats{display:flex;gap:14px;margin-top:10px;font-size:12px;color:var(--text2)}
+.market-card .market-stats span{display:flex;align-items:center;gap:4px}
+
+/* Search Input */
+.search-input{width:100%;padding:10px 16px 10px 38px;border:2px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);background:var(--card-bg);outline:none;transition:all .3s ease}
+.search-input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(66,133,244,.1)}
+.search-wrap{position:relative;margin-bottom:14px}
+.search-wrap::before{content:'\ud83d\udd0d';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.5;pointer-events:none}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn .2s ease}
+.modal-card{background:var(--card-bg);border-radius:16px;max-width:600px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);border:1px solid var(--border);animation:modalIn .25s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{display:flex;align-items:flex-start;justify-content:space-between;padding:24px 24px 16px;border-bottom:1px solid var(--border)}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1}
+.modal-footer{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-top:1px solid var(--border);background:rgba(0,0,0,.02);border-radius:0 0 16px 16px}
+.modal-close{width:32px;height:32px;border-radius:8px;border:none;background:transparent;color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.modal-close:hover{background:var(--border);color:var(--text)}
+.modal-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px}
+.modal-tab{padding:10px 20px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.modal-tab:hover{color:var(--text)}
+.modal-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* Status Dot */
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.status-dot.dot-green{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.4)}
+.status-dot.dot-red{background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,.3)}
+.status-dot.dot-amber{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.3);animation:pulse-dot 1.5s ease infinite}
+.status-dot.dot-gray{background:#9ca3af}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+/* Dark Mode — New Components */
+body.dark .stat-card{background:linear-gradient(135deg,var(--card-bg),#1a2438);border-color:var(--border)}
+body.dark .skill-card{background:var(--card-bg);border-color:var(--border)}
+body.dark .skill-card.enabled{background:linear-gradient(135deg,#0a2e1a,#0f2a1f);border-color:rgba(52,168,83,.3)}
+body.dark .market-card{background:var(--card-bg);border-color:var(--border)}
+body.dark .market-card .market-icon{background:linear-gradient(135deg,rgba(66,133,244,.15),rgba(52,168,83,.15))}
+body.dark .filter-pill{background:var(--card-bg);border-color:var(--border);color:var(--text2)}
+body.dark .filter-pill:hover{background:rgba(66,133,244,.08)}
+body.dark .filter-pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+body.dark .toggle-slider{background:#475569}
+body.dark .search-input{background:var(--card-bg);border-color:var(--border);color:var(--text)}
+body.dark .modal-card{background:var(--card-bg);border-color:var(--border)}
+body.dark .modal-header{border-color:var(--border)} body.dark .modal-footer{background:rgba(255,255,255,.02);border-color:var(--border)}
+body.dark .modal-tabs{border-color:var(--border)}
+body.dark .modal-close:hover{background:rgba(255,255,255,.1)}
+
 /* Responsive */
 .hamburger{display:none;position:fixed;top:12px;left:12px;z-index:20;background:var(--sidebar-bg);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:18px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);backdrop-filter:blur(8px)}
 .hamburger:active{transform:scale(.92)}
@@ -969,6 +1064,14 @@ body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scroll
   .main{margin-left:0;padding:20px 16px;padding-top:56px}
   .hamburger{display:block}
   .prov-list,.ch-list{gap:6px}
+  .skill-grid{grid-template-columns:1fr}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .filter-pills{gap:6px}
+  .filter-pill{padding:5px 12px;font-size:12px}
+  .modal-card{max-width:100%;margin:8px}
+  .modal-header{padding:16px 16px 12px}
+  .modal-body{padding:16px}
+  .modal-footer{padding:12px 16px}
 }`;
 
 // --- Login HTML ---
@@ -1417,9 +1520,12 @@ function panelPage() {
     <div class="page-desc">Manage extensions: enable, disable, install or remove plugins.</div>
     <div class="card">
       <div class="card-title"><span class="ct-icon">\ud83d\udce6</span> Installed Plugins</div>
-      <div class="btn-row" style="margin-bottom:12px">
-        <button class="btn btn-outline" onclick="loadPlugins()">Refresh</button>
-        <button class="btn btn-outline" onclick="updateAllPlugins()">Update All</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div class="search-wrap" style="flex:1;min-width:200px;margin-bottom:0"><input type="text" class="search-input" id="pluginsSearchInput" placeholder="Search plugins..." oninput="filterPluginsUI()"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="loadPlugins()">\u21bb Refresh</button>
+          <button class="btn btn-outline btn-sm" onclick="updateAllPlugins()">\u2b06 Update All</button>
+        </div>
       </div>
       <div id="pluginsList"></div>
       <div class="status" id="pluginsStatus"></div>
@@ -1435,35 +1541,30 @@ function panelPage() {
       <div id="pluginInstallLog" style="display:none;margin-top:12px"><div class="log-box" id="pluginInstallLogBox" style="max-height:200px;overflow-y:auto"></div></div>
     </div>
   </div>
+  <div id="pluginModalContainer"></div>
 
   <!-- TAB: Skills -->
   <div class="section" id="sec-skills">
     <div class="page-title">\u26a1 Skills</div>
-    <div class="page-desc">Manage AI skills: view eligibility, enable or disable bundled skills.</div>
+    <div class="page-desc">Browse and manage AI skills, or install new ones from ClawHub marketplace.</div>
     <div class="card">
       <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Overview</div>
-      <div id="skillsSummary" class="info-grid"></div>
-      <div class="btn-row" style="margin-top:12px">
-        <button class="btn btn-outline" onclick="loadSkills()">Refresh</button>
-        <select id="skillsFilter" onchange="filterSkills()" style="padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px">
-          <option value="all">All Skills</option>
-          <option value="eligible">Eligible</option>
-          <option value="disabled">Disabled</option>
-          <option value="missing">Missing Requirements</option>
-        </select>
-      </div>
+      <div id="skillsSummary" class="stat-grid"></div>
+      <div style="margin-top:6px"><button class="btn btn-outline btn-sm" onclick="loadSkills()">\u21bb Refresh</button></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u26a1</span> Skills List</div>
+      <div class="card-title"><span class="ct-icon">\u26a1</span> Installed Skills</div>
+      <div class="search-wrap"><input type="text" class="search-input" id="skillsSearchInput" placeholder="Search skills..." oninput="filterSkills()"></div>
+      <div class="filter-pills" id="skillsFilterPills"></div>
       <div id="skillsList"></div>
       <div class="status" id="skillsStatus"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83c\udf10</span> ClawHub — Skill Registry</div>
-      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Search and install skills from the ClawHub public registry.</p>
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <input type="text" id="clawhubSearchInput" placeholder="Search skills... e.g. docker, weather, git" style="flex:1;padding:8px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card-bg);color:var(--text);font-size:13px" onkeydown="if(event.key==='Enter')searchClawHub()">
-        <button class="btn btn-primary" style="padding:8px 20px" onclick="searchClawHub()">Search</button>
+      <div class="card-title"><span class="ct-icon">\ud83c\udf10</span> ClawHub \u2014 Marketplace</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Search and install community skills from the ClawHub public registry.</p>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <div class="search-wrap" style="flex:1;margin-bottom:0"><input type="text" class="search-input" id="clawhubSearchInput" placeholder="Search skills... e.g. docker, weather, git" onkeydown="if(event.key==='Enter')searchClawHub()"></div>
+        <button class="btn btn-primary" style="padding:10px 24px;height:fit-content" onclick="searchClawHub()">Search</button>
       </div>
       <div id="clawhubResults"></div>
       <div class="status" id="clawhubStatus"></div>
@@ -1471,13 +1572,14 @@ function panelPage() {
     <div class="card">
       <div class="card-title"><span class="ct-icon">\ud83d\udce6</span> Installed from ClawHub</div>
       <div class="btn-row" style="margin-bottom:12px">
-        <button class="btn btn-outline" onclick="loadClawHubInstalled()">Refresh</button>
-        <button class="btn btn-outline" onclick="updateAllClawHub()">Update All</button>
+        <button class="btn btn-outline btn-sm" onclick="loadClawHubInstalled()">\u21bb Refresh</button>
+        <button class="btn btn-outline btn-sm" onclick="updateAllClawHub()">\u2b06 Update All</button>
       </div>
       <div id="clawhubInstalled"></div>
       <div class="status" id="clawhubInstalledStatus"></div>
     </div>
   </div>
+  <div id="skillModalContainer"></div>
 
   <!-- TAB: Config Editor -->
   <div class="section" id="sec-config">
@@ -1937,40 +2039,103 @@ async function activateBrowser(type){
 }
 
 // === Plugins ===
+let allPlugins=[];
 async function loadPlugins(){
   const el=document.getElementById('pluginsList');const st=document.getElementById('pluginsStatus');
-  el.innerHTML='<div style="color:var(--text2);font-size:13px">Loading plugins...</div>';st.className='';st.textContent='';
+  el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:20px;text-align:center">Loading plugins...</div>';st.className='';st.textContent='';
   const d=await api('/api/plugins');
   if(!d.ok){el.innerHTML='';st.className='status fail';st.textContent=d.error||'Error loading plugins';return}
-  const plugins=d.plugins||[];
-  if(!plugins.length){el.innerHTML='<div style="color:var(--text2);font-size:13px">No plugins found.</div>';return}
-  let h='<div style="display:flex;flex-direction:column;gap:8px">';
+  allPlugins=d.plugins||[];
+  renderPlugins(allPlugins);
+}
+function filterPluginsUI(){
+  const q=(document.getElementById('pluginsSearchInput')||{}).value;
+  let list=allPlugins;
+  if(q&&q.trim()){
+    const lq=q.trim().toLowerCase();
+    list=allPlugins.filter(p=>(p.name||p.id||'').toLowerCase().includes(lq)||(p.description||'').toLowerCase().includes(lq));
+  }
+  renderPlugins(list);
+}
+function renderPlugins(plugins){
+  const el=document.getElementById('pluginsList');const st=document.getElementById('pluginsStatus');
+  if(!plugins.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">\ud83e\udde9</div><div class="empty-text">No plugins found.</div></div>';
+    st.className='';st.textContent='';return;
+  }
+  let h='<div class="skill-grid">';
   plugins.forEach(p=>{
     const isOn=p.status==='loaded'||p.enabled;
+    const cardClass='skill-card'+(isOn?' enabled':'');
     const badge=isOn?'<span class="badge bg-green">Loaded</span>':'<span class="badge" style="background:#fee2e2;color:#dc2626">Disabled</span>';
-    const origin=p.origin==='bundled'?'<span style="font-size:11px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">bundled</span>'
-      :p.origin==='npm'?'<span style="font-size:11px;color:#7c3aed;background:#ede9fe;padding:1px 6px;border-radius:4px">npm</span>'
-      :'<span style="font-size:11px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">'+esc(p.origin||'unknown')+'</span>';
-    const ver=p.version?'<span style="font-size:11px;color:var(--text2)">v'+esc(p.version)+'</span>':'';
-    const desc=p.description?'<div style="font-size:12px;color:var(--text2);margin-top:2px">'+esc(p.description)+'</div>':'';
-    const details=[];
-    if(p.channelIds&&p.channelIds.length)details.push('Channels: '+p.channelIds.join(', '));
-    if(p.providerIds&&p.providerIds.length)details.push('Providers: '+p.providerIds.join(', '));
-    if(p.toolNames&&p.toolNames.length)details.push('Tools: '+p.toolNames.join(', '));
-    const detailLine=details.length?'<div style="font-size:11px;color:var(--accent);margin-top:2px">'+esc(details.join(' | '))+'</div>':'';
-    const toggleBtn=isOn
-      ?'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#fecaca;color:#ef4444" onclick="togglePlugin(\\''+esc(p.id)+'\\',false)">Disable</button>'
-      :'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#bbf7d0;color:#16a34a" onclick="togglePlugin(\\''+esc(p.id)+'\\',true)">Enable</button>';
-    const updateBtn=p.origin==='npm'?'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px" onclick="updatePlugin(\\''+esc(p.id)+'\\')">Update</button>':'';
-    const uninstallBtn=p.origin!=='bundled'?'<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#fecaca;color:#ef4444" onclick="uninstallPlugin(\\''+esc(p.id)+'\\')">Uninstall</button>':'';
-    h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">'
-      +'<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><strong style="font-size:13px">'+esc(p.name||p.id)+'</strong> '+badge+' '+origin+' '+ver+'</div>'+desc+detailLine+'</div>'
-      +'<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:12px">'+toggleBtn+updateBtn+uninstallBtn+'</div>'
+    const originBadge=p.origin==='bundled'?'<span style="font-size:10px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">bundled</span>'
+      :p.origin==='npm'?'<span style="font-size:10px;color:#7c3aed;background:#ede9fe;padding:1px 6px;border-radius:4px">npm</span>'
+      :'<span style="font-size:10px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">'+esc(p.origin||'custom')+'</span>';
+    const ver=p.version?'<span style="font-size:10px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">v'+esc(p.version)+'</span>':'';
+    // Details summary
+    let detailParts=[];
+    if(p.channelIds&&p.channelIds.length)detailParts.push(p.channelIds.length+' channel'+(p.channelIds.length>1?'s':''));
+    if(p.toolNames&&p.toolNames.length)detailParts.push(p.toolNames.length+' tool'+(p.toolNames.length>1?'s':''));
+    const detailLine=detailParts.length?'<div style="font-size:11px;color:var(--accent);margin-top:6px;display:flex;align-items:center;gap:4px">\ud83d\udd27 '+esc(detailParts.join(' \u2022 '))+'</div>':'';
+    const toggleHtml='<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isOn?'checked':'')+' onchange="togglePlugin(\''+esc(p.id).replace(/'/g,"\\'")+'\',!this.checked)"><span class="toggle-slider"></span></label>';
+    h+='<div class="'+cardClass+'" onclick="showPluginDetail(\''+esc(p.id).replace(/'/g,"\\'")+'\')">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+      +'<div style="display:flex;align-items:center;gap:12px"><span class="skill-emoji">'+(p.icon||'\ud83e\udde9')+'</span>'
+      +'<div><div class="skill-name">'+esc(p.name||p.id)+'</div>'
+      +'<div class="skill-badges">'+badge+' '+originBadge+' '+ver+'</div></div></div>'
+      +toggleHtml
+      +'</div>'
+      +'<div class="skill-desc">'+esc(p.description||'No description')+'</div>'
+      +detailLine
       +'</div>';
   });
   h+='</div>';
   el.innerHTML=h;
-  st.className='status ok';st.textContent=plugins.length+' plugin(s) found. '+plugins.filter(p=>p.status==='loaded'||p.enabled).length+' loaded.';
+  const loaded=plugins.filter(p=>p.status==='loaded'||p.enabled).length;
+  st.className='';st.textContent='';
+}
+function showPluginDetail(id){
+  const p=allPlugins.find(pl=>pl.id===id);
+  if(!p)return;
+  const container=document.getElementById('pluginModalContainer');
+  if(!container)return;
+  const isOn=p.status==='loaded'||p.enabled;
+  const badge=isOn?'<span class="badge bg-green">Loaded</span>':'<span class="badge" style="background:#fee2e2;color:#dc2626">Disabled</span>';
+  const originBadge=p.origin==='bundled'?'<span class="badge" style="background:var(--border);color:var(--text2)">Bundled</span>'
+    :p.origin==='npm'?'<span class="badge" style="background:#ede9fe;color:#7c3aed">npm</span>'
+    :'<span class="badge" style="background:var(--border);color:var(--text2)">'+esc(p.origin||'custom')+'</span>';
+  let detailsHtml='';
+  if(p.channelIds&&p.channelIds.length)detailsHtml+='<div class="info-row"><span class="info-k">Channels</span><span class="info-v">'+p.channelIds.map(c=>esc(c)).join(', ')+'</span></div>';
+  if(p.providerIds&&p.providerIds.length)detailsHtml+='<div class="info-row"><span class="info-k">Providers</span><span class="info-v">'+p.providerIds.map(pr=>esc(pr)).join(', ')+'</span></div>';
+  if(p.toolNames&&p.toolNames.length)detailsHtml+='<div class="info-row"><span class="info-k">Tools</span><span class="info-v" style="font-size:11px">'+p.toolNames.map(t=>esc(t)).join(', ')+'</span></div>';
+  const statusDot=isOn?'<span class="status-dot dot-green"></span> <span style="color:#16a34a;font-weight:600;font-size:13px">Loaded</span>'
+    :'<span class="status-dot dot-red"></span> <span style="color:#dc2626;font-weight:600;font-size:13px">Disabled</span>';
+  const toggleHtml='<label class="toggle-switch"><input type="checkbox" '+(isOn?'checked':'')+' onchange="togglePlugin(\''+esc(p.id).replace(/'/g,"\\'")+'\','+(isOn?'false':'true')+');closePluginModal()"><span class="toggle-slider"></span></label>';
+  const actionBtns=[];
+  if(p.origin==='npm')actionBtns.push('<button class="btn btn-outline btn-sm" onclick="updatePlugin(\''+esc(p.id).replace(/'/g,"\\'")+'\');closePluginModal()">\u2b06 Update</button>');
+  if(p.origin!=='bundled')actionBtns.push('<button class="btn btn-outline btn-sm" style="border-color:#fecaca;color:#ef4444" onclick="uninstallPlugin(\''+esc(p.id).replace(/'/g,"\\'")+'\');closePluginModal()">\ud83d\uddd1 Uninstall</button>');
+
+  container.innerHTML='<div class="modal-overlay" onclick="closePluginModal()">'
+    +'<div class="modal-card" onclick="event.stopPropagation()">'
+    +'<div class="modal-header">'
+    +'<div style="display:flex;align-items:center;gap:16px"><span style="font-size:42px">'+(p.icon||'\ud83e\udde9')+'</span>'
+    +'<div><div style="font-size:18px;font-weight:800;color:var(--text)">'+esc(p.name||p.id)+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:6px;align-items:center">'+badge+' '+originBadge+(p.version?' <span style="font-size:12px;color:var(--text2)">v'+esc(p.version)+'</span>':'')+'</div></div></div>'
+    +'<button class="modal-close" onclick="closePluginModal()">\u2715</button>'
+    +'</div>'
+    +'<div class="modal-body">'
+    +'<div style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:16px">'+esc(p.description||'No description available.')+'</div>'
+    +'<div class="info-grid">'+detailsHtml+'</div>'
+    +(actionBtns.length?'<div class="btn-row" style="margin-top:16px">'+actionBtns.join('')+'</div>':'')
+    +'</div>'
+    +'<div class="modal-footer">'
+    +'<div style="display:flex;align-items:center;gap:8px">'+statusDot+'</div>'
+    +'<div style="display:flex;align-items:center;gap:8px">'+toggleHtml+'</div>'
+    +'</div>'
+    +'</div></div>';
+}
+function closePluginModal(){
+  const c=document.getElementById('pluginModalContainer');if(c)c.innerHTML='';
 }
 async function togglePlugin(id,enable){
   const st=document.getElementById('pluginsStatus');st.className='status loading';st.textContent=(enable?'Enabling':'Disabling')+' '+id+'...';
@@ -2011,65 +2176,167 @@ async function updateAllPlugins(){
 
 // === Skills ===
 let allSkills=[];
+let skillsFilterMode='all';
+
 async function loadSkills(){
   const el=document.getElementById('skillsList');const st=document.getElementById('skillsStatus');const sum=document.getElementById('skillsSummary');
-  el.innerHTML='<div style="color:var(--text2);font-size:13px">Loading skills...</div>';st.className='';st.textContent='';
+  el.innerHTML='<div style="color:var(--text2);font-size:13px;padding:20px;text-align:center">Loading skills...</div>';st.className='';st.textContent='';
   const d=await api('/api/skills');
   if(!d.ok){el.innerHTML='';st.className='status fail';st.textContent=d.error||'Error loading skills';return}
   allSkills=d.skills||[];
-  const total=allSkills.length,eligible=allSkills.filter(s=>s.eligible).length,disabled=allSkills.filter(s=>s.disabled).length,missing=allSkills.filter(s=>!s.eligible&&!s.disabled).length;
-  sum.innerHTML='<div class="info-row"><span class="info-k">Total</span><span class="info-v">'+total+'</span></div>'
-    +'<div class="info-row"><span class="info-k">Eligible</span><span class="info-v" style="color:#16a34a;font-weight:600">'+eligible+'</span></div>'
-    +'<div class="info-row"><span class="info-k">Disabled</span><span class="info-v" style="color:#dc2626">'+disabled+'</span></div>'
-    +'<div class="info-row"><span class="info-k">Missing requirements</span><span class="info-v" style="color:#d97706">'+missing+'</span></div>';
+  const total=allSkills.length,eligible=allSkills.filter(s=>s.eligible&&!s.disabled).length,disabled=allSkills.filter(s=>s.disabled).length,missing=allSkills.filter(s=>!s.eligible&&!s.disabled).length;
+  // Stat cards
+  sum.innerHTML='<div class="stat-card blue"><div class="stat-num">'+total+'</div><div class="stat-label">Total</div></div>'
+    +'<div class="stat-card green"><div class="stat-num">'+eligible+'</div><div class="stat-label">Active</div></div>'
+    +'<div class="stat-card red"><div class="stat-num">'+disabled+'</div><div class="stat-label">Disabled</div></div>'
+    +'<div class="stat-card amber"><div class="stat-num">'+missing+'</div><div class="stat-label">Missing</div></div>';
+  // Filter pills
+  renderSkillFilterPills(total,eligible,disabled,missing);
   filterSkills();
   loadClawHubInstalled();
 }
+
+function renderSkillFilterPills(total,eligible,disabled,missing){
+  const el=document.getElementById('skillsFilterPills');
+  if(!el)return;
+  const pills=[
+    {key:'all',label:'All',count:total},
+    {key:'eligible',label:'Eligible',count:eligible},
+    {key:'disabled',label:'Disabled',count:disabled},
+    {key:'missing',label:'Missing Reqs',count:missing}
+  ];
+  el.innerHTML=pills.map(p=>
+    '<button class="filter-pill'+(skillsFilterMode===p.key?' active':'')+'" onclick="setSkillFilter(\''+p.key+'\')">'+p.label+'<span class="pill-count">'+p.count+'</span></button>'
+  ).join('');
+}
+
+function setSkillFilter(mode){
+  skillsFilterMode=mode;
+  filterSkills();
+  // Update pill active states
+  document.querySelectorAll('#skillsFilterPills .filter-pill').forEach(el=>{
+    el.classList.toggle('active',el.textContent.toLowerCase().startsWith(mode==='all'?'all':mode==='eligible'?'elig':mode==='disabled'?'dis':'miss'));
+  });
+  // Simpler: re-render pills
+  const total=allSkills.length,eligible=allSkills.filter(s=>s.eligible&&!s.disabled).length,disabled=allSkills.filter(s=>s.disabled).length,missing=allSkills.filter(s=>!s.eligible&&!s.disabled).length;
+  renderSkillFilterPills(total,eligible,disabled,missing);
+}
+
 function filterSkills(){
-  const f=document.getElementById('skillsFilter').value;
   let list=allSkills;
-  if(f==='eligible')list=allSkills.filter(s=>s.eligible&&!s.disabled);
-  else if(f==='disabled')list=allSkills.filter(s=>s.disabled);
-  else if(f==='missing')list=allSkills.filter(s=>!s.eligible&&!s.disabled);
+  if(skillsFilterMode==='eligible')list=allSkills.filter(s=>s.eligible&&!s.disabled);
+  else if(skillsFilterMode==='disabled')list=allSkills.filter(s=>s.disabled);
+  else if(skillsFilterMode==='missing')list=allSkills.filter(s=>!s.eligible&&!s.disabled);
+  // Text search
+  const q=(document.getElementById('skillsSearchInput')||{}).value;
+  if(q&&q.trim()){
+    const lq=q.trim().toLowerCase();
+    list=list.filter(s=>(s.name||'').toLowerCase().includes(lq)||(s.description||'').toLowerCase().includes(lq));
+  }
   renderSkills(list);
 }
+
 function renderSkills(skills){
   const el=document.getElementById('skillsList');const st=document.getElementById('skillsStatus');
-  if(!skills.length){el.innerHTML='<div style="color:var(--text2);font-size:13px">No skills match this filter.</div>';st.className='';st.textContent='';return}
-  let h='<div style="display:flex;flex-direction:column;gap:8px">';
+  if(!skills.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">\ud83d\udd0d</div><div class="empty-text">No skills match this filter.</div></div>';
+    st.className='';st.textContent='';return;
+  }
+  let h='<div class="skill-grid">';
   skills.forEach(s=>{
+    const isEnabled=s.eligible&&!s.disabled;
+    const isMissing=!s.eligible&&!s.disabled;
+    const cardClass='skill-card'+(isEnabled?' enabled':'')+(s.disabled?' disabled-card':'');
     const badge=s.disabled?'<span class="badge" style="background:#fee2e2;color:#dc2626">Disabled</span>'
       :s.eligible?'<span class="badge bg-green">Eligible</span>'
-      :'<span class="badge" style="background:#fef3c7;color:#b45309">Missing Reqs</span>';
-    const emoji=s.emoji?'<span style="font-size:16px;margin-right:4px">'+s.emoji+'</span>':'';
-    const desc=s.description?'<div style="font-size:12px;color:var(--text2);margin-top:2px;max-width:600px">'+esc(s.description)+'</div>':'';
-    const src='<span style="font-size:11px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">'+esc(s.source||'bundled')+'</span>';
+      :'<span class="badge" style="background:#fef3c7;color:#b45309">Missing</span>';
+    const src='<span style="font-size:10px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">'+esc(s.source||'bundled')+'</span>';
     let missingHtml='';
     if(s.missing){
       const parts=[];
-      if(s.missing.bins&&s.missing.bins.length)parts.push('Bins: '+s.missing.bins.join(', '));
-      if(s.missing.env&&s.missing.env.length)parts.push('Env: '+s.missing.env.join(', '));
-      if(s.missing.os&&s.missing.os.length)parts.push('OS: '+s.missing.os.join(', '));
-      if(parts.length)missingHtml='<div style="font-size:11px;color:#d97706;margin-top:2px">\u26a0 '+esc(parts.join(' | '))+'</div>';
+      if(s.missing.bins&&s.missing.bins.length)parts.push(s.missing.bins.join(', '));
+      if(s.missing.env&&s.missing.env.length)parts.push(s.missing.env.join(', '));
+      if(parts.length)missingHtml='<div class="skill-missing">\u26a0\ufe0f '+esc(parts.join(' \u2022 '))+'</div>';
     }
-    const link=s.homepage?'<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent);text-decoration:none">\ud83d\udd17 Docs</a>':'';
-    let toggleBtn='';
-    if(s.eligible&&!s.disabled){toggleBtn='<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#fecaca;color:#ef4444" onclick="toggleSkill(\\''+esc(s.name)+'\\',true)">Disable</button>'}
-    else if(s.disabled){toggleBtn='<button class="btn btn-outline" style="font-size:12px;padding:4px 12px;border-color:#bbf7d0;color:#16a34a" onclick="toggleSkill(\\''+esc(s.name)+'\\',false)">Enable</button>'}
-    h+='<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">'
-      +'<div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+emoji+'<strong style="font-size:13px">'+esc(s.name)+'</strong> '+badge+' '+src+' '+link+'</div>'+desc+missingHtml+'</div>'
-      +'<div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:12px">'+toggleBtn+'</div>'
+    const canToggle=s.eligible||s.disabled;
+    const toggleHtml=canToggle?'<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\''+esc(s.name).replace(/'/g,"\\'")+'\',!this.checked)"><span class="toggle-slider"></span></label>':'';
+    h+='<div class="'+cardClass+'" onclick="showSkillDetail(\''+esc(s.name).replace(/'/g,"\\'")+'\')">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+      +'<div style="display:flex;align-items:center;gap:12px"><span class="skill-emoji">'+(s.emoji||'\ud83e\udde9')+'</span>'
+      +'<div><div class="skill-name">'+esc(s.name)+'</div><div class="skill-badges">'+badge+' '+src+'</div></div></div>'
+      +toggleHtml
+      +'</div>'
+      +'<div class="skill-desc">'+esc(s.description||'No description')+'</div>'
+      +missingHtml
       +'</div>';
   });
   h+='</div>';
   el.innerHTML=h;
-  st.className='status ok';st.textContent=skills.length+' skill(s) shown.';
+  st.className='';st.textContent='';
 }
+
 async function toggleSkill(name,disable){
   const st=document.getElementById('skillsStatus');st.className='status loading';st.textContent=(disable?'Disabling':'Enabling')+' '+name+'...';
   const d=await api('/api/skills/toggle','POST',{name,disable});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?(disable?'Disabled':'Enabled')+' '+name+'. Restarting...':d.error||'Error';
   if(d.ok)setTimeout(loadSkills,2000);
+}
+
+function showSkillDetail(name){
+  const s=allSkills.find(sk=>sk.name===name);
+  if(!s)return;
+  const container=document.getElementById('skillModalContainer');
+  if(!container)return;
+  const isEnabled=s.eligible&&!s.disabled;
+  const badge=s.disabled?'<span class="badge" style="background:#fee2e2;color:#dc2626">Disabled</span>'
+    :s.eligible?'<span class="badge bg-green">Eligible</span>'
+    :'<span class="badge" style="background:#fef3c7;color:#b45309">Missing Reqs</span>';
+  const src=s.source||'bundled';
+  const srcBadge=src==='bundled'?'<span class="badge" style="background:var(--border);color:var(--text2)">Bundled</span>'
+    :src==='npm'?'<span class="badge" style="background:#ede9fe;color:#7c3aed">npm</span>'
+    :'<span class="badge" style="background:var(--border);color:var(--text2)">'+esc(src)+'</span>';
+  let missingHtml='';
+  if(s.missing){
+    const parts=[];
+    if(s.missing.bins&&s.missing.bins.length)parts.push('<strong>Binaries:</strong> '+s.missing.bins.map(b=>esc(b)).join(', '));
+    if(s.missing.env&&s.missing.env.length)parts.push('<strong>Env vars:</strong> '+s.missing.env.map(e=>esc(e)).join(', '));
+    if(s.missing.os&&s.missing.os.length)parts.push('<strong>OS:</strong> '+s.missing.os.map(o=>esc(o)).join(', '));
+    if(parts.length)missingHtml='<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-top:12px"><div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">\u26a0\ufe0f Missing Requirements</div><div style="font-size:12px;color:#92400e;line-height:1.6">'+parts.join('<br>')+'</div></div>';
+  }
+  const docsLink=s.homepage?'<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" style="font-size:13px;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px">\ud83d\udd17 Documentation</a>':'';
+  const canToggle=s.eligible||s.disabled;
+  const toggleHtml=canToggle?'<label class="toggle-switch"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\''+esc(name).replace(/'/g,"\\'")+'\',!this.checked);closeSkillModal()"><span class="toggle-slider"></span></label>':'';
+  const statusDot=isEnabled?'<span class="status-dot dot-green"></span> <span style="color:#16a34a;font-weight:600;font-size:13px">Enabled</span>'
+    :s.disabled?'<span class="status-dot dot-red"></span> <span style="color:#dc2626;font-weight:600;font-size:13px">Disabled</span>'
+    :'<span class="status-dot dot-amber"></span> <span style="color:#d97706;font-weight:600;font-size:13px">Missing Requirements</span>';
+
+  container.innerHTML='<div class="modal-overlay" onclick="closeSkillModal()">'
+    +'<div class="modal-card" onclick="event.stopPropagation()">'
+    +'<div class="modal-header">'
+    +'<div style="display:flex;align-items:center;gap:16px"><span style="font-size:42px">'+(s.emoji||'\ud83e\udde9')+'</span>'
+    +'<div><div style="font-size:18px;font-weight:800;color:var(--text)">'+esc(s.name)+'</div>'
+    +'<div style="display:flex;gap:8px;margin-top:6px;align-items:center">'+badge+' '+srcBadge+'</div></div></div>'
+    +'<button class="modal-close" onclick="closeSkillModal()">\u2715</button>'
+    +'</div>'
+    +'<div class="modal-body">'
+    +'<div style="font-size:14px;color:var(--text);line-height:1.7;margin-bottom:16px">'+esc(s.description||'No description available.')+'</div>'
+    +'<div class="info-grid" style="margin-bottom:12px">'
+    +(s.version?'<div class="info-row"><span class="info-k">Version</span><span class="info-v">'+esc(s.version)+'</span></div>':'')
+    +(s.author?'<div class="info-row"><span class="info-k">Author</span><span class="info-v">'+esc(s.author)+'</span></div>':'')
+    +'<div class="info-row"><span class="info-k">Source</span><span class="info-v">'+esc(src)+'</span></div>'
+    +'<div class="info-row"><span class="info-k">Status</span><span class="info-v">'+statusDot+'</span></div>'
+    +'</div>'
+    +docsLink
+    +missingHtml
+    +'</div>'
+    +'<div class="modal-footer">'
+    +'<div style="display:flex;align-items:center;gap:8px">'+statusDot+'</div>'
+    +'<div style="display:flex;align-items:center;gap:8px">'+toggleHtml+'</div>'
+    +'</div>'
+    +'</div></div>';
+}
+function closeSkillModal(){
+  const c=document.getElementById('skillModalContainer');if(c)c.innerHTML='';
 }
 
 // === ClawHub ===
@@ -2082,18 +2349,30 @@ async function searchClawHub(){
   if(!d.ok){st.className='status fail';st.textContent=d.error||'Search error';return}
   const results=d.results||[];
   if(!results.length){st.className='status ok';st.textContent='No results found.';return}
-  let h='<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">';
+  let h='<div class="skill-grid" style="margin-top:8px">';
   results.forEach(r=>{
-    h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">'
-      +'<div style="flex:1;min-width:0"><strong style="font-size:13px">'+esc(r.slug)+'</strong> <span style="font-size:11px;color:var(--text2)">'+esc(r.version)+'</span>'
-      +(r.name?' <span style="font-size:12px;color:var(--text2)">'+esc(r.name)+'</span>':'')
+    const name=r.name||r.slug;
+    const ver=r.version?'v'+esc(r.version):'';
+    const author=r.author?' \u2022 '+esc(r.author):'';
+    const desc=r.description?'<div class="market-desc">'+esc(r.description)+'</div>':'';
+    const downloads=r.downloads!==undefined?'<span>\u2b07 '+Number(r.downloads).toLocaleString()+'</span>':'';
+    const stars=r.stars!==undefined?'<span>\u2b50 '+Number(r.stars).toLocaleString()+'</span>':'';
+    const statsHtml=(downloads||stars)?'<div class="market-stats">'+downloads+stars+'</div>':'';
+    h+='<div class="market-card">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+      +'<div style="display:flex;align-items:center;gap:12px">'
+      +'<div class="market-icon">\ud83d\udce6</div>'
+      +'<div><div class="market-name">'+esc(name)+'</div>'
+      +'<div class="market-meta">'+ver+author+'</div></div></div>'
+      +'<button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();installClawHubSkill(\''+esc(r.slug).replace(/'/g,"\\'")+'\')">\u2b07 Install</button>'
       +'</div>'
-      +'<button class="btn btn-primary" style="font-size:12px;padding:4px 14px;flex-shrink:0" onclick="installClawHubSkill(\\''+esc(r.slug)+'\\')">Install</button>'
+      +desc
+      +statsHtml
       +'</div>';
   });
   h+='</div>';
   el.innerHTML=h;
-  st.className='status ok';st.textContent=results.length+' result(s).';
+  st.className='status ok';st.textContent=results.length+' result(s) found.';
 }
 async function installClawHubSkill(slug){
   if(!confirm('Install skill "'+slug+'" from ClawHub?'))return;
