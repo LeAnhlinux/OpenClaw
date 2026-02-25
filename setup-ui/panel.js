@@ -3569,6 +3569,13 @@ const server = http.createServer(async (req, res) => {
         if ((body.channel === 'discord' || body.channel === 'slack') && !cfg.channels[body.channel].groupPolicy) {
           cfg.channels[body.channel].groupPolicy = 'open';
         }
+        // NOTE: Slack streaming="partial" + nativeStreaming=true gây double message
+        //   → bot gửi partial (edited) rồi gửi thêm 1 final message nữa
+        //   → phải tắt streaming để tránh duplicate reply
+        if (body.channel === 'slack') {
+          if (cfg.channels[body.channel].streaming === undefined) cfg.channels[body.channel].streaming = 'off';
+          if (cfg.channels[body.channel].nativeStreaming === undefined) cfg.channels[body.channel].nativeStreaming = false;
+        }
         // Always set plugins.entries.{id}.enabled (required for OpenClaw to load channel plugin)
         if (!cfg.plugins) cfg.plugins = {};
         if (!cfg.plugins.entries) cfg.plugins.entries = {};
