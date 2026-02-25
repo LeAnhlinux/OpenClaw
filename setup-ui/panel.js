@@ -21,7 +21,7 @@ const CONFIG_FILE = '/home/openclaw/.openclaw/openclaw.json';
 const CONFIG_DIR = '/etc/config';
 const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
-const PANEL_VERSION = '2026.02.25.4';
+const PANEL_VERSION = '2026.02.25.5';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -764,7 +764,6 @@ const CHANNELS = {
     testFn: (tokens) => { try { const t = tokens.DISCORD_BOT_TOKEN; if (!t) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://discord.com/api/v10/users/@me -H 'Authorization: Bot ${t.replace(/'/g,"'\\''")}'`, 15000) === '200'; } catch { return false; } } },
   slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], envLabels: { SLACK_BOT_TOKEN: 'Bot Token (xoxb-...)', SLACK_APP_TOKEN: 'App Token (xapp-...)' }, envPlaceholders: { SLACK_BOT_TOKEN: 'xoxb-...', SLACK_APP_TOKEN: 'xapp-...' }, pairCmd: 'slack', desc: 'Create app at api.slack.com/apps', canPair: true, isBuiltin: true,
     testFn: (tokens) => { try { const t = tokens.SLACK_BOT_TOKEN; const a = tokens.SLACK_APP_TOKEN; if (!t || !a) return false; if (!a.startsWith('xapp-')) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://slack.com/api/auth.test -H 'Authorization: Bearer ${t.replace(/'/g,"'\\''")}'`, 15000) === '200'; } catch { return false; } } },
-  matrix: { name: 'Matrix', icon: '\ud83c\udf10', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], envLabels: { MATRIX_HOMESERVER: 'Homeserver URL', MATRIX_ACCESS_TOKEN: 'Access Token' }, envPlaceholders: { MATRIX_HOMESERVER: 'e.g. https://matrix.org', MATRIX_ACCESS_TOKEN: 'syt_...' }, pairCmd: null, desc: 'Plugin — configure homeserver + token', canPair: false, isBuiltin: false },
   zalo: { name: 'Zalo', icon: '\ud83d\udcac', envKeys: ['ZALO_BOT_TOKEN'], envLabels: { ZALO_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { ZALO_BOT_TOKEN: 'Token from bot.zaloplatforms.com' }, pairCmd: 'zalo', desc: 'Create bot at bot.zaloplatforms.com', canPair: true, isBuiltin: true }
 };
 
