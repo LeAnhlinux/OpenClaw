@@ -9,7 +9,7 @@ set -euo pipefail
 #   ENABLE_SANDBOX : true = cai Docker + build sandbox image
 #                    false = khong cai Docker, khong sandbox
 #
-#   ENABLE_GUI     : true = Setup UI (web 1 lan) + Management Panel (vinh vien)
+#   ENABLE_GUI     : true = Management Panel (web admin vinh vien)
 #                    false = chi CLI (setup wizard qua SSH)
 #
 # Vi du:
@@ -29,9 +29,7 @@ REPO_DIR="/opt/openclaw"
 LOG_FILE="/var/log/openclaw-install.log"
 
 # --- GUI config (chi dung khi ENABLE_GUI=true) ---
-SETUP_UI_DIR="/opt/openclaw-setup"
-SETUP_UI_PORT=9999
-SETUP_UI_REPO="https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/server.js"
+PANEL_PORT=9999
 PANEL_DIR="/opt/openclaw-panel"
 PANEL_REPO="https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js"
 
@@ -85,9 +83,8 @@ apt-get -qqy clean
 log "Cau hinh tuong lua..."
 ufw allow 80
 ufw allow 443
-ufw allow 9999/tcp comment 'OpenClaw Panel HTTP'
 if [ "$ENABLE_GUI" = "true" ]; then
-    ufw allow ${SETUP_UI_PORT}/tcp comment 'OpenClaw Setup UI (tam thoi)'
+    ufw allow ${PANEL_PORT}/tcp comment 'OpenClaw Panel HTTP'
 fi
 ufw allow ssh/tcp
 ufw --force enable
@@ -413,24 +410,6 @@ echo "Panel HTTPS: https://${DOMAIN}:9443"
 echo "Gateway bind da dat la ${BIND_IP}. Ban co the chinh /opt/openclaw.env va chay lai script nay."
 SCRIPT
 
-# GUI-only: restart-setup-ui.sh
-if [ "$ENABLE_GUI" = "true" ]; then
-cat > /opt/restart-setup-ui.sh << 'SCRIPT'
-#!/bin/bash
-if [ ! -f /opt/openclaw-setup/server.js ]; then
-    echo "Setup UI da bi xoa sau khi cau hinh thanh cong."
-    echo "Neu can cau hinh lai, su dung: sudo /etc/setup_wizard.sh"
-    exit 1
-fi
-ufw allow 9999/tcp comment 'OpenClaw Setup UI (tam thoi)'
-systemctl start openclaw-setup
-MYIP=$(hostname -I | awk '{print $1}')
-echo "Setup UI da khoi dong lai!"
-echo "Mo trinh duyet: http://${MYIP}:9999"
-SCRIPT
-chmod +x /opt/restart-setup-ui.sh
-fi
-
 # Dat quyen thuc thi cho tat ca helper scripts
 chmod +x /opt/restart-openclaw.sh
 chmod +x /opt/status-openclaw.sh
@@ -509,27 +488,14 @@ cat > /etc/update-motd.d/99-one-click << 'MOTDEOF'
 
 myip=$(hostname -I | awk '{print$1}')
 gateway_token=$(grep "^OPENCLAW_GATEWAY_TOKEN=" /opt/openclaw.env 2>/dev/null | cut -d'=' -f2)
-setup_running=$(systemctl is-active openclaw-setup 2>/dev/null || echo "inactive")
 
 cat <<EOF
 ********************************************************************************
 
 Chao mung den OpenClaw - Tro ly AI ca nhan cua ban
 
-EOF
+Management Panel: http://$myip:9999
 
-if [ "$setup_running" = "active" ]; then
-cat <<EOF
-  ========================================
-  SETUP: Mo trinh duyet de cau hinh:
-  http://$myip:9999
-  (Dang nhap bang tai khoan root)
-  ========================================
-
-EOF
-fi
-
-cat <<EOF
 Dashboard & Gateway:
   Dashboard URL: https://$myip?token=$gateway_token
   Gateway Token: $gateway_token
@@ -544,7 +510,6 @@ Lenh quan ly:
   - /opt/update-openclaw.sh    (cap nhat phien ban moi)
   - /opt/openclaw-cli.sh       (chay lenh CLI)
   - /opt/openclaw-tui.sh       (giao dien Terminal UI)
-  - /opt/restart-setup-ui.sh   (mo lai Setup UI web)
 
 Bat HTTPS (TLS):
   sudo /opt/setup-openclaw-domain.sh
@@ -843,7 +808,7 @@ log "Cau hinh Caddy mac dinh..."
 DROPLET_IP=$(hostname -I | awk '{print $1}')
 
 if [ "$ENABLE_GUI" = "true" ]; then
-# GUI: Caddy don gian (Setup UI se cau hinh chi tiet sau)
+# GUI: Caddy don gian (Panel se cau hinh chi tiet sau)
 cat > /etc/caddy/Caddyfile << CADDYEOF
 ${DROPLET_IP} {
     tls internal
@@ -915,35 +880,9 @@ chown openclaw:openclaw /home/openclaw/.openclaw/gateway-token.txt
 chmod 600 /home/openclaw/.openclaw/gateway-token.txt
 
 # =============================================================================
-# 18. Setup UI + Management Panel (chi khi ENABLE_GUI=true)
+# 18. Management Panel (chi khi ENABLE_GUI=true)
 # =============================================================================
 if [ "$ENABLE_GUI" = "true" ]; then
-    log "Cai dat Setup UI web..."
-    mkdir -p ${SETUP_UI_DIR}
-    curl -fsSL "${SETUP_UI_REPO}" -o ${SETUP_UI_DIR}/server.js || {
-        log "Canh bao: Khong tai duoc Setup UI. Su dung: sudo /etc/setup_wizard.sh"
-    }
-
-    cat > /etc/systemd/system/openclaw-setup.service << SETUPEOF
-[Unit]
-Description=OpenClaw Setup UI (one-time web setup)
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=${SETUP_UI_DIR}
-ExecStart=/usr/bin/node ${SETUP_UI_DIR}/server.js
-Restart=on-failure
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-SETUPEOF
-
     log "Cai dat Management Panel..."
     mkdir -p ${PANEL_DIR}
     curl -fsSL "${PANEL_REPO}" -o ${PANEL_DIR}/panel.js || {
@@ -959,7 +898,7 @@ SETUPEOF
 
     cat > /etc/systemd/system/openclaw-panel.service << PANELEOF
 [Unit]
-Description=OpenClaw Management Panel (persistent web admin)
+Description=OpenClaw Management Panel (web admin)
 After=network-online.target openclaw.service
 Wants=network-online.target
 
@@ -1000,10 +939,9 @@ systemctl restart openclaw
 systemctl restart caddy
 
 if [ "$ENABLE_GUI" = "true" ]; then
-    systemctl enable openclaw-setup
-    # Panel KHONG enable, KHONG start — doi Setup UI selfDestruct kich hoat
-    systemctl start openclaw-setup
-    log "Setup UI dang chay tai http://$(hostname -I | awk '{print $1}'):${SETUP_UI_PORT}"
+    systemctl enable openclaw-panel
+    systemctl start openclaw-panel
+    log "Management Panel dang chay tai http://$(hostname -I | awk '{print $1}'):${PANEL_PORT}"
 fi
 
 # =============================================================================
@@ -1017,13 +955,13 @@ apt-get -qqy autoclean
 # Hoan tat
 # =============================================================================
 if [ "$ENABLE_GUI" = "true" ]; then
-    SETUP_URL="http://$(hostname -I | awk '{print $1}'):${SETUP_UI_PORT}"
+    PANEL_URL="http://$(hostname -I | awk '{print $1}'):${PANEL_PORT}"
     log "=== Cai dat OpenClaw ${APP_VERSION} hoan tat! ==="
     log "Gateway token: ${NEW_GATEWAY_TOKEN}"
     log ""
     log "=========================================="
-    log "  Mo trinh duyet de cau hinh:"
-    log "  ${SETUP_URL}"
+    log "  Management Panel:"
+    log "  ${PANEL_URL}"
     log "  (Dang nhap bang tai khoan root)"
     log "=========================================="
     log ""

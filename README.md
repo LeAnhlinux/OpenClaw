@@ -20,7 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-gu
 curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-gui.sh | bash
 ```
 
-### Phien ban CLI (khong co Web Setup UI)
+### Phien ban CLI (khong co Web Panel)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install.sh | bash
@@ -69,70 +69,18 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-de
 15.  Build OpenClaw (pnpm install + build + ui)
      + Tao /usr/local/bin/openclaw wrapper
 16.  Tao gateway token (random 64 hex)
-18.  Tai Setup UI (server.js) tu GitHub
-     + Tao openclaw-setup.service
-18b. Tai Management Panel (panel.js) tu GitHub
-     + Tao openclaw-panel.service (chua enable)
+18.  Tai Management Panel (panel.js) tu GitHub
+     + Tao openclaw-panel.service
 19.  Enable + Start services
      ├── openclaw.service        (port 18789)
      ├── caddy.service           (port 80/443)
-     ├── openclaw-setup.service  (port 9999 — tam thoi)
-     └── openclaw-panel.service  (CHUA enable — doi setup xong)
+     └── openclaw-panel.service  (port 9999)
 20.  Don dep apt
 
- => In ra URL Setup UI: http://<IP>:9999
+ => In ra URL Panel: http://<IP>:9999 (dang nhap bang tai khoan root)
 ```
 
-### Phase 2: Setup UI Web (http://\<IP\>:9999)
-
-Sau khi script chay xong, mo trinh duyet va truy cap Setup UI:
-
-```
-LOGIN
-  |  Xac thuc PAM (root password)
-  v
-STEP 1: Ten mien & SSL (tuy chon)
-  |  Co domain -> Nhap domain + email
-  |    -> Kiem tra DNS (A record tro ve IP server)
-  |    -> Cau hinh Caddy: gateway HTTPS + Panel HTTPS :9443
-  |    -> Firewall: mo 9443, dong 9999
-  |  Khong co -> Bo qua (dung IP + self-signed cert)
-  |    -> Panel se truy cap qua HTTP :9999
-  v
-STEP 2: Chon AI Provider + Model
-  |  ○ Anthropic (Claude Opus 4.5 / Sonnet 4 / Haiku 3.5)
-  |  ○ OpenAI   (GPT-5.2 / o3 / GPT-4.1 / GPT-4.1 Mini)
-  |  ○ Google   (Gemini 2.5 Pro / Flash / 2.0 Flash / Lite)
-  v
-STEP 3: Nhap API Key
-  |  -> Goi API that de verify key hop le
-  v
-STEP 4: Xac nhan cau hinh
-  |  -> Ghi API key vao /opt/openclaw.env
-  |  -> Copy config JSON + set gateway token + model
-  |  -> Restart openclaw
-  v
-STEP 5: Kenh nhan tin (tuy chon)
-  |  └── Telegram Bot -> Nhap Bot Token -> Ghep noi
-  v
-STEP 6: Ghep noi Dashboard
-  |  -> Mo link dashboard trong tab moi
-  |  -> Quay lai bam "Ghep noi"
-  |  -> devices list --json -> tim pending requestId -> devices approve
-  v
-STEP 7: Hoan tat -> Chuyen giao sang Management Panel (~3 giay)
-     -> selfDestruct():
-        ├── Enable openclaw-panel, disable openclaw-setup
-        ├── server.close() giai phong port 9999
-        ├── systemctl start openclaw-panel (tiep quan port 9999)
-        ├── systemd-run: don dep file setup (chay ngoai process tree)
-        └── process.exit(0)
-
- => Setup UI TU DONG XOA VINH VIEN
- => Management Panel tiep quan port 9999 ngay lap tuc
-```
-
-### Phase 3: Management Panel (chay thuong truc)
+### Phase 2: Management Panel (chay thuong truc ngay sau cai dat)
 
 ```
 Truy cap:
@@ -169,9 +117,9 @@ Cac tab quan ly:
 ### Toan bo lifecycle
 
 ```
-[Install script]  ──>  [Setup UI :9999]  ──selfDestruct──>  [Panel :9999 hoac :9443]
-   ~10-15 phut           1 lan duy nhat         ~3 giay          chay thuong truc
-                         roi tu huy                              (reboot tu start)
+[Install script]  ──>  [Management Panel :9999 hoac :9443]
+   ~10-15 phut          chay thuong truc (reboot tu start)
+                        dang nhap bang tai khoan root
 ```
 
 ---
@@ -181,12 +129,11 @@ Cac tab quan ly:
 ```
 clawdbot-24-04/
 ├── install.sh                    # Script cai dat CLI (khong co Web UI)
-├── install-gui.sh                # Script cai dat + Web Setup UI (co Docker sandbox)
-├── install-gui-nosandbox.sh      # Script cai dat + Web Setup UI (khong Docker)
-├── install-dev.sh                # Script cai dat + Web Setup UI (dev + Docker sandbox)
+├── install-gui.sh                # Script cai dat + Web Panel (co Docker sandbox)
+├── install-gui-nosandbox.sh      # Script cai dat + Web Panel (khong Docker)
+├── install-dev.sh                # Script cai dat + Web Panel (dev + Docker sandbox)
 ├── setup-ui/
-│   ├── server.js                 # Setup UI web server (one-time wizard, port 9999)
-│   └── panel.js                  # Management Panel server (persistent, port 9999)
+│   └── panel.js                  # Management Panel server (port 9999)
 ├── template.json                 # Template build Packer cho DigitalOcean
 ├── files/
 │   ├── etc/
@@ -288,8 +235,6 @@ openclaw <command>
 # Cau hinh ten mien + HTTPS
 /opt/setup-openclaw-domain.sh
 
-# Mo lai Setup UI (neu can)
-/opt/restart-setup-ui.sh
 ```
 
 ### Lenh CLI thuong dung
@@ -355,7 +300,7 @@ Tra loi loi neu tat ca provider deu that bai
 - **Khong commit API key** hoac token that; chi su dung gia tri placeholder
 - **Gateway token** tu dong tao (64 ky tu hex) khi cai dat
 - **Caddy** tu dong xu ly TLS (Let's Encrypt khi co domain, self-signed khi dung IP)
-- **Setup UI tu huy** vinh vien sau khi setup xong, chuyen giao sang Management Panel (~3 giay)
+- **Panel** chay ngay sau cai dat, dang nhap bang tai khoan root (PAM auth)
 - **Panel HTTPS**: co domain -> port 9443, khong domain -> port 9999 HTTP
 - **Device approve** can dung `requestId` (UUID), khong phai `deviceId` (64-char hex)
 - **Device revoke** chi thu hoi token, device van nam trong danh sach voi trang thai "Da huy"

@@ -424,11 +424,11 @@ function getFallbackProviderKeys() {
 }
 function getProviderBaseUrl(provKey) {
   const urls = {
-    xai:'https://api.x.ai/v1', minimax:'https://api.minimax.io/v1',
+    xai:'https://api.x.ai/v1', minimax:'https://api.minimax.io/anthropic',
     moonshot:'https://api.moonshot.ai/v1', 'kimi-coding':'https://api.moonshot.ai/v1',
     zai:'https://api.z.ai/api/paas/v4', venice:'https://api.venice.ai/api/v1',
     nvidia:'https://integrate.api.nvidia.com/v1', huggingface:'https://router.huggingface.co/v1',
-    together:'https://api.together.xyz/v1', openrouter:'https://openrouter.ai/api/v1',
+    openrouter:'https://openrouter.ai/api/v1',
     synthetic:'https://api.synthetic.new/anthropic', xiaomi:'https://api.xiaomimimo.com/anthropic',
     ollama:'http://127.0.0.1:11434/v1', vllm:'http://127.0.0.1:8000/v1', litellm:'http://localhost:4000/v1'
   };
@@ -437,11 +437,12 @@ function getProviderBaseUrl(provKey) {
 function callProvider(provKey, model, apiKey, messages) {
   const actualModel = model.includes('/') ? model.split('/').slice(1).join('/') : model;
   try {
-    if (provKey === 'anthropic' || provKey === 'xiaomi' || provKey === 'synthetic' || provKey === 'cloudflare-ai-gateway') {
+    if (provKey === 'anthropic' || provKey === 'xiaomi' || provKey === 'synthetic' || provKey === 'minimax' || provKey === 'cloudflare-ai-gateway') {
       let anthropicUrl;
       if (provKey === 'cloudflare-ai-gateway') { const acct = getEnvValue('CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID') || ''; const gw = getEnvValue('CLOUDFLARE_AI_GATEWAY_GATEWAY_ID') || ''; anthropicUrl = acct && gw ? `https://gateway.ai.cloudflare.com/v1/${acct.trim()}/${gw.trim()}/anthropic/v1/messages` : ''; }
       else if (provKey === 'xiaomi') anthropicUrl = 'https://api.xiaomimimo.com/anthropic/v1/messages';
       else if (provKey === 'synthetic') anthropicUrl = 'https://api.synthetic.new/anthropic/v1/messages';
+      else if (provKey === 'minimax') anthropicUrl = 'https://api.minimax.io/anthropic/v1/messages';
       else anthropicUrl = 'https://api.anthropic.com/v1/messages';
       if (!anthropicUrl) return { ok: false, error: 'Missing Cloudflare Account ID or Gateway ID' };
       const r = safeExec(`curl -s -X POST ${anthropicUrl} -H 'x-api-key: ${apiKey.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '${JSON.stringify({model:actualModel,max_tokens:1024,messages}).replace(/'/g,"'\\''")}'`, 60000);
@@ -541,7 +542,7 @@ const PROVIDERS = {
     testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.x.ai/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
   },
   minimax: {
-    name: 'MiniMax', envKey: 'MINIMAX_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
+    name: 'MiniMax', envKey: 'MINIMAX_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
     color: '#6366f1', icon: '\u26a1', category: 'cloud',
     models: [
       { id: 'minimax/MiniMax-M2.5', name: 'MiniMax M2.5', desc: 'Latest — most capable' },
@@ -549,7 +550,7 @@ const PROVIDERS = {
       { id: 'minimax/MiniMax-M2.1-lightning', name: 'M2.1 Lightning', desc: 'Fast — low latency' },
       { id: 'minimax/MiniMax-M2', name: 'MiniMax M2', desc: 'Base — cost efficient' }
     ],
-    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.minimax.io/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
+    testFn: (k) => { try { const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST https://api.minimax.io/anthropic/v1/messages -H 'x-api-key: ${k.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '{"model":"MiniMax-M2.1","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`, 15000); return r === '200' || r === '402'; } catch { return false; } }
   },
   moonshot: {
     name: 'Moonshot AI', envKey: 'MOONSHOT_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
@@ -669,18 +670,6 @@ const PROVIDERS = {
     ],
     testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://router.huggingface.co/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
   },
-  together: {
-    name: 'Together AI', envKey: 'TOGETHER_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#0066ff', icon: '\ud83e\udd1d', category: 'cloud',
-    models: [
-      { id: 'together/moonshotai/Kimi-K2.5', name: 'Kimi K2.5', desc: 'Latest Moonshot via Together' },
-      { id: 'together/meta-llama/Llama-3.3-70B-Instruct-Turbo', name: 'Llama 3.3 70B Turbo', desc: 'Meta — fast' },
-      { id: 'together/meta-llama/Llama-4-Maverick', name: 'Llama 4 Maverick', desc: 'Meta — latest' },
-      { id: 'together/deepseek/DeepSeek-V3.1', name: 'DeepSeek V3.1', desc: 'Open source — powerful' },
-      { id: 'together/deepseek/DeepSeek-R1', name: 'DeepSeek R1', desc: 'Reasoning — open source' }
-    ],
-    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.together.xyz/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
-  },
   opencode: {
     name: 'OpenCode Zen', envKey: 'OPENCODE_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
     color: '#14b8a6', icon: '\ud83e\uddd8', category: 'cloud',
@@ -769,12 +758,14 @@ const PROVIDERS = {
 
 // --- Channel configs ---
 const CHANNELS = {
-  telegram: { name: 'Telegram', icon: '\ud83d\udce8', envKeys: ['TELEGRAM_BOT_TOKEN'], pairCmd: 'telegram', desc: 'Create bot at @BotFather', canPair: true },
-  discord: { name: 'Discord', icon: '\ud83c\udfae', envKeys: ['DISCORD_BOT_TOKEN'], pairCmd: 'discord', desc: 'Create bot at discord.com/developers', canPair: true },
-  slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], pairCmd: null, desc: 'Create app at api.slack.com/apps', canPair: false },
-  line: { name: 'LINE', icon: '\ud83d\udfe2', envKeys: ['LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET'], pairCmd: null, desc: 'Plugin — create bot at developers.line.biz', canPair: false },
-  matrix: { name: 'Matrix', icon: '\ud83c\udf10', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], pairCmd: null, desc: 'Plugin — configure homeserver + token', canPair: false },
-  zalo: { name: 'Zalo', icon: '\ud83d\udcac', envKeys: ['ZALO_BOT_TOKEN'], pairCmd: 'zalo', desc: 'Create bot at bot.zaloplatforms.com', canPair: true }
+  telegram: { name: 'Telegram', icon: '\ud83d\udce8', envKeys: ['TELEGRAM_BOT_TOKEN'], envLabels: { TELEGRAM_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { TELEGRAM_BOT_TOKEN: 'e.g. 123456:ABC-DEF...' }, pairCmd: 'telegram', desc: 'Create bot via @BotFather on Telegram', canPair: true, isBuiltin: true,
+    testFn: (tokens) => { try { const t = tokens.TELEGRAM_BOT_TOKEN; if (!t) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.telegram.org/bot${t.replace(/'/g,"'\\''")}/getMe`, 15000) === '200'; } catch { return false; } } },
+  discord: { name: 'Discord', icon: '\ud83c\udfae', envKeys: ['DISCORD_BOT_TOKEN'], envLabels: { DISCORD_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { DISCORD_BOT_TOKEN: 'e.g. MTQ3NTg...' }, pairCmd: 'discord', desc: 'Create bot at discord.com/developers', canPair: true, isBuiltin: true,
+    testFn: (tokens) => { try { const t = tokens.DISCORD_BOT_TOKEN; if (!t) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://discord.com/api/v10/users/@me -H 'Authorization: Bot ${t.replace(/'/g,"'\\''")}'`, 15000) === '200'; } catch { return false; } } },
+  slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], envLabels: { SLACK_BOT_TOKEN: 'Bot Token (xoxb-...)', SLACK_APP_TOKEN: 'App Token (xapp-...)' }, envPlaceholders: { SLACK_BOT_TOKEN: 'xoxb-...', SLACK_APP_TOKEN: 'xapp-...' }, pairCmd: 'slack', desc: 'Create app at api.slack.com/apps', canPair: true, isBuiltin: true,
+    testFn: (tokens) => { try { const t = tokens.SLACK_BOT_TOKEN; const a = tokens.SLACK_APP_TOKEN; if (!t || !a) return false; if (!a.startsWith('xapp-')) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://slack.com/api/auth.test -H 'Authorization: Bearer ${t.replace(/'/g,"'\\''")}'`, 15000) === '200'; } catch { return false; } } },
+  matrix: { name: 'Matrix', icon: '\ud83c\udf10', envKeys: ['MATRIX_HOMESERVER', 'MATRIX_ACCESS_TOKEN'], envLabels: { MATRIX_HOMESERVER: 'Homeserver URL', MATRIX_ACCESS_TOKEN: 'Access Token' }, envPlaceholders: { MATRIX_HOMESERVER: 'e.g. https://matrix.org', MATRIX_ACCESS_TOKEN: 'syt_...' }, pairCmd: null, desc: 'Plugin — configure homeserver + token', canPair: false, isBuiltin: false },
+  zalo: { name: 'Zalo', icon: '\ud83d\udcac', envKeys: ['ZALO_BOT_TOKEN'], envLabels: { ZALO_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { ZALO_BOT_TOKEN: 'Token from bot.zaloplatforms.com' }, pairCmd: 'zalo', desc: 'Create bot at bot.zaloplatforms.com', canPair: true, isBuiltin: true }
 };
 
 // --- CSS ---
@@ -1166,7 +1157,7 @@ document.getElementById('f').addEventListener('submit',async e=>{
 // --- Panel HTML ---
 function panelPage() {
   const provJSON = JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,color:v.color,icon:v.icon,models:v.models,category:v.category||'cloud',extraEnvKeys:v.extraEnvKeys||[],keyLabel:v.keyLabel||'',keyPlaceholder:v.keyPlaceholder||'',extraEnvLabels:v.extraEnvLabels||{},extraEnvPlaceholders:v.extraEnvPlaceholders||{}})));
-  const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair})));
+  const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair,envLabels:v.envLabels||{},envPlaceholders:v.envPlaceholders||{}})));
 
   return `<!DOCTYPE html><html lang="vi"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -1308,8 +1299,9 @@ function panelPage() {
         </div>
         <div class="status" id="channelStatus"></div>
         <div id="pairForm" style="display:none;margin-top:14px">
-          <div class="field"><label>Pairing Code</label><input type="text" id="pairCode" placeholder="Enter code from bot"></div>
-          <div class="btn-row"><button class="btn btn-success" onclick="pairChannel()">Pair</button></div>
+          <div id="pendingPairings"></div>
+          <div class="field"><label>Pairing Code</label><input type="text" id="pairCode" placeholder="Enter code manually"></div>
+          <div class="btn-row"><button class="btn btn-success" onclick="pairChannel()">Approve</button></div>
           <div class="status" id="pairStatus"></div>
         </div>
       </div>
@@ -1891,7 +1883,7 @@ async function loadChannels(){
       selectedChannel=c;document.querySelectorAll('.ch-item').forEach(i=>i.classList.remove('selected'));div.classList.add('selected');
       const fields=document.getElementById('channelFields'),pb=document.getElementById('pairChannelBtn');
       document.getElementById('pairForm').style.display='none';document.getElementById('channelStatus').className='status';
-      fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+esc(k)+'</label><input type="text" id="chfield-'+k+'" placeholder="Enter '+esc(k)+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none';
+      fields.innerHTML=c.envKeys.map(k=>'<div class="field"><label>'+esc((c.envLabels&&c.envLabels[k])||k)+'</label><input type="text" id="chfield-'+k+'" placeholder="'+esc((c.envPlaceholders&&c.envPlaceholders[k])||('Enter '+k))+'"></div>').join('');pb.style.display=c.canPair?'inline-flex':'none';
       // Pre-fill current values
       if(isActive)(async()=>{const cfg=await api('/api/channel-values','POST',{channel:c.id});if(cfg.ok&&cfg.values)Object.entries(cfg.values).forEach(([k,v])=>{const el=document.getElementById('chfield-'+k);if(el&&v)el.value=v})})();
       document.getElementById('channelConfig').style.display='block';
@@ -1911,13 +1903,36 @@ async function disableChannel(chId){
   const d=await api('/api/channel-disable','POST',{channel:chId});
   if(d.ok){setTimeout(loadChannels,1500)}else{alert(d.error||'Error disabling channel')}
 }
-function showPairForm(){document.getElementById('pairForm').style.display='block'}
+async function showPairForm(){
+  document.getElementById('pairForm').style.display='block';
+  if(!selectedChannel||!selectedChannel.canPair)return;
+  const pp=document.getElementById('pendingPairings');pp.innerHTML='<div style="color:var(--text2);font-size:12px;padding:4px 0">Loading pending requests...</div>';
+  const d=await api('/api/channel-pair-list','POST',{channel:selectedChannel.id});
+  if(d.ok&&d.requests&&d.requests.length>0){
+    pp.innerHTML='<div style="font-weight:600;font-size:13px;margin-bottom:8px">Pending Pairing Requests</div>'+d.requests.map(r=>{
+      const label=r.displayName||r.username||r.userId||r.code||'Unknown';
+      const code=r.code||r.pairingCode||'';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:8px;margin-bottom:6px">'
+        +'<div><span style="font-weight:600;font-size:13px">'+esc(label)+'</span>'+(code?' <span style="color:var(--text2);font-size:11px">'+esc(code)+'</span>':'')+'</div>'
+        +'<button class="btn btn-success" style="padding:4px 14px;font-size:12px" onclick="approvePairing(\\x27'+esc(code)+'\\x27,this)">Approve</button>'
+        +'</div>';
+    }).join('');
+  }else{pp.innerHTML='<div style="color:var(--text2);font-size:12px;padding:4px 0">No pending requests. Send a message to the bot first, then click Pair again.</div>'}
+}
+async function approvePairing(code,btn){
+  if(!selectedChannel||!code)return;
+  const orig=btn.textContent;btn.disabled=true;btn.textContent='Approving...';
+  const d=await api('/api/channel-pair','POST',{channel:selectedChannel.id,code});
+  if(d.ok){btn.textContent='\\u2705 Approved';btn.style.background='var(--accent2)';setTimeout(()=>showPairForm(),1500)}
+  else{btn.disabled=false;btn.textContent=orig;const st=document.getElementById('pairStatus');st.className='status fail';st.textContent=d.error||'Error'}
+}
 async function pairChannel(){
   if(!selectedChannel||!selectedChannel.canPair)return;const st=document.getElementById('pairStatus'),code=document.getElementById('pairCode').value.trim();
   if(!code){st.className='status fail';st.textContent='Enter pairing code';return}
-  st.className='status loading';st.textContent='Pairing...';
+  st.className='status loading';st.textContent='Approving...';
   const d=await api('/api/channel-pair','POST',{channel:selectedChannel.id,code});
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Pairing successful!':d.error||'Error';
+  if(d.ok){document.getElementById('pairCode').value='';setTimeout(()=>showPairForm(),1500)}
 }
 
 // === Agents ===
@@ -3537,19 +3552,25 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req); const ch = CHANNELS[body.channel];
       if (!ch) return json(res, 400, { ok: false, error: 'Invalid channel' });
+      // Validate token before saving
+      if (ch.testFn) { try { const valid = ch.testFn(body.tokens || {}); if (!valid) return json(res, 400, { ok: false, error: 'Invalid token for ' + ch.name + '. Please check and try again.' }); } catch {} }
       for (const [key, val] of Object.entries(body.tokens || {})) { if (ch.envKeys.includes(key) && val) setEnvValue(key, val); }
-      // Auto-enable plugin for channel
+      // Enable channel in config (BOTH channels.{id}.enabled AND plugins.entries.{id} for ALL channels)
       try {
         const cfgPath = '/home/openclaw/.openclaw/openclaw.json';
         const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        // Always set channels.{id}.enabled (required for channel to start)
+        if (!cfg.channels) cfg.channels = {};
+        if (!cfg.channels[body.channel]) cfg.channels[body.channel] = {};
+        cfg.channels[body.channel].enabled = true;
+        // Always set plugins.entries.{id}.enabled (required for OpenClaw to load channel plugin)
         if (!cfg.plugins) cfg.plugins = {};
         if (!cfg.plugins.entries) cfg.plugins.entries = {};
-        if (!cfg.plugins.entries[body.channel] || !cfg.plugins.entries[body.channel].enabled) {
-          cfg.plugins.entries[body.channel] = { enabled: true };
-          fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
-          try { execSync('chown openclaw:openclaw ' + cfgPath); } catch {}
-        }
-      } catch (pe) { console.error('[Panel] Auto-enable plugin error:', pe.message); }
+        if (!cfg.plugins.entries[body.channel]) cfg.plugins.entries[body.channel] = {};
+        cfg.plugins.entries[body.channel].enabled = true;
+        fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+        try { execSync('chown openclaw:openclaw ' + cfgPath); } catch {}
+      } catch (pe) { console.error('[Panel] Channel config error:', pe.message); }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 3000));
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -3562,6 +3583,15 @@ const server = http.createServer(async (req, res) => {
       if (!ch) return json(res, 400, { ok: false, error: 'Invalid channel' });
       // Remove all env keys for channel (set as comment)
       ch.envKeys.forEach(k => { setEnvValue(k, '#disabled'); });
+      // Disable in config (BOTH channels.{id} AND plugins.entries.{id})
+      try {
+        const cfgPath = '/home/openclaw/.openclaw/openclaw.json';
+        const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        if (cfg.channels && cfg.channels[body.channel]) { cfg.channels[body.channel].enabled = false; }
+        if (cfg.plugins && cfg.plugins.entries && cfg.plugins.entries[body.channel]) { cfg.plugins.entries[body.channel].enabled = false; }
+        fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
+        try { execSync('chown openclaw:openclaw ' + cfgPath); } catch {}
+      } catch {}
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -3576,6 +3606,18 @@ const server = http.createServer(async (req, res) => {
       ch.envKeys.forEach(k => { const v = getEnvValue(k); if (v && !v.startsWith('#')) values[k] = v.substring(0, 4) + '***' + v.substring(v.length - 4); });
       return json(res, 200, { ok: true, values });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Channel Pair List (pending pairing requests)
+  if (req.method === 'POST' && url.pathname === '/api/channel-pair-list') {
+    try {
+      const body = await parseBody(req); const ch = CHANNELS[body.channel];
+      if (!ch || !ch.canPair) return json(res, 200, { ok: true, requests: [] });
+      let output = '';
+      try { output = execSync(`/opt/openclaw-cli.sh pairing list ${ch.pairCmd} --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); } catch (e) { output = (e.stdout || '').toString(); }
+      let data; try { data = JSON.parse(output); } catch { return json(res, 200, { ok: true, requests: [] }); }
+      return json(res, 200, { ok: true, requests: data.requests || [] });
+    } catch (e) { return json(res, 200, { ok: true, requests: [] }); }
   }
 
   // Channel Pair
