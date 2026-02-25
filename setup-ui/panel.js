@@ -486,13 +486,94 @@ function recordProviderCooldown(fbCfg, provKey) {
   fbCfg.rateState[provKey].cooldownUntil = Date.now() + (fbCfg.settings.cooldownSeconds || 300) * 1000;
 }
 
+// --- SVG Icons (Lucide-inspired, currentColor for theme adaptation) ---
+const _i = (d, fill) => `<svg viewBox="0 0 24 24" width="1em" height="1em" fill="${fill||'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICONS = {
+  // Navigation
+  sparkles: _i('<path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5z"/><path d="M18 2l.5 2 2 .5-2 .5L18 7l-.5-2-2-.5 2-.5z"/>'),
+  refresh: _i('<path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>'),
+  robot: _i('<rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/>'),
+  mail: _i('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>'),
+  messageCircle: _i('<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>'),
+  key: _i('<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>'),
+  globe: _i('<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
+  fox: _i('<path d="M18 2l-3 8h6l-1 4-3 6h-2l-3-5-3 5H7l-3-6-1-4h6L6 2"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/>'),
+  puzzle: _i('<path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.23 8.77c.24-.24.581-.353.917-.303.515.077.877.528 1.073 1.01a2.5 2.5 0 1 0 3.259-3.259c-.482-.196-.933-.558-1.01-1.073-.05-.336.062-.676.303-.917l1.525-1.525A2.402 2.402 0 0 1 12 1.998c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.878.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.968 1.02z"/>'),
+  zap: _i('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'),
+  wrench: _i('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'),
+  smartphone: _i('<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><path d="M12 18h.01"/>'),
+  barChart: _i('<path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>'),
+  fileText: _i('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>'),
+  circleDot: _i('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/>'),
+  stethoscope: _i('<path d="M4.8 2.62L3 5.04V11a2 2 0 0 0 4 0V5.04L5.2 2.62"/><path d="M2 5h5"/><path d="M7 12v1a4 4 0 0 1-4 4"/><path d="M3 17v.01"/><circle cx="18" cy="16" r="3"/><path d="M18 13V7"/><circle cx="18" cy="5" r="1"/>'),
+  users: _i('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+  package: _i('<path d="M16.5 9.4l-9-5.19"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'),
+  arrowUp: _i('<path d="M12 19V5"/><path d="m5 12 7-7 7 7"/>'),
+  // Provider icons
+  anthropic: _i('<path d="M17.17 3.5H14.4l-6.48 17h2.77l1.63-4.42h6.54L20.5 20.5h2.77L17.17 3.5zm-3.82 10.29L15.8 7.05l2.46 6.74h-4.92z" fill="currentColor" stroke="none"/>', 'currentColor'),
+  openai: _i('<path d="M20.63 8.22a5.22 5.22 0 0 0-.75-5.17A5.3 5.3 0 0 0 14.2.78a5.26 5.26 0 0 0-4.01 1.88A5.24 5.24 0 0 0 6.66 1.5a5.29 5.29 0 0 0-5.04 3.65 5.26 5.26 0 0 0-.72 5.17A5.22 5.22 0 0 0 1.65 15.5a5.29 5.29 0 0 0 5.68 2.28A5.26 5.26 0 0 0 11.34 19.65a5.29 5.29 0 0 0 5.04-3.65 5.24 5.24 0 0 0 3.53 1.16 5.29 5.29 0 0 0 5.04-3.65 5.22 5.22 0 0 0-4.32-5.29z" fill="none"/><path d="M12 8v8m-4-6l4-2 4 2m-8 4l4 2 4-2"/>'),
+  gemini: _i('<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.85 0 3.58-.5 5.07-1.38" stroke="none" fill="currentColor" opacity=".15"/><path d="M12 2a10 10 0 0 1 0 20 10 10 0 0 1 0-20" fill="none"/><path d="M12 2c3 3.6 3 14.4 0 20M12 2c-3 3.6-3 14.4 0 20"/>'),
+  xai: _i('<path d="M4 4l16 16M20 4l-9.5 9.5M10.5 19l-3-3" stroke-width="2.5"/>'),
+  minimax: _i('<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>'),
+  moonshot: _i('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>'),
+  kimi: _i('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M9 10l2 2 4-4"/><path d="M6 16h12"/>'),
+  zai: _i('<path d="M4 5h16"/><path d="M18 5L6 19"/><path d="M4 19h16"/>'),
+  venice: _i('<path d="M12 3l-2 6h4l-2 6"/><circle cx="12" cy="19" r="2"/><path d="M5 8c0-3 3-5 7-5s7 2 7 5"/>'),
+  xiaomi: _i('<rect x="2" y="6" width="20" height="14" rx="3"/><path d="M7 10v6"/><path d="M7 10h4v6"/><path d="M17 10v6"/><path d="M17 10h-4v6"/>'),
+  nvidia: _i('<path d="M3 12c0-5 4-9 9-9s9 4 9 9-4 9-9 9-9-4-9-9z"/><path d="M9 8v8l6-4z" fill="currentColor"/>'),
+  bedrock: _i('<path d="M19.43 12.98c.04-.32.07-.64.07-.98 0-.34-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.49.49 0 0 0 14 2h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1a.49.49 0 0 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65z"/><circle cx="12" cy="12" r="3"/>'),
+  synthetic: _i('<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2z"/>'),
+  huggingface: _i('<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/>'),
+  opencode: _i('<path d="M12 2a5 5 0 0 1 5 5c0 2-1 3.5-3 4.5V14a2 2 0 0 1-4 0v-2.5C8 10.5 7 9 7 7a5 5 0 0 1 5-5z"/><path d="M8 18a4 4 0 0 0 8 0"/>'),
+  qianfan: _i('<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>'),
+  openrouter: _i('<circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/><path d="m4.93 4.93 2.83 2.83m8.48 8.48 2.83 2.83M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"/>'),
+  vercel: _i('<path d="M12 2l10 18H2z" fill="currentColor" stroke="none"/>', 'currentColor'),
+  cloudflare: _i('<path d="M19 11c.9 0 1.7.4 2.2 1H22a4 4 0 0 0-4-4c-.6 0-1.2.1-1.7.4A6 6 0 0 0 5 11c0 .2 0 .3.02.5A3.5 3.5 0 0 0 5.5 18h13a2.5 2.5 0 0 0 .5-4.95z"/>'),
+  litellm: _i('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
+  ollama: _i('<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="10" cy="7" r="1" fill="currentColor"/><circle cx="14" cy="7" r="1" fill="currentColor"/>'),
+  vllm: _i('<path d="M12 2v6l3 3"/><path d="M9 11l3 3 3-3"/><rect x="4" y="16" width="16" height="4" rx="1"/><circle cx="8" cy="18" r="1" fill="currentColor"/><circle cx="12" cy="18" r="1" fill="currentColor"/>'),
+  // Channel icons
+  telegram: _i('<path d="M21.2 4.4L2.4 11.4c-.8.3-.8 1.1 0 1.4l4.3 1.6 1.7 5.3c.2.6.9.7 1.3.3l2.5-2.4 4.8 3.5c.5.4 1.3.1 1.4-.5L21.9 5.3c.2-.8-.4-1.2-.7-.9z"/><path d="M8.4 13.4l9-7.5"/>'),
+  discord: _i('<path d="M9.09 12a.87.87 0 1 0 0 1.74.87.87 0 0 0 0-1.74zm5.82 0a.87.87 0 1 0 0 1.74.87.87 0 0 0 0-1.74z" fill="currentColor"/><path d="M19.54 5.03A16.1 16.1 0 0 0 15.56 4c-.17.32-.38.74-.52 1.07a15.3 15.3 0 0 0-6.08 0A12.7 12.7 0 0 0 8.44 4a16.06 16.06 0 0 0-3.98 1.03C1.75 9.14.87 13.15 1.31 17.1a16.2 16.2 0 0 0 5.02 2.59c.4-.56.76-1.16 1.07-1.78a10.23 10.23 0 0 1-1.69-.83c.14-.1.28-.21.41-.32a11.54 11.54 0 0 0 9.76 0c.14.11.27.22.41.32-.54.33-1.1.6-1.69.83.31.62.67 1.22 1.07 1.78a16.17 16.17 0 0 0 5.02-2.59c.52-4.56-.88-8.53-3.65-12.07z"/>'),
+  slack: _i('<path d="M14.5 2c-.83 0-1.5.67-1.5 1.5V7h3.5c.83 0 1.5-.67 1.5-1.5S17.33 4 16.5 4h-2V2zm0 0c-.83 0-1.5.67-1.5 1.5" stroke="none" fill="none"/><rect x="13" y="2" width="3" height="5" rx="1.5"/><rect x="18" y="9" width="4" height="3" rx="1.5"/><rect x="8" y="2" width="3" height="5" rx="1.5" transform="rotate(90 9.5 4.5)"/><rect x="2" y="12" width="4" height="3" rx="1.5"/><rect x="8" y="17" width="3" height="5" rx="1.5"/><rect x="2" y="9" width="5" height="3" rx="1.5" transform="rotate(90 4.5 10.5)"/><rect x="13" y="17" width="3" height="5" rx="1.5"/><rect x="17" y="12" width="5" height="3" rx="1.5" transform="rotate(90 19.5 13.5)"/>'),
+  zalo: _i('<path d="M21 12a9 9 0 0 1-13.46 7.82L3 21l1.18-4.54A9 9 0 1 1 21 12z"/><path d="M8 10h2l1 4 2-6 1 4h2"/>'),
+  // Card title / action icons
+  check: _i('<polyline points="20 6 9 17 4 12"/>'),
+  plus: _i('<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'),
+  link: _i('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'),
+  lock: _i('<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
+  monitor: _i('<rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>'),
+  shield: _i('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+  download: _i('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
+  upload: _i('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
+  clipboard: _i('<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>'),
+  folder: _i('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'),
+  calendar: _i('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
+  trendingUp: _i('<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>'),
+  save: _i('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>'),
+  search: _i('<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
+  warning: _i('<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'),
+  headphones: _i('<path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zm-18 0a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>'),
+  party: _i('<path d="M5.8 11.3L2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 1.96L17.05 7l2.24-.75a2.9 2.9 0 0 0 1.96-1.96z"/><path d="m22 13-.76 2.27a2.9 2.9 0 0 1-1.96 1.96L17.05 18l.75-2.24a2.9 2.9 0 0 1 1.96-1.96z"/><path d="m8 2 .75 2.24a2.9 2.9 0 0 0 1.96 1.96L13 7l-.75-2.24a2.9 2.9 0 0 0-1.96-1.96z"/>'),
+  code: _i('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>'),
+  settings: _i('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+  rocket: _i('<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>'),
+  star: _i('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'),
+  chain: _i('<path d="M13.828 10.172a4 4 0 0 0-5.656 0l-4 4a4 4 0 1 0 5.656 5.656l1.102-1.101"/><path d="M10.172 13.828a4 4 0 0 0 5.656 0l4-4a4 4 0 0 0-5.656-5.656l-1.1 1.1"/>'),
+  file: _i('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
+  lockOpen: _i('<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>'),
+  play: _i('<polygon points="5 3 19 12 5 21 5 3"/>'),
+  trash: _i('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>'),
+  refreshCw: _i('<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>'),
+};
+
 // --- Provider configs ---
 // Category: 'cloud' = Cloud API, 'gateway' = Gateway/Proxy, 'local' = Self-hosted
 const PROVIDERS = {
   // ====== CLOUD PROVIDERS ======
   anthropic: {
     name: 'Anthropic', envKey: 'ANTHROPIC_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
-    color: '#d97706', icon: '\u2728', category: 'cloud',
+    color: '#d97706', icon: ICONS.anthropic, category: 'cloud',
     models: [
       { id: 'anthropic/claude-opus-4-6', name: 'Claude Opus 4.6', desc: 'Flagship — smartest' },
       { id: 'anthropic/claude-sonnet-4-6', name: 'Claude Sonnet 4.6', desc: 'Latest — balanced & fast' },
@@ -505,7 +586,7 @@ const PROVIDERS = {
   },
   openai: {
     name: 'OpenAI', envKey: 'OPENAI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#10a37f', icon: '\ud83e\udde0', category: 'cloud',
+    color: '#10a37f', icon: ICONS.openai, category: 'cloud',
     models: [
       { id: 'openai/gpt-5.1-codex', name: 'GPT-5.1 Codex', desc: 'Latest — code + reasoning' },
       { id: 'openai/gpt-5.2', name: 'GPT-5.2', desc: 'Powerful — general purpose' },
@@ -517,7 +598,7 @@ const PROVIDERS = {
   },
   gemini: {
     name: 'Google Gemini', envKey: 'GOOGLE_API_KEY', configFile: `${CONFIG_DIR}/gemini.json`,
-    color: '#4285f4', icon: '\ud83d\udc8e', category: 'cloud',
+    color: '#4285f4', icon: ICONS.gemini, category: 'cloud',
     models: [
       { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', desc: 'Flagship — reasoning & coding' },
       { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', desc: 'Balanced — fast thinking' },
@@ -528,7 +609,7 @@ const PROVIDERS = {
   },
   xai: {
     name: 'xAI (Grok)', envKey: 'XAI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#1d1d1f', icon: '\ud83d\ude80', category: 'cloud',
+    color: '#1d1d1f', icon: ICONS.xai, category: 'cloud',
     models: [
       { id: 'xai/grok-4-1-fast-reasoning', name: 'Grok 4.1 Fast', desc: 'Reasoning — 2M context' },
       { id: 'xai/grok-4-1-fast-non-reasoning', name: 'Grok 4.1 Instant', desc: 'Non-reasoning — 2M context' },
@@ -543,7 +624,7 @@ const PROVIDERS = {
   },
   minimax: {
     name: 'MiniMax', envKey: 'MINIMAX_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
-    color: '#6366f1', icon: '\u26a1', category: 'cloud',
+    color: '#6366f1', icon: ICONS.minimax, category: 'cloud',
     models: [
       { id: 'minimax/MiniMax-M2.5', name: 'MiniMax M2.5', desc: 'Latest — most capable' },
       { id: 'minimax/MiniMax-M2.1', name: 'MiniMax M2.1', desc: 'Balanced — reliable' },
@@ -554,7 +635,7 @@ const PROVIDERS = {
   },
   moonshot: {
     name: 'Moonshot AI', envKey: 'MOONSHOT_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#7c3aed', icon: '\ud83c\udf19', category: 'cloud',
+    color: '#7c3aed', icon: ICONS.moonshot, category: 'cloud',
     models: [
       { id: 'moonshot/kimi-k2.5', name: 'Kimi K2.5', desc: 'Latest — most powerful' },
       { id: 'moonshot/kimi-k2-thinking', name: 'Kimi K2 Thinking', desc: 'Reasoning — deep thinking' },
@@ -566,7 +647,7 @@ const PROVIDERS = {
   },
   'kimi-coding': {
     name: 'Kimi Coding', envKey: 'KIMI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#8b5cf6', icon: '\ud83d\udcbb', category: 'cloud',
+    color: '#8b5cf6', icon: ICONS.kimi, category: 'cloud',
     models: [
       { id: 'kimi-coding/kimi-k2.5', name: 'Kimi K2.5', desc: 'Latest — code optimized' },
       { id: 'kimi-coding/kimi-k2-thinking', name: 'Kimi K2 Thinking', desc: 'Reasoning — deep thinking' },
@@ -576,7 +657,7 @@ const PROVIDERS = {
   },
   zai: {
     name: 'Z.AI (GLM)', envKey: 'ZAI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#0ea5e9', icon: '\ud83e\udd16', category: 'cloud',
+    color: '#0ea5e9', icon: ICONS.zai, category: 'cloud',
     models: [
       { id: 'zai/glm-5', name: 'GLM-5', desc: 'Flagship — most powerful' },
       { id: 'zai/glm-4.7', name: 'GLM-4.7', desc: 'Balanced — reasoning' },
@@ -587,7 +668,7 @@ const PROVIDERS = {
   },
   venice: {
     name: 'Venice AI', envKey: 'VENICE_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#f43f5e', icon: '\ud83c\udfad', category: 'cloud',
+    color: '#f43f5e', icon: ICONS.venice, category: 'cloud',
     models: [
       { id: 'venice/deepseek-v3.2', name: 'DeepSeek V3.2', desc: 'Powerful — open source' },
       { id: 'venice/qwen3-235b-a22b-thinking-2507', name: 'Qwen3 235B Thinking', desc: 'Reasoning — large' },
@@ -599,7 +680,7 @@ const PROVIDERS = {
   },
   xiaomi: {
     name: 'Xiaomi MiMo', envKey: 'XIAOMI_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
-    color: '#ff6900', icon: '\ud83d\udcf1', category: 'cloud',
+    color: '#ff6900', icon: ICONS.xiaomi, category: 'cloud',
     models: [
       { id: 'xiaomi/mimo-v2-flash', name: 'MiMo V2 Flash', desc: '262K context — fast' }
     ],
@@ -607,7 +688,7 @@ const PROVIDERS = {
   },
   nvidia: {
     name: 'NVIDIA', envKey: 'NVIDIA_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#76b900', icon: '\ud83d\udfe2', category: 'cloud',
+    color: '#76b900', icon: ICONS.nvidia, category: 'cloud',
     models: [
       { id: 'nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1', name: 'Nemotron Ultra 253B', desc: 'Flagship — strongest reasoning' },
       { id: 'nvidia/meta/llama-3.3-70b-instruct', name: 'Llama 3.3 70B', desc: 'Meta — balanced' },
@@ -621,7 +702,7 @@ const PROVIDERS = {
   },
   bedrock: {
     name: 'Amazon Bedrock', envKey: 'AWS_ACCESS_KEY_ID', configFile: `${CONFIG_DIR}/anthropic.json`,
-    color: '#ff9900', icon: '\u2601\ufe0f', category: 'cloud',
+    color: '#ff9900', icon: ICONS.bedrock, category: 'cloud',
     keyLabel: 'Access Key ID',
     keyPlaceholder: 'e.g. AKIA...',
     extraEnvKeys: ['AWS_SECRET_ACCESS_KEY', 'AWS_REGION'],
@@ -640,7 +721,7 @@ const PROVIDERS = {
   },
   synthetic: {
     name: 'Synthetic', envKey: 'SYNTHETIC_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
-    color: '#a855f7', icon: '\ud83e\uddec', category: 'cloud',
+    color: '#a855f7', icon: ICONS.synthetic, category: 'cloud',
     models: [
       { id: 'synthetic/hf:nvidia/Kimi-K2.5-NVFP4', name: 'Kimi K2.5 NVFP4', desc: 'Reasoning — multimodal' },
       { id: 'synthetic/hf:Qwen/Qwen3.5-397B-A17B', name: 'Qwen 3.5 397B', desc: 'Reasoning — multimodal' },
@@ -660,7 +741,7 @@ const PROVIDERS = {
   },
   huggingface: {
     name: 'Hugging Face', envKey: 'HF_TOKEN', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#ff9d00', icon: '\ud83e\udd17', category: 'cloud',
+    color: '#ff9d00', icon: ICONS.huggingface, category: 'cloud',
     models: [
       { id: 'huggingface/deepseek-ai/DeepSeek-R1', name: 'DeepSeek R1', desc: 'Reasoning — open source' },
       { id: 'huggingface/deepseek-ai/DeepSeek-V3.2', name: 'DeepSeek V3.2', desc: 'Powerful — open source' },
@@ -672,7 +753,7 @@ const PROVIDERS = {
   },
   opencode: {
     name: 'OpenCode Zen', envKey: 'OPENCODE_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#14b8a6', icon: '\ud83e\uddd8', category: 'cloud',
+    color: '#14b8a6', icon: ICONS.opencode, category: 'cloud',
     models: [
       { id: 'opencode/claude-opus-4-6', name: 'Claude Opus 4.6', desc: 'Anthropic via OpenCode' }
     ],
@@ -680,7 +761,7 @@ const PROVIDERS = {
   },
   qianfan: {
     name: 'Qianfan (Baidu)', envKey: 'QIANFAN_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#2563eb', icon: '\u2601\ufe0f', category: 'cloud',
+    color: '#2563eb', icon: ICONS.qianfan, category: 'cloud',
     models: [
       { id: 'qianfan/ernie-4.5-turbo-128k', name: 'ERNIE 4.5 Turbo', desc: 'Baidu — flagship' }
     ],
@@ -690,7 +771,7 @@ const PROVIDERS = {
   // ====== GATEWAY / PROXY PROVIDERS ======
   openrouter: {
     name: 'OpenRouter', envKey: 'OPENROUTER_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#6d28d9', icon: '\ud83d\udd00', category: 'gateway',
+    color: '#6d28d9', icon: ICONS.openrouter, category: 'gateway',
     models: [
       { id: 'openrouter/anthropic/claude-opus-4', name: 'Claude Opus 4', desc: 'Anthropic via OpenRouter' },
       { id: 'openrouter/openai/gpt-5.2', name: 'GPT-5.2', desc: 'OpenAI via OpenRouter' },
@@ -701,7 +782,7 @@ const PROVIDERS = {
   },
   'vercel-ai-gateway': {
     name: 'Vercel AI Gateway', envKey: 'AI_GATEWAY_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#000000', icon: '\u25b2', category: 'gateway',
+    color: '#000000', icon: ICONS.vercel, category: 'gateway',
     models: [
       { id: 'vercel-ai-gateway/anthropic/claude-opus-4.6', name: 'Claude Opus 4.6', desc: 'Anthropic via Vercel' },
       { id: 'vercel-ai-gateway/openai/gpt-5.2', name: 'GPT-5.2', desc: 'OpenAI via Vercel' }
@@ -710,7 +791,7 @@ const PROVIDERS = {
   },
   'cloudflare-ai-gateway': {
     name: 'Cloudflare AI Gateway', envKey: 'CLOUDFLARE_AI_GATEWAY_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
-    color: '#f38020', icon: '\u2601\ufe0f', category: 'gateway',
+    color: '#f38020', icon: ICONS.cloudflare, category: 'gateway',
     keyLabel: 'Anthropic API Key',
     keyPlaceholder: 'sk-ant-... (key proxied through Cloudflare)',
     extraEnvKeys: ['CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID', 'CLOUDFLARE_AI_GATEWAY_GATEWAY_ID'],
@@ -727,7 +808,7 @@ const PROVIDERS = {
   },
   litellm: {
     name: 'LiteLLM Proxy', envKey: 'LITELLM_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#059669', icon: '\ud83d\udd17', category: 'gateway',
+    color: '#059669', icon: ICONS.litellm, category: 'gateway',
     models: [
       { id: 'litellm/claude-opus-4-6', name: 'Claude Opus 4.6', desc: 'Via LiteLLM Proxy' },
       { id: 'litellm/gpt-4o', name: 'GPT-4o', desc: 'OpenAI via LiteLLM' }
@@ -738,7 +819,7 @@ const PROVIDERS = {
   // ====== SELF-HOSTED / LOCAL PROVIDERS ======
   ollama: {
     name: 'Ollama', envKey: 'OLLAMA_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#333333', icon: '\ud83e\uddac', category: 'local',
+    color: '#333333', icon: ICONS.ollama, category: 'local',
     models: [
       { id: 'ollama/llama3.3', name: 'Llama 3.3', desc: 'Meta — local' },
       { id: 'ollama/gpt-oss:20b', name: 'GPT-OSS 20B', desc: 'OpenAI OSS — local' },
@@ -748,7 +829,7 @@ const PROVIDERS = {
   },
   vllm: {
     name: 'vLLM', envKey: 'VLLM_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
-    color: '#475569', icon: '\u2699\ufe0f', category: 'local',
+    color: '#475569', icon: ICONS.vllm, category: 'local',
     models: [
       { id: 'vllm/your-model-id', name: 'Custom Model', desc: 'OpenAI-compatible local' }
     ],
@@ -758,20 +839,21 @@ const PROVIDERS = {
 
 // --- Channel configs ---
 const CHANNELS = {
-  telegram: { name: 'Telegram', icon: '\ud83d\udce8', envKeys: ['TELEGRAM_BOT_TOKEN'], envLabels: { TELEGRAM_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { TELEGRAM_BOT_TOKEN: 'e.g. 123456:ABC-DEF...' }, pairCmd: 'telegram', desc: 'Create bot via @BotFather on Telegram', canPair: true, isBuiltin: true,
+  telegram: { name: 'Telegram', icon: ICONS.telegram, envKeys: ['TELEGRAM_BOT_TOKEN'], envLabels: { TELEGRAM_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { TELEGRAM_BOT_TOKEN: 'e.g. 123456:ABC-DEF...' }, pairCmd: 'telegram', desc: 'Create bot via @BotFather on Telegram', canPair: true, isBuiltin: true,
     testFn: (tokens) => { try { const t = tokens.TELEGRAM_BOT_TOKEN; if (!t) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.telegram.org/bot${t.replace(/'/g,"'\\''")}/getMe`, 15000) === '200'; } catch { return false; } } },
-  discord: { name: 'Discord', icon: '\ud83c\udfae', envKeys: ['DISCORD_BOT_TOKEN'], envLabels: { DISCORD_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { DISCORD_BOT_TOKEN: 'e.g. MTQ3NTg...' }, pairCmd: 'discord', desc: 'Create bot at discord.com/developers', canPair: true, isBuiltin: true,
+  discord: { name: 'Discord', icon: ICONS.discord, envKeys: ['DISCORD_BOT_TOKEN'], envLabels: { DISCORD_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { DISCORD_BOT_TOKEN: 'e.g. MTQ3NTg...' }, pairCmd: 'discord', desc: 'Create bot at discord.com/developers', canPair: true, isBuiltin: true,
     testFn: (tokens) => { try { const t = tokens.DISCORD_BOT_TOKEN; if (!t) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://discord.com/api/v10/users/@me -H 'Authorization: Bot ${t.replace(/'/g,"'\\''")}'`, 15000) === '200'; } catch { return false; } } },
-  slack: { name: 'Slack', icon: '\ud83d\udcbc', envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], envLabels: { SLACK_BOT_TOKEN: 'Bot Token (xoxb-...)', SLACK_APP_TOKEN: 'App Token (xapp-...)' }, envPlaceholders: { SLACK_BOT_TOKEN: 'xoxb-...', SLACK_APP_TOKEN: 'xapp-...' }, pairCmd: 'slack', desc: 'Create app at api.slack.com/apps', canPair: true, isBuiltin: true,
+  slack: { name: 'Slack', icon: ICONS.slack, envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], envLabels: { SLACK_BOT_TOKEN: 'Bot Token (xoxb-...)', SLACK_APP_TOKEN: 'App Token (xapp-...)' }, envPlaceholders: { SLACK_BOT_TOKEN: 'xoxb-...', SLACK_APP_TOKEN: 'xapp-...' }, pairCmd: 'slack', desc: 'Create app at api.slack.com/apps', canPair: true, isBuiltin: true,
     testFn: (tokens) => { try { const t = tokens.SLACK_BOT_TOKEN; const a = tokens.SLACK_APP_TOKEN; if (!t || !a) return false; if (!a.startsWith('xapp-')) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://slack.com/api/auth.test -H 'Authorization: Bearer ${t.replace(/'/g,"'\\''")}'`, 15000) === '200'; } catch { return false; } } },
-  zalo: { name: 'Zalo', icon: '\ud83d\udcac', envKeys: ['ZALO_BOT_TOKEN'], envLabels: { ZALO_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { ZALO_BOT_TOKEN: 'Token from bot.zaloplatforms.com' }, pairCmd: 'zalo', desc: 'Create bot at bot.zaloplatforms.com', canPair: true, isBuiltin: true }
+  zalo: { name: 'Zalo', icon: ICONS.zalo, envKeys: ['ZALO_BOT_TOKEN'], envLabels: { ZALO_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { ZALO_BOT_TOKEN: 'Token from bot.zaloplatforms.com' }, pairCmd: 'zalo', desc: 'Create bot at bot.zaloplatforms.com', canPair: true, isBuiltin: true }
 };
+
 
 // --- CSS ---
 const CSS = `
 :root{--bg:#f4f6fb;--sidebar-bg:#111318;--sidebar-w:250px;--card-bg:#fff;--accent:#4285f4;--accent2:#34a853;--text:#1a1a2e;--text2:#5f6368;--border:#e8eaed;--danger:#ea4335;--warn:#fbbc05;--radius:16px}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f6fb;color:var(--text);min-height:100vh;display:flex}
+body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f6fb;color:var(--text);min-height:100vh;display:flex;transition:background-color .3s ease,color .3s ease}
 
 /* Sidebar */
 .sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);min-height:100vh;position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:10}
@@ -786,7 +868,10 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .nav-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.85)}
 .nav-item.active{background:rgba(255,255,255,.08);color:#fff}
 .nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:linear-gradient(180deg,#4285f4,#34a853);border-radius:0 3px 3px 0}
-.nav-item .nav-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0}
+.nav-item .nav-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+.nav-icon svg{width:18px;height:18px}
+.ct-icon{display:inline-flex;align-items:center} .ct-icon svg{width:20px;height:20px}
+.prov-card-icon svg{width:28px;height:28px}
 /* Sidebar Footer */
 .sidebar-footer{border-top:1px solid rgba(255,255,255,.06);padding:0}
 .sidebar-footer-top{padding:12px 14px 8px;display:flex;align-items:center}
@@ -804,11 +889,12 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 
 /* Main */
 .main{margin-left:var(--sidebar-w);flex:1;padding:32px 36px;min-height:100vh}
-.page-title{font-size:26px;font-weight:800;margin-bottom:6px;color:var(--text);letter-spacing:-.3px}
+.page-title{font-size:26px;font-weight:800;margin-bottom:6px;color:var(--text);letter-spacing:-.3px;display:flex;align-items:center;gap:10px}
+.page-title svg{width:28px;height:28px;flex-shrink:0}
 .page-desc{font-size:14px;color:var(--text2);margin-bottom:28px;line-height:1.6}
 
 /* Cards */
-.card{background:linear-gradient(135deg,#ffffff 0%,#f9fafb 100%);border-radius:var(--radius);padding:32px;box-shadow:0 10px 40px rgba(0,0,0,.08);border:1px solid rgba(0,0,0,.06);margin-bottom:24px;position:relative;overflow:hidden}
+.card{background:linear-gradient(135deg,#ffffff 0%,#f9fafb 100%);border-radius:var(--radius);padding:32px;box-shadow:0 10px 40px rgba(0,0,0,.08);border:1px solid rgba(0,0,0,.06);margin-bottom:24px;position:relative;overflow:hidden;transition:background-color .3s ease,border-color .3s ease,box-shadow .3s ease}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));opacity:.85}
 .card-title{font-size:17px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:10px}
 .card-title .ct-icon{font-size:20px}
@@ -839,6 +925,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 
 /* Buttons */
 .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .3s ease;border:none}
+.btn svg{width:16px;height:16px;flex-shrink:0}
 .btn-primary{background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;box-shadow:0 4px 15px rgba(66,133,244,.3)}
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.4)}
 .btn-success{background:linear-gradient(135deg,#34a853,#1e8e3e);color:#fff;box-shadow:0 4px 15px rgba(52,168,83,.3)}
@@ -861,6 +948,12 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .status.fail{display:block;background:#fce8e6;border:1px solid #ea4335;color:#c5221f}
 .status.loading{display:block;background:#e8f0fe;border:1px solid #4285f4;color:#1967d2}
 .status.warn{display:block;background:#fef7e0;border:1px solid #fbbc05;color:#b45309}
+
+/* Skeleton loading placeholder */
+.skeleton{background:linear-gradient(90deg,var(--bg2) 25%,rgba(66,133,244,.08) 50%,var(--bg2) 75%);background-size:200% 100%;animation:skeleton-shimmer 1.5s ease infinite;border-radius:8px;min-height:20px}
+@keyframes skeleton-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skeleton-text{height:14px;margin:8px 0;border-radius:4px}
+.skeleton-block{height:60px;margin:8px 0}
 
 /* Info rows */
 .info-grid{display:grid;gap:0}
@@ -909,6 +1002,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .doc-btn:hover{border-color:var(--accent);box-shadow:0 8px 25px rgba(66,133,244,.12);transform:translateY(-2px)}
 .doc-btn.running{opacity:.6;pointer-events:none}
 .doc-btn .db-icon{font-size:26px;width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.doc-btn .db-icon svg{width:22px;height:22px}
 .doc-btn .db-info{flex:1} .doc-btn .db-title{font-size:14px;font-weight:700;color:var(--text)} .doc-btn .db-desc{font-size:12px;color:var(--text2);margin-top:3px}
 .doc-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin-bottom:18px}
 .doc-stat{text-align:center;padding:16px 10px;background:linear-gradient(135deg,#f8f9fa,#f0f4ff);border-radius:12px;border:1px solid var(--border)}
@@ -916,7 +1010,8 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .doc-checks{display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto}
 .doc-check{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-size:13px;border:1px solid var(--border);background:#fff}
 .doc-check.pass{border-left:4px solid #22c55e} .doc-check.warn{border-left:4px solid #f59e0b} .doc-check.fail{border-left:4px solid #ef4444}
-.doc-check .dc-icon{font-size:18px;flex-shrink:0;width:22px;text-align:center} .doc-check .dc-text{flex:1;color:var(--text);font-weight:600} .doc-check .dc-detail{color:var(--text2);font-size:12px;max-width:50%;text-align:right}
+.doc-check .dc-icon{font-size:18px;flex-shrink:0;width:22px;text-align:center;display:flex;align-items:center;justify-content:center}
+.doc-check .dc-icon svg{width:18px;height:18px} .doc-check .dc-text{flex:1;color:var(--text);font-weight:600} .doc-check .dc-detail{color:var(--text2);font-size:12px;max-width:50%;text-align:right}
 .doc-hist{display:flex;flex-direction:column;gap:8px}
 .doc-hist-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font-size:13px;transition:all .3s ease}
 .doc-hist-item:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.04)}
@@ -971,6 +1066,7 @@ body.dark .status.ok{background:#0a2e1a;border-color:#1a4a2a;color:#4ade80}
 body.dark .status.fail{background:#2e0a0a;border-color:#4a1a1a;color:#f87171}
 body.dark .status.loading{background:#0a1a2e;border-color:#1a2a4a;color:#60a5fa}
 body.dark .status.warn{background:#2e1a0a;border-color:#4a2a1a;color:#fbbf24}
+body.dark .skeleton{background:linear-gradient(90deg,#1e293b 25%,#2a3a4e 50%,#1e293b 75%);background-size:200% 100%}
 body.dark .info-row:hover{background:rgba(66,133,244,.05)}
 
 /* Animations */
@@ -991,6 +1087,7 @@ body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scroll
 /* Empty State */
 .empty-state{text-align:center;padding:32px 20px;color:var(--text2)}
 .empty-state .empty-icon{font-size:36px;margin-bottom:12px;opacity:.5}
+.empty-state .empty-icon svg{width:36px;height:36px}
 .empty-state .empty-text{font-size:14px;line-height:1.6}
 
 /* Toggle Switch */
@@ -1007,12 +1104,15 @@ body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scroll
 .stat-card{padding:16px 12px;border-radius:12px;border:1px solid var(--border);background:linear-gradient(135deg,#f8f9fa,#f0f4ff);text-align:center;transition:all .3s ease}
 .stat-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.06)}
 .stat-card .stat-num{font-size:28px;font-weight:800;line-height:1;color:var(--text)}
-.stat-card .stat-label{font-size:11px;color:var(--text2);margin-top:6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.stat-card .stat-label{font-size:11px;color:var(--text2);margin-top:6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;gap:4px}
+.stat-card .stat-label svg{width:12px;height:12px}
 .stat-card.green .stat-num{color:#16a34a} .stat-card.red .stat-num{color:#dc2626} .stat-card.amber .stat-num{color:#d97706} .stat-card.blue .stat-num{color:#2563eb}
+.muted{color:var(--text2);font-size:13px}
 
 /* Filter Pills */
 .filter-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-.filter-pill{padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;border:2px solid var(--border);background:var(--card-bg);color:var(--text2);cursor:pointer;transition:all .2s ease;user-select:none}
+.filter-pill{padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;border:2px solid var(--border);background:var(--card-bg);color:var(--text2);cursor:pointer;transition:all .2s ease;user-select:none;display:inline-flex;align-items:center;gap:6px}
+.filter-pill svg{width:14px;height:14px}
 .filter-pill:hover{border-color:var(--accent);color:var(--accent);background:rgba(66,133,244,.04)}
 .filter-pill.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 8px rgba(66,133,244,.25)}
 .filter-pill .pill-count{font-size:11px;opacity:.7;margin-left:4px}
@@ -1036,6 +1136,7 @@ body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scroll
 .market-card{border:2px solid var(--border);border-radius:14px;padding:18px;transition:all .3s ease;background:var(--card-bg);cursor:pointer}
 .market-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.12)}
 .market-card .market-icon{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,rgba(66,133,244,.12),rgba(52,168,83,.12));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;transition:transform .2s ease}
+.market-card .market-icon svg{width:22px;height:22px}
 .market-card:hover .market-icon{transform:scale(1.1)}
 .market-card .market-name{font-size:14px;font-weight:700;color:var(--text);transition:color .2s}
 .market-card:hover .market-name{color:var(--accent)}
@@ -1048,7 +1149,7 @@ body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scroll
 .search-input{width:100%;padding:10px 16px 10px 38px;border:2px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);background:var(--card-bg);outline:none;transition:all .3s ease}
 .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(66,133,244,.1)}
 .search-wrap{position:relative;margin-bottom:14px}
-.search-wrap::before{content:'\ud83d\udd0d';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;opacity:.5;pointer-events:none}
+.search-wrap::before{content:'';position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;opacity:.4;pointer-events:none;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") center/contain no-repeat}
 
 /* Modal */
 .modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn .2s ease}
@@ -1060,7 +1161,8 @@ body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scroll
 .modal-close{width:32px;height:32px;border-radius:8px;border:none;background:transparent;color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .modal-close:hover{background:var(--border);color:var(--text)}
 .modal-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px}
-.modal-tab{padding:10px 20px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s}
+.modal-tab{padding:10px 20px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.modal-tab svg{width:14px;height:14px}
 .modal-tab:hover{color:var(--text)}
 .modal-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 
@@ -1104,6 +1206,7 @@ body.dark .modal-close:hover{background:rgba(255,255,255,.1)}
   .modal-header{padding:16px 16px 12px}
   .modal-body{padding:16px}
   .modal-footer{padding:12px 16px}
+  #browserCards{grid-template-columns:1fr !important}
 }`;
 
 // --- Login HTML ---
@@ -1122,15 +1225,14 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .field input{width:100%;padding:12px 16px;background:#f8f9fa;border:2px solid #e8eaed;border-radius:10px;color:#1a1a2e;font-size:15px;outline:none;transition:all .3s ease} .field input:focus{border-color:#4285f4;background:#fff;box-shadow:0 0 0 4px rgba(66,133,244,.1)}
 .btn{width:100%;padding:14px;background:linear-gradient(135deg,#4285f4,#34a853);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:all .3s ease;box-shadow:0 4px 15px rgba(66,133,244,.3)} .btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.4)} .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 .err{padding:10px 14px;border-radius:8px;font-size:13px;margin-top:14px;display:none;font-weight:500;background:#fce8e6;border:1px solid #f5c6cb;color:#ea4335} .err.show{display:block}
-@media(prefers-color-scheme:dark){
-  body{background:linear-gradient(135deg,#0f172a 0%,#1a2438 50%,#1e1a2e 100%);color:#e2e8f0}
-  .card{background:linear-gradient(135deg,#1e293b,#1a2438);border-color:#334155}
-  .field input{background:#0f172a;border-color:#334155;color:#e2e8f0}
-  .field input:focus{background:#0f172a;border-color:#4285f4;box-shadow:0 0 0 4px rgba(66,133,244,.2)}
-  .field label{color:#94a3b8} .logo p{color:#94a3b8}
-  .err{background:#2e0a0a;border-color:#4a1a1a;color:#f87171}
-}
+body.dark{background:linear-gradient(135deg,#0f172a 0%,#1a2438 50%,#1e1a2e 100%);color:#e2e8f0}
+body.dark .card{background:linear-gradient(135deg,#1e293b,#1a2438);border-color:#334155}
+body.dark .field input{background:#0f172a;border-color:#334155;color:#e2e8f0}
+body.dark .field input:focus{background:#0f172a;border-color:#4285f4;box-shadow:0 0 0 4px rgba(66,133,244,.2)}
+body.dark .field label{color:#94a3b8} body.dark .logo p{color:#94a3b8}
+body.dark .err{background:#2e0a0a;border-color:#4a1a1a;color:#f87171}
 </style></head><body>
+<script>try{if(localStorage.getItem('oc-dark')==='1')document.body.classList.add('dark')}catch{}</script>
 <div class="wrap">
   <div class="logo"><h1>OpenClaw</h1><p>Management Panel</p></div>
   <div class="card">
@@ -1169,28 +1271,28 @@ function panelPage() {
   <div class="brand"><h1>OpenClaw</h1><p>Management Panel</p></div>
   <nav>
     <div class="nav-group-label">AI</div>
-    <div class="nav-item active" onclick="showTab('provider',this)"><span class="nav-icon">\u2728</span>AI Provider</div>
-    <div class="nav-item" onclick="showTab('fallback',this)"><span class="nav-icon">\ud83d\udd04</span>Fallback</div>
-    <div class="nav-item" onclick="showTab('agents',this)"><span class="nav-icon">\ud83e\udd16</span>Agents</div>
-    <div class="nav-item" onclick="showTab('channels',this)"><span class="nav-icon">\ud83d\udce8</span>Channels</div>
-    <div class="nav-item" onclick="showTab('chat',this)"><span class="nav-icon">\ud83d\udcac</span>Playground</div>
+    <div class="nav-item active" onclick="showTab('provider',this)"><span class="nav-icon">${ICONS.sparkles}</span>AI Provider</div>
+    <div class="nav-item" onclick="showTab('fallback',this)"><span class="nav-icon">${ICONS.refresh}</span>Fallback</div>
+    <div class="nav-item" onclick="showTab('agents',this)"><span class="nav-icon">${ICONS.robot}</span>Agents</div>
+    <div class="nav-item" onclick="showTab('channels',this)"><span class="nav-icon">${ICONS.mail}</span>Channels</div>
+    <div class="nav-item" onclick="showTab('chat',this)"><span class="nav-icon">${ICONS.messageCircle}</span>Playground</div>
     <div class="nav-group-label">Infrastructure</div>
-    <div class="nav-item" onclick="showTab('gateway',this)"><span class="nav-icon">\ud83d\udd11</span>Gateway</div>
-    <div class="nav-item" onclick="showTab('domain',this)"><span class="nav-icon">\ud83c\udf10</span>Domain & SSL</div>
-    <div class="nav-item" onclick="showTab('browser',this)"><span class="nav-icon">\ud83e\udd8a</span>Browser</div>
-    <div class="nav-item" onclick="showTab('plugins',this)"><span class="nav-icon">\ud83e\udde9</span>Plugins</div>
-    <div class="nav-item" onclick="showTab('skills',this)"><span class="nav-icon">\u26a1</span>Skills</div>
-    <div class="nav-item" onclick="showTab('config',this)"><span class="nav-icon">\ud83d\udd27</span>Config</div>
-    <div class="nav-item" onclick="showTab('qr',this)"><span class="nav-icon">\ud83d\udcf1</span>QR Code</div>
+    <div class="nav-item" onclick="showTab('gateway',this)"><span class="nav-icon">${ICONS.key}</span>Gateway</div>
+    <div class="nav-item" onclick="showTab('domain',this)"><span class="nav-icon">${ICONS.globe}</span>Domain & SSL</div>
+    <div class="nav-item" onclick="showTab('browser',this)"><span class="nav-icon">${ICONS.fox}</span>Browser</div>
+    <div class="nav-item" onclick="showTab('plugins',this)"><span class="nav-icon">${ICONS.puzzle}</span>Plugins</div>
+    <div class="nav-item" onclick="showTab('skills',this)"><span class="nav-icon">${ICONS.zap}</span>Skills</div>
+    <div class="nav-item" onclick="showTab('config',this)"><span class="nav-icon">${ICONS.wrench}</span>Config</div>
+    <div class="nav-item" onclick="showTab('qr',this)"><span class="nav-icon">${ICONS.smartphone}</span>QR Code</div>
     <div class="nav-group-label">Monitoring</div>
-    <div class="nav-item" onclick="showTab('analytics',this)"><span class="nav-icon">\ud83d\udcca</span>Analytics</div>
-    <div class="nav-item" onclick="showTab('history',this)"><span class="nav-icon">\ud83d\udcdd</span>History</div>
-    <div class="nav-item" onclick="showTab('status',this)"><span class="nav-icon">\ud83d\udfe2</span>Status</div>
-    <div class="nav-item" onclick="showTab('doctor',this)"><span class="nav-icon">\ud83e\ude7a</span>Doctor</div>
+    <div class="nav-item" onclick="showTab('analytics',this)"><span class="nav-icon">${ICONS.barChart}</span>Analytics</div>
+    <div class="nav-item" onclick="showTab('history',this)"><span class="nav-icon">${ICONS.fileText}</span>History</div>
+    <div class="nav-item" onclick="showTab('status',this)"><span class="nav-icon">${ICONS.circleDot}</span>Status</div>
+    <div class="nav-item" onclick="showTab('doctor',this)"><span class="nav-icon">${ICONS.stethoscope}</span>Doctor</div>
     <div class="nav-group-label">Admin</div>
-    <div class="nav-item" onclick="showTab('users',this)"><span class="nav-icon">\ud83d\udc65</span>Users</div>
-    <div class="nav-item" onclick="showTab('backup',this)"><span class="nav-icon">\ud83d\udce6</span>Backup</div>
-    <div class="nav-item" onclick="showTab('update',this)"><span class="nav-icon">\u2b06\ufe0f</span>Update</div>
+    <div class="nav-item" onclick="showTab('users',this)"><span class="nav-icon">${ICONS.users}</span>Users</div>
+    <div class="nav-item" onclick="showTab('backup',this)"><span class="nav-icon">${ICONS.package}</span>Backup</div>
+    <div class="nav-item" onclick="showTab('update',this)"><span class="nav-icon">${ICONS.arrowUp}</span>Update</div>
   </nav>
   <div class="sidebar-footer">
     <div class="sidebar-footer-top">
@@ -1220,8 +1322,8 @@ function panelPage() {
   <div class="section active" id="sec-provider">
     <div class="page-title">AI Provider</div>
     <div class="page-desc">Select AI provider, configure API key and choose your model.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Overview</div><div id="providerSummary" class="stat-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> All Providers</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.barChart}</span> Overview</div><div id="providerSummary" class="stat-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.refresh}</span> All Providers</div>
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap"><div class="search-wrap" style="flex:1;min-width:200px"><input type="text" class="search-input" id="providerSearchInput" placeholder="Search providers..." oninput="filterProviders()"></div></div>
       <div class="filter-pills" id="providerFilterPills" style="margin-bottom:14px"></div>
       <div id="providerGrid"></div>
@@ -1235,11 +1337,11 @@ function panelPage() {
     <div class="page-title">Multi-Provider Fallback</div>
     <div class="page-desc">Configure fallback provider — auto switch when primary is down.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u26d3\ufe0f</span> Fallback Chain</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.chain}</span> Fallback Chain</div>
       <div id="fbChain" class="fb-chain"><div class="muted">Loading...</div></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u2795</span> Add Fallback Provider</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.plus}</span> Add Fallback Provider</div>
       <div class="field"><label>Provider</label><select id="fbProvider" onchange="onFbProviderChange()"><option value="">-- Select provider --</option></select></div>
       <div class="field"><label>Model</label><select id="fbModel"></select></div>
       <div class="field"><label>API Key</label><input type="password" id="fbApiKey" placeholder="Enter API key for this provider"></div>
@@ -1247,7 +1349,7 @@ function panelPage() {
       <div class="status" id="fbAddStatus"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u2699\ufe0f</span> Settings</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.settings}</span> Settings</div>
       <div class="field"><label>Rate limit (requests/min)</label><input type="number" id="fbRateLimit" value="60" min="1" max="1000"></div>
       <div class="field"><label>Cooldown on fail (seconds)</label><input type="number" id="fbCooldown" value="300" min="10" max="3600"></div>
       <div class="btn-row"><button class="btn btn-primary" onclick="saveFallbackSettings()">Save Settings</button></div>
@@ -1260,18 +1362,18 @@ function panelPage() {
     <div class="page-title">Multi-Agent Management</div>
     <div class="page-desc">Manage agents — each agent has its own workspace, model and routing.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Overview</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.barChart}</span> Overview</div>
       <div id="agentSummary" class="stat-grid"><div class="muted">Loading...</div></div>
       <div class="btn-row" style="margin-top:10px"><button class="btn btn-outline btn-sm" onclick="loadAgents()">↻ Refresh</button></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83e\udd16</span> Agents</div>
-      <div class="search-wrap"><input type="text" class="search-input" id="agentSearch" placeholder="\ud83d\udd0d Search agents..." oninput="filterAgents()"></div>
+      <div class="card-title"><span class="ct-icon">${ICONS.robot}</span> Agents</div>
+      <div class="search-wrap"><input type="text" class="search-input" id="agentSearch" placeholder="Search agents..." oninput="filterAgents()"></div>
       <div id="agentFilterPills" class="filter-pills"></div>
       <div id="agentGrid" class="skill-grid"><div class="muted">Loading...</div></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u2795</span> Add New Agent</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.plus}</span> Add New Agent</div>
       <div class="field"><label>Template</label><select id="agentTemplate" onchange="applyAgentTemplate()"><option value="">-- Custom --</option><option value="support">\ud83c\udfa7 Support Bot</option><option value="community">\ud83c\udf89 Community Manager</option><option value="developer">\ud83d\udcbb Developer Assistant</option></select></div>
       <div class="field"><label>Agent Name (ID)</label><input type="text" id="newAgentName" placeholder="e.g. support, sales, dev"></div>
       <div class="field"><label>Model</label><select id="newAgentModel" onchange="toggleNewAgentCustomModel()"><option value="">-- Select model --</option></select></div>
@@ -1287,8 +1389,8 @@ function panelPage() {
   <div class="section" id="sec-channels">
     <div class="page-title">Messaging Channels</div>
     <div class="page-desc">Configure and pair chat channels with AI.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\u2705</span> Active</div><div id="currentChannels" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\u2795</span> Add Channel</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.check}</span> Active</div><div id="currentChannels" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.plus}</span> Add Channel</div>
       <div class="ch-list" id="channelList"></div>
       <div id="channelConfig" style="display:none" class="config-pane">
         <div id="channelFields"></div>
@@ -1311,8 +1413,8 @@ function panelPage() {
   <div class="section" id="sec-gateway">
     <div class="page-title">Gateway</div>
     <div class="page-desc">Auth token, device pairing and dashboard management.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd11</span> Information</div><div id="gatewayInfo" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd17</span> Pair Dashboard</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.key}</span> Information</div><div id="gatewayInfo" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.link}</span> Pair Dashboard</div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">Open the dashboard link below in a <strong>new tab</strong>, wait for it to load, then come back here and click <strong>Pair</strong> to approve.</p>
       <div id="pairDashboardUrl" style="padding:10px 14px;background:#f0f4ff;border:1.5px solid var(--accent);border-radius:8px;font-family:monospace;font-size:12px;cursor:pointer;color:var(--accent);margin-bottom:12px;word-break:break-all" onclick="window.open(this.textContent,'_blank')"></div>
       <div class="btn-row">
@@ -1321,8 +1423,8 @@ function panelPage() {
       </div>
       <div class="status" id="pairDeviceStatus"></div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Paired Devices</div><div id="deviceList"><div style="color:var(--text2);font-size:12px;padding:8px">Loading...</div></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Change Token</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.smartphone}</span> Paired Devices</div><div id="deviceList"><div style="color:var(--text2);font-size:12px;padding:8px">Loading...</div></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.refresh}</span> Change Token</div>
       <div class="field"><label>Custom token (optional)</label><input type="text" id="customToken" placeholder="Leave empty to generate random"></div>
       <div class="btn-row">
         <button class="btn btn-primary" onclick="generateToken()">Generate Random Token</button>
@@ -1336,8 +1438,8 @@ function panelPage() {
   <div class="section" id="sec-domain">
     <div class="page-title">Domain & SSL</div>
     <div class="page-desc">Configure domain with Let's Encrypt certificate.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83c\udf10</span> Current</div><div id="domainInfo" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd12</span> Configure</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.globe}</span> Current</div><div id="domainInfo" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.lock}</span> Configure</div>
       <div class="field"><label>Domain</label><input type="text" id="domainInput" placeholder="bot.example.com"></div>
       <div class="field"><label>Let's Encrypt Email (optional)</label><input type="email" id="domainEmail" placeholder="admin@example.com"></div>
       <div class="btn-row">
@@ -1350,22 +1452,22 @@ function panelPage() {
 
   <!-- TAB: Browser -->
   <div class="section" id="sec-browser">
-    <div class="page-title">\ud83e\udd8a Browser</div>
+    <div class="page-title">${ICONS.fox} Browser</div>
     <div class="page-desc">Install and manage the browser engine for AI browser tools.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Current Status</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.barChart}</span> Current Status</div>
       <div id="browserStatusInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-outline" onclick="loadBrowserStatus()">Refresh</button>
       </div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83c\udf10</span> Choose Browser</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.globe}</span> Choose Browser</div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">Select a browser to install. Only one browser can be active at a time.</p>
       <div id="browserCards" style="display:grid;grid-template-columns:1fr 1fr;gap:16px"></div>
     </div>
     <div class="card" id="browserLogCard" style="display:none">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcdd</span> Log</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.fileText}</span> Log</div>
       <div class="log-box" id="browserLogBox" style="max-height:300px;overflow-y:auto;font-size:12px"></div>
     </div>
     <div class="status" id="browserStatus"></div>
@@ -1376,34 +1478,34 @@ function panelPage() {
     <div class="page-title">System Diagnostics</div>
     <div class="page-desc">Run OpenClaw Doctor to check, repair and optimize the system.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\ude80</span> Actions</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.rocket}</span> Actions</div>
       <div class="doc-actions">
         <div class="doc-btn" id="docBtnScan" onclick="runDoctor('scan')">
-          <div class="db-icon" style="background:#dbeafe;color:#2563eb">\ud83d\udd0d</div>
+          <div class="db-icon" style="background:#dbeafe;color:#2563eb">${ICONS.search}</div>
           <div class="db-info"><div class="db-title">Scan</div><div class="db-desc">Check 19 items, no repair</div></div>
         </div>
         <div class="doc-btn" id="docBtnRepair" onclick="runDoctor('repair')">
-          <div class="db-icon" style="background:#dcfce7;color:#16a34a">\ud83d\udd27</div>
+          <div class="db-icon" style="background:#dcfce7;color:#16a34a">${ICONS.wrench}</div>
           <div class="db-info"><div class="db-title">Auto Repair</div><div class="db-desc">Check + auto repair errors</div></div>
         </div>
         <div class="doc-btn" id="docBtnDeep" onclick="runDoctor('deep')">
-          <div class="db-icon" style="background:#fef3c7;color:#d97706">\u26a1</div>
+          <div class="db-icon" style="background:#fef3c7;color:#d97706">${ICONS.zap}</div>
           <div class="db-info"><div class="db-title">Deep Scan</div><div class="db-desc">Deep scan services + gateway</div></div>
         </div>
       </div>
       <div class="status" id="doctorStatus"></div>
     </div>
     <div class="card" id="doctorResultCard" style="display:none">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Result</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.barChart}</span> Result</div>
       <div class="doc-summary" id="doctorSummary"></div>
       <div class="doc-checks" id="doctorChecks"></div>
     </div>
     <div class="card" id="doctorOutputCard" style="display:none">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcbb</span> Output</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.code}</span> Output</div>
       <div class="log-box" id="doctorLog" style="max-height:420px"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> History</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.calendar}</span> History</div>
       <div class="doc-hist" id="doctorHistory"><div style="color:var(--text2);font-size:12px;padding:8px">No history yet.</div></div>
     </div>
   </div>
@@ -1412,7 +1514,7 @@ function panelPage() {
   <div class="section" id="sec-update">
     <div class="page-title">Update</div>
     <div class="page-desc">Update OpenClaw Gateway and Management Panel.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udce6</span> OpenClaw Gateway</div><div id="updateInfo" class="info-grid"></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.package}</span> OpenClaw Gateway</div><div id="updateInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-outline" onclick="checkUpdate()">Check for Updates</button>
         <div class="field" id="updateVersionField" style="display:none;margin:0;min-width:180px"><select id="updateVersionSelect"></select></div>
@@ -1421,7 +1523,7 @@ function panelPage() {
       <div class="status" id="updateStatus"></div>
       <div id="updateLog" style="display:none;margin-top:14px"><div class="log-box" id="updateLogBox"></div></div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udda5\ufe0f</span> Management Panel</div><div id="panelUpdateInfo" class="info-grid"></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.monitor}</span> Management Panel</div><div id="panelUpdateInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-outline" onclick="checkPanelUpdate()">Check Panel Update</button>
         <button class="btn btn-primary" id="doPanelUpdateBtn" style="display:none" onclick="doPanelUpdate()">Update Panel</button>
@@ -1434,7 +1536,7 @@ function panelPage() {
   <div class="section" id="sec-status">
     <div class="page-title">System Status</div>
     <div class="page-desc">Monitor services, resources and logs.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Services & System</div><div id="statusInfo" class="info-grid"></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.barChart}</span> Services & System</div><div id="statusInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-outline" onclick="loadStatus()">Refresh</button>
         <button class="btn btn-primary" onclick="restartSvc('openclaw')">Restart OpenClaw</button>
@@ -1442,15 +1544,15 @@ function panelPage() {
       </div>
       <div class="status" id="statusMsg"></div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcdd</span> OpenClaw Logs</div><div class="log-box" id="logsBox">Loading...</div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.fileText}</span> OpenClaw Logs</div><div class="log-box" id="logsBox">Loading...</div></div>
   </div>
 
   <!-- TAB: Chat Playground -->
   <div class="section" id="sec-chat">
-    <div class="page-title">\ud83d\udcac Chat Playground</div>
+    <div class="page-title">${ICONS.messageCircle} Chat Playground</div>
     <div class="page-desc">Test live chat with the current AI provider.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u2728</span> <span id="chatProviderLabel">AI Chat</span></div>
+      <div class="card-title"><span class="ct-icon">${ICONS.sparkles}</span> <span id="chatProviderLabel">AI Chat</span></div>
       <div class="chat-box">
         <div class="chat-msgs" id="chatMsgs"><div class="chat-msg ai">Hello! I'm an AI assistant. Send a message to test.</div></div>
         <div class="chat-input">
@@ -1467,11 +1569,11 @@ function panelPage() {
 
   <!-- TAB: Usage Analytics -->
   <div class="section" id="sec-analytics">
-    <div class="page-title">\ud83d\udcca Usage Analytics</div>
+    <div class="page-title">${ICONS.barChart} Usage Analytics</div>
     <div class="page-desc">AI usage statistics — from messaging channels and Chat Playground.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc8</span> Overview</div><div id="analyticsOverview" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> By Channel</div><div id="analyticsChannels" class="info-grid"></div></div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc5</span> Messages (7 days)</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.trendingUp}</span> Overview</div><div id="analyticsOverview" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.smartphone}</span> By Channel</div><div id="analyticsChannels" class="info-grid"></div></div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.calendar}</span> Messages (7 days)</div>
       <div id="analyticsChart" style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:16px 0"></div>
       <div id="analyticsList" style="margin-top:16px"></div>
     </div>
@@ -1480,16 +1582,16 @@ function panelPage() {
 
   <!-- TAB: Conversation History -->
   <div class="section" id="sec-history">
-    <div class="page-title">\ud83d\udcdd Conversation History</div>
+    <div class="page-title">${ICONS.fileText} Conversation History</div>
     <div class="page-desc">View recent conversation history.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc2</span> Conversations</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.folder}</span> Conversations</div>
       <div id="historyList" style="display:flex;flex-direction:column;gap:8px"></div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-outline" onclick="loadHistory()">Refresh</button>
       </div>
     </div>
     <div class="card" id="historyDetail" style="display:none">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcac</span> <span id="historyDetailTitle">Details</span></div>
+      <div class="card-title"><span class="ct-icon">${ICONS.messageCircle}</span> <span id="historyDetailTitle">Details</span></div>
       <div id="historyMsgs" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>
@@ -1498,16 +1600,16 @@ function panelPage() {
 
   <!-- TAB: User Management -->
   <div class="section" id="sec-users">
-    <div class="page-title">\ud83d\udc65 User Management</div>
+    <div class="page-title">${ICONS.users} User Management</div>
     <div class="page-desc">Manage panel access account.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd10</span> Change Root Password</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.lockOpen}</span> Change Root Password</div>
       <div class="field"><label>Current Password</label><input type="password" id="oldPass" placeholder="Enter current password"></div>
       <div class="field"><label>New Password</label><input type="password" id="newPass" placeholder="Enter new password"></div>
       <div class="field"><label>Confirm</label><input type="password" id="confirmPass" placeholder="Re-enter new password"></div>
       <div class="btn-row"><button class="btn btn-primary" onclick="changePassword()">Change Password</button></div>
       <div class="status" id="passStatus"></div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udee1\ufe0f</span> Security</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.shield}</span> Security</div>
       <div id="securityInfo" class="info-grid"></div>
       <div class="btn-row" style="margin-top:12px"><button class="btn btn-outline" onclick="loadUsers()">Refresh</button></div>
     </div>
@@ -1515,13 +1617,13 @@ function panelPage() {
 
   <!-- TAB: Backup & Restore -->
   <div class="section" id="sec-backup">
-    <div class="page-title">\ud83d\udce6 Backup & Restore</div>
+    <div class="page-title">${ICONS.package} Backup & Restore</div>
     <div class="page-desc">Backup and restore system configuration.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcbe</span> Backup</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.save}</span> Backup</div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">Create a backup of configuration (openclaw.json, openclaw.env, Caddyfile). API keys are hidden for security.</p>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="downloadBackup()">\ud83d\udce5 Download Backup</button>
-        <button class="btn btn-outline" onclick="doBackup()">\ud83d\udccb View JSON</button>
+        <button class="btn btn-primary" onclick="downloadBackup()">${ICONS.download} Download Backup</button>
+        <button class="btn btn-outline" onclick="doBackup()">${ICONS.clipboard} View JSON</button>
       </div>
       <div class="status" id="backupStatus"></div>
       <div id="backupData" style="display:none;margin-top:14px">
@@ -1530,36 +1632,36 @@ function panelPage() {
         </div>
       </div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udd04</span> Restore</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.refresh}</span> Restore</div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">Upload a backup file or paste JSON to restore configuration.</p>
       <div class="btn-row" style="margin-bottom:16px">
-        <button class="btn btn-primary" onclick="document.getElementById('restoreFile').click()">\ud83d\udce4 Upload Backup File</button>
+        <button class="btn btn-primary" onclick="document.getElementById('restoreFile').click()">${ICONS.upload} Upload Backup File</button>
         <input type="file" id="restoreFile" accept=".json" style="display:none" onchange="handleRestoreFile(event)">
       </div>
       <div class="field"><label>Or paste backup JSON</label><textarea id="restoreContent" class="json-editor" style="min-height:120px" placeholder="Paste backup JSON here..."></textarea></div>
-      <div class="btn-row"><button class="btn btn-danger" onclick="doRestore()">\u26a0\ufe0f Restore</button></div>
+      <div class="btn-row"><button class="btn btn-danger" onclick="doRestore()">${ICONS.warning} Restore</button></div>
       <div class="status" id="restoreStatus"></div>
     </div>
   </div>
 
   <!-- TAB: Plugins -->
   <div class="section" id="sec-plugins">
-    <div class="page-title">\ud83e\udde9 Plugins</div>
+    <div class="page-title">${ICONS.puzzle} Plugins</div>
     <div class="page-desc">Manage extensions: enable, disable, install or remove plugins.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\udce6</span> Installed Plugins</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.package}</span> Installed Plugins</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
         <div class="search-wrap" style="flex:1;min-width:200px;margin-bottom:0"><input type="text" class="search-input" id="pluginsSearchInput" placeholder="Search plugins..." oninput="filterPluginsUI()"></div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-outline btn-sm" onclick="loadPlugins()">\u21bb Refresh</button>
-          <button class="btn btn-outline btn-sm" onclick="updateAllPlugins()">\u2b06 Update All</button>
+          <button class="btn btn-outline btn-sm" onclick="loadPlugins()">${ICONS.refreshCw} Refresh</button>
+          <button class="btn btn-outline btn-sm" onclick="updateAllPlugins()">${ICONS.arrowUp} Update All</button>
         </div>
       </div>
       <div id="pluginsList"></div>
       <div class="status" id="pluginsStatus"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u2795</span> Install Plugin</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.plus}</span> Install Plugin</div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Install from npm registry or local archive (.tgz, .zip).</p>
       <div class="field"><label>Package name or path</label><input type="text" id="pluginInstallInput" placeholder="e.g. @openclaw/plugin-name or ./plugin.tgz"></div>
       <div class="btn-row">
@@ -1573,22 +1675,22 @@ function panelPage() {
 
   <!-- TAB: Skills -->
   <div class="section" id="sec-skills">
-    <div class="page-title">\u26a1 Skills</div>
+    <div class="page-title">${ICONS.zap} Skills</div>
     <div class="page-desc">Browse and manage AI skills, or install new ones from ClawHub marketplace.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcca</span> Overview</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.barChart}</span> Overview</div>
       <div id="skillsSummary" class="stat-grid"></div>
-      <div style="margin-top:6px"><button class="btn btn-outline btn-sm" onclick="loadSkills()">\u21bb Refresh</button></div>
+      <div style="margin-top:6px"><button class="btn btn-outline btn-sm" onclick="loadSkills()">${ICONS.refreshCw} Refresh</button></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\u26a1</span> Installed Skills</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.zap}</span> Installed Skills</div>
       <div class="search-wrap"><input type="text" class="search-input" id="skillsSearchInput" placeholder="Search skills..." oninput="filterSkills()"></div>
       <div class="filter-pills" id="skillsFilterPills"></div>
       <div id="skillsList"></div>
       <div class="status" id="skillsStatus"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83c\udf10</span> ClawHub \u2014 Marketplace</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.globe}</span> ClawHub \u2014 Marketplace</div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Search and install community skills from the ClawHub public registry.</p>
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <div class="search-wrap" style="flex:1;margin-bottom:0"><input type="text" class="search-input" id="clawhubSearchInput" placeholder="Search skills... e.g. docker, weather, git" onkeydown="if(event.key==='Enter')searchClawHub()"></div>
@@ -1598,10 +1700,10 @@ function panelPage() {
       <div class="status" id="clawhubStatus"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\udce6</span> Installed from ClawHub</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.package}</span> Installed from ClawHub</div>
       <div class="btn-row" style="margin-bottom:12px">
-        <button class="btn btn-outline btn-sm" onclick="loadClawHubInstalled()">\u21bb Refresh</button>
-        <button class="btn btn-outline btn-sm" onclick="updateAllClawHub()">\u2b06 Update All</button>
+        <button class="btn btn-outline btn-sm" onclick="loadClawHubInstalled()">${ICONS.refreshCw} Refresh</button>
+        <button class="btn btn-outline btn-sm" onclick="updateAllClawHub()">${ICONS.arrowUp} Update All</button>
       </div>
       <div id="clawhubInstalled"></div>
       <div class="status" id="clawhubInstalledStatus"></div>
@@ -1611,9 +1713,9 @@ function panelPage() {
 
   <!-- TAB: Config Editor -->
   <div class="section" id="sec-config">
-    <div class="page-title">\ud83d\udd27 Config Editor</div>
+    <div class="page-title">${ICONS.wrench} Config Editor</div>
     <div class="page-desc">Edit system configuration files directly.</div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc4</span> openclaw.json</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.file}</span> openclaw.json</div>
       <textarea id="configJson" class="json-editor" style="min-height:320px"></textarea>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-primary" onclick="saveConfigFile('json')">Save & Restart</button>
@@ -1621,7 +1723,7 @@ function panelPage() {
       </div>
       <div class="status" id="configJsonStatus"></div>
     </div>
-    <div class="card"><div class="card-title"><span class="ct-icon">\ud83d\udcc4</span> openclaw.env</div>
+    <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.file}</span> openclaw.env</div>
       <textarea id="configEnv" class="json-editor" style="min-height:200px"></textarea>
       <div class="btn-row" style="margin-top:12px">
         <button class="btn btn-primary" onclick="saveConfigFile('env')">Save & Restart</button>
@@ -1633,10 +1735,10 @@ function panelPage() {
 
   <!-- TAB: QR Code -->
   <div class="section" id="sec-qr">
-    <div class="page-title">\ud83d\udcf1 QR Code Pairing</div>
-    <div class="page-desc">Ma QR de truy cap dashboard tu dien thoai.</div>
+    <div class="page-title">${ICONS.smartphone} QR Code Pairing</div>
+    <div class="page-desc">QR code for quick dashboard access from your phone.</div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">\ud83d\udcf1</span> Dashboard QR</div>
+      <div class="card-title"><span class="ct-icon">${ICONS.smartphone}</span> Dashboard QR</div>
       <div class="qr-box" id="qrBox">
         <div id="qrCanvas" style="margin:16px auto;display:inline-block;padding:12px;background:#fff;border-radius:8px"></div>
         <p style="font-size:12px;color:var(--text2);margin-top:12px" id="qrUrl"></p>
@@ -1688,14 +1790,14 @@ async function loadProvider(){
   sum.innerHTML=
     '<div class="stat-card"><div class="stat-num" style="font-size:16px;line-height:1.3">'+curName+'</div><div class="stat-label">Active Provider</div></div>'
     +'<div class="stat-card"><div class="stat-num" style="font-size:16px;line-height:1.3">'+curModel+'</div><div class="stat-label">Current Model</div></div>'
-    +'<div class="stat-card"><div class="stat-num">'+cfgCount+'</div><div class="stat-label">\\ud83d\\udd11 Configured</div></div>'
-    +'<div class="stat-card"><div class="stat-num">'+(cloud+gateway+local)+'</div><div class="stat-label">\\ud83c\\udf10 Available</div></div>';
+    +'<div class="stat-card"><div class="stat-num">'+cfgCount+'</div><div class="stat-label">${ICONS.key} Configured</div></div>'
+    +'<div class="stat-card"><div class="stat-num">'+(cloud+gateway+local)+'</div><div class="stat-label">${ICONS.globe} Available</div></div>';
   renderProviderFilterPills(providers.length,cloud,gateway,local);
   filterProviders();
 }
 function renderProviderFilterPills(total,cloud,gateway,local){
   const el=document.getElementById('providerFilterPills');if(!el)return;
-  const pills=[{key:'all',label:'All',count:total},{key:'cloud',label:'\\u2601\\ufe0f Cloud',count:cloud},{key:'gateway',label:'\\ud83d\\udd00 Gateway',count:gateway},{key:'local',label:'\\ud83d\\udda5\\ufe0f Local',count:local}];
+  const pills=[{key:'all',label:'All',count:total},{key:'cloud',label:'${ICONS.cloudflare} Cloud',count:cloud},{key:'gateway',label:'${ICONS.openrouter} Gateway',count:gateway},{key:'local',label:'${ICONS.monitor} Local',count:local}];
   el.innerHTML=pills.map(p=>
     '<button class="filter-pill'+(providerFilterMode===p.key?' active':'')+'" onclick="setProviderFilter(\\''+p.key+'\\')">'+p.label+'<span class="pill-count">'+p.count+'</span></button>'
   ).join('');
@@ -1717,7 +1819,7 @@ function filterProviders(){
 }
 function renderProviderGrid(list){
   const el=document.getElementById('providerGrid');if(!el)return;
-  if(!list.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">\\ud83d\\udd0d</div><div class="empty-text">No providers match this filter.</div></div>';return}
+  if(!list.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">${ICONS.search}</div><div class="empty-text">No providers match this filter.</div></div>';return}
   let h='<div class="skill-grid">';
   list.forEach(p=>{
     const isCurrent=currentProviderData&&currentProviderData.provider===p.id;
@@ -1786,10 +1888,10 @@ function showProviderDetail(id){
     +'<div class="field"><label>'+(p.keyLabel||'API Key')+'</label><input type="password" id="provKey" placeholder="'+(p.keyPlaceholder||'Enter API key')+'"></div>'
     +extraHtml
     +'<div class="btn-row" style="margin-top:16px;flex-wrap:wrap">'
-    +'<button class="btn btn-outline btn-sm" onclick="testProviderKey()">\\ud83e\\uddea Test Key</button>'
-    +'<button class="btn btn-outline btn-sm" style="border-color:var(--accent2);color:var(--accent2)" onclick="saveProviderKey()">\\ud83d\\udcbe Save Key</button>'
-    +'<button class="btn btn-primary btn-sm" onclick="applyProvider()">\\u26a1 Apply & Switch</button>'
-    +(hasKey&&!isCurrent?'<button class="btn btn-outline btn-sm" style="border-color:var(--danger);color:var(--danger)" onclick="removeProviderKey()">\\ud83d\\uddd1 Remove Key</button>':'')
+    +'<button class="btn btn-outline btn-sm" onclick="testProviderKey()">${ICONS.zap} Test Key</button>'
+    +'<button class="btn btn-outline btn-sm" style="border-color:var(--accent2);color:var(--accent2)" onclick="saveProviderKey()">${ICONS.save} Save Key</button>'
+    +'<button class="btn btn-primary btn-sm" onclick="applyProvider()">${ICONS.zap} Apply & Switch</button>'
+    +(hasKey&&!isCurrent?'<button class="btn btn-outline btn-sm" style="border-color:var(--danger);color:var(--danger)" onclick="removeProviderKey()">${ICONS.trash} Remove Key</button>':'')
     +'</div>'
     +'<div class="status" id="provModalStatus"></div>'
     +'</div>'
@@ -1922,7 +2024,7 @@ async function approvePairing(code,btn){
   if(!selectedChannel||!code)return;
   const orig=btn.textContent;btn.disabled=true;btn.textContent='Approving...';
   const d=await api('/api/channel-pair','POST',{channel:selectedChannel.id,code});
-  if(d.ok){btn.textContent='\\u2705 Approved';btn.style.background='var(--accent2)';setTimeout(()=>showPairForm(),1500)}
+  if(d.ok){btn.innerHTML='${ICONS.check} Approved';btn.style.background='var(--accent2)';setTimeout(()=>showPairForm(),1500)}
   else{btn.disabled=false;btn.textContent=orig;const st=document.getElementById('pairStatus');st.className='status fail';st.textContent=d.error||'Error'}
 }
 async function pairChannel(){
@@ -1968,14 +2070,14 @@ function renderAgentSummary(agents){
   const defName=defAgent?(defAgent.identity&&defAgent.identity.name?defAgent.identity.name:defAgent.id):'N/A';
   const totalBindings=agents.reduce((s,a)=>s+(a.bindings||0),0);
   const totalRoutes=agents.reduce((s,a)=>s+(a.routes?a.routes.length:0),0);
-  el.innerHTML='<div class="stat-card"><div class="stat-value">'+total+'</div><div class="stat-label">Agents</div></div>'
-    +'<div class="stat-card"><div class="stat-value">'+esc(defName)+'</div><div class="stat-label">Default Agent</div></div>'
-    +'<div class="stat-card"><div class="stat-value">'+totalBindings+'</div><div class="stat-label">Bindings</div></div>'
-    +'<div class="stat-card"><div class="stat-value">'+totalRoutes+'</div><div class="stat-label">Routes</div></div>';
+  el.innerHTML='<div class="stat-card"><div class="stat-num">'+total+'</div><div class="stat-label">Agents</div></div>'
+    +'<div class="stat-card"><div class="stat-num" style="font-size:16px;line-height:1.3">'+esc(defName)+'</div><div class="stat-label">Default Agent</div></div>'
+    +'<div class="stat-card"><div class="stat-num">'+totalBindings+'</div><div class="stat-label">Bindings</div></div>'
+    +'<div class="stat-card"><div class="stat-num">'+totalRoutes+'</div><div class="stat-label">Routes</div></div>';
 }
 function renderAgentFilterPills(total,def,custom){
   const el=document.getElementById('agentFilterPills');if(!el)return;
-  const pills=[{key:'all',label:'All',count:total},{key:'default',label:'\\u2b50 Default',count:def},{key:'custom',label:'\\ud83e\\udd16 Custom',count:custom}];
+  const pills=[{key:'all',label:'All',count:total},{key:'default',label:'${ICONS.star} Default',count:def},{key:'custom',label:'${ICONS.robot} Custom',count:custom}];
   el.innerHTML=pills.map(p=>
     '<button class="filter-pill'+(agentFilterMode===p.key?' active':'')+'" onclick="setAgentFilter(\\''+p.key+'\\')">'+p.label+'<span class="pill-count">'+p.count+'</span></button>'
   ).join('');
@@ -2059,8 +2161,8 @@ function showAgentDetail(id){
     +'<div><div style="font-size:18px;font-weight:700">'+esc(displayName)+'</div>'
     +'<div style="margin-top:4px">'+defaultBadge+'</div></div></div>'
     +'<button class="modal-close" onclick="closeAgentModal()">\\u2715</button></div>'
-    +'<div class="modal-tabs"><button class="modal-tab active" onclick="switchAgentModalTab(\\'info\\',this)">\\u2139\\ufe0f Info & Identity</button>'
-    +'<button class="modal-tab" onclick="switchAgentModalTab(\\'skills\\',this)">\\u26a1 Skills</button></div>'
+    +'<div class="modal-tabs"><button class="modal-tab active" onclick="switchAgentModalTab(\\'info\\',this)">${ICONS.robot} Info & Identity</button>'
+    +'<button class="modal-tab" onclick="switchAgentModalTab(\\'skills\\',this)">${ICONS.zap} Skills</button></div>'
     +'<div class="modal-body">'
     +'<div id="agentTabInfo">'
     +'<div class="info-grid">'
@@ -2081,8 +2183,8 @@ function showAgentDetail(id){
     +'<div class="field" id="agentCustomModelField" style="display:'+(isCustomAgentModel?'block':'none')+'"><label>Custom Model ID</label><input type="text" id="agentCustomModel" placeholder="e.g. openai/gpt-4o-2024-08-06" value="'+(isCustomAgentModel?esc(a.model):'')+'">'
     +'<div style="font-size:11px;color:var(--text2);margin-top:4px">Format: provider/model-id</div></div>'
     +'</div>'
-    +'<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" onclick="saveAgentFromModal(\\''+escId+'\\')">\\ud83d\\udcbe Save Changes</button>'
-    +(isDefault?'':'<button class="btn btn-outline" style="color:var(--danger)" onclick="deleteAgent(\\''+escId+'\\')">\\ud83d\\uddd1 Delete</button>')
+    +'<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" onclick="saveAgentFromModal(\\''+escId+'\\')">${ICONS.save} Save Changes</button>'
+    +(isDefault?'':'<button class="btn btn-outline" style="color:var(--danger)" onclick="deleteAgent(\\''+escId+'\\')">${ICONS.trash} Delete</button>')
     +'</div><div class="status" id="agentModalStatus"></div>'
     +'</div>'
     +'<div id="agentTabSkills" style="display:none">'
@@ -2091,7 +2193,7 @@ function showAgentDetail(id){
     +' Use all skills (default)</label></div>'
     +'<div id="agentSkillsList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">'
     +skillsHtml+'</div>'
-    +'<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" onclick="saveAgentSkills(\\''+escId+'\\')">\\ud83d\\udcbe Save Skills</button></div>'
+    +'<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" onclick="saveAgentSkills(\\''+escId+'\\')">${ICONS.save} Save Skills</button></div>'
     +'<div class="status" id="agentSkillsStatus"></div>'
     +'</div>'
     +'</div>'
@@ -2336,8 +2438,8 @@ async function loadBrowserStatus(){
     '<div class="info-row"><span class="info-k">CamoFox</span><span class="info-v">'+(d.camofox.installed?(d.camofox.running?'Running':'Stopped'):'Not installed')+'</span></div>';
   // Render browser cards
   const browsers=[
-    {id:'chrome',name:'Google Chrome',desc:'Standard headless Chrome browser. Fast, well-supported, uses CDP protocol.',icon:'\ud83c\udf10',installed:d.chrome.installed,active:d.chrome.active},
-    {id:'camofox',name:'CamoFox',desc:'Anti-detection Firefox browser with fingerprint spoofing. REST API on port 9377.',icon:'\ud83e\udd8a',installed:d.camofox.installed,active:d.camofox.active,running:d.camofox.running}
+    {id:'chrome',name:'Google Chrome',desc:'Standard headless Chrome browser. Fast, well-supported, uses CDP protocol.',icon:'${ICONS.globe}',installed:d.chrome.installed,active:d.chrome.active},
+    {id:'camofox',name:'CamoFox',desc:'Anti-detection Firefox browser with fingerprint spoofing. REST API on port 9377.',icon:'${ICONS.fox}',installed:d.camofox.installed,active:d.camofox.active,running:d.camofox.running}
   ];
   cards.innerHTML=browsers.map(b=>{
     let badge='',actions='';
@@ -2404,7 +2506,7 @@ function filterPluginsUI(){
 function renderPlugins(plugins){
   const el=document.getElementById('pluginsList');const st=document.getElementById('pluginsStatus');
   if(!plugins.length){
-    el.innerHTML='<div class="empty-state"><div class="empty-icon">\ud83e\udde9</div><div class="empty-text">No plugins found.</div></div>';
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">${ICONS.puzzle}</div><div class="empty-text">No plugins found.</div></div>';
     st.className='';st.textContent='';return;
   }
   let h='<div class="skill-grid">';
@@ -2420,7 +2522,7 @@ function renderPlugins(plugins){
     let detailParts=[];
     if(p.channelIds&&p.channelIds.length)detailParts.push(p.channelIds.length+' channel'+(p.channelIds.length>1?'s':''));
     if(p.toolNames&&p.toolNames.length)detailParts.push(p.toolNames.length+' tool'+(p.toolNames.length>1?'s':''));
-    const detailLine=detailParts.length?'<div style="font-size:11px;color:var(--accent);margin-top:6px;display:flex;align-items:center;gap:4px">\ud83d\udd27 '+esc(detailParts.join(' \u2022 '))+'</div>':'';
+    const detailLine=detailParts.length?'<div style="font-size:11px;color:var(--accent);margin-top:6px;display:flex;align-items:center;gap:4px">${ICONS.wrench} '+esc(detailParts.join(' \u2022 '))+'</div>':'';
     const toggleHtml='<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isOn?'checked':'')+' onchange="togglePlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  ,!this.checked)"><span class="toggle-slider"></span></label>';
     h+='<div class="'+cardClass+'" onclick="showPluginDetail(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\')">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
@@ -2456,8 +2558,8 @@ function showPluginDetail(id){
     :'<span class="status-dot dot-red"></span> <span style="color:#dc2626;font-weight:600;font-size:13px">Disabled</span>';
   const toggleHtml='<label class="toggle-switch"><input type="checkbox" '+(isOn?'checked':'')+' onchange="togglePlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  ,'+(isOn?'false':'true')+');closePluginModal()"><span class="toggle-slider"></span></label>';
   const actionBtns=[];
-  if(p.origin==='npm')actionBtns.push('<button class="btn btn-outline btn-sm" onclick="updatePlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  );closePluginModal()">\u2b06 Update</button>');
-  if(p.origin!=='bundled')actionBtns.push('<button class="btn btn-outline btn-sm" style="border-color:#fecaca;color:#ef4444" onclick="uninstallPlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  );closePluginModal()">\ud83d\uddd1 Uninstall</button>');
+  if(p.origin==='npm')actionBtns.push('<button class="btn btn-outline btn-sm" onclick="updatePlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  );closePluginModal()">${ICONS.arrowUp} Update</button>');
+  if(p.origin!=='bundled')actionBtns.push('<button class="btn btn-outline btn-sm" style="border-color:#fecaca;color:#ef4444" onclick="uninstallPlugin(\\''+esc(p.id).replace(/'/g,"\\\\'")+'\\'  );closePluginModal()">${ICONS.trash} Uninstall</button>');
 
   container.innerHTML='<div class="modal-overlay" onclick="closePluginModal()">'
     +'<div class="modal-card" onclick="event.stopPropagation()">'
@@ -2583,7 +2685,7 @@ function filterSkills(){
 function renderSkills(skills){
   const el=document.getElementById('skillsList');const st=document.getElementById('skillsStatus');
   if(!skills.length){
-    el.innerHTML='<div class="empty-state"><div class="empty-icon">\ud83d\udd0d</div><div class="empty-text">No skills match this filter.</div></div>';
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">${ICONS.search}</div><div class="empty-text">No skills match this filter.</div></div>';
     st.className='';st.textContent='';return;
   }
   let h='<div class="skill-grid">';
@@ -2600,7 +2702,7 @@ function renderSkills(skills){
       const parts=[];
       if(s.missing.bins&&s.missing.bins.length)parts.push(s.missing.bins.join(', '));
       if(s.missing.env&&s.missing.env.length)parts.push(s.missing.env.join(', '));
-      if(parts.length)missingHtml='<div class="skill-missing">\u26a0\ufe0f '+esc(parts.join(' \u2022 '))+'</div>';
+      if(parts.length)missingHtml='<div class="skill-missing">${ICONS.warning} '+esc(parts.join(' \u2022 '))+'</div>';
     }
     const canToggle=s.eligible||s.disabled;
     const toggleHtml=canToggle?'<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked)"><span class="toggle-slider"></span></label>':'';
@@ -2645,9 +2747,9 @@ function showSkillDetail(name){
     if(s.missing.bins&&s.missing.bins.length)parts.push('<strong>Binaries:</strong> '+s.missing.bins.map(b=>esc(b)).join(', '));
     if(s.missing.env&&s.missing.env.length)parts.push('<strong>Env vars:</strong> '+s.missing.env.map(e=>esc(e)).join(', '));
     if(s.missing.os&&s.missing.os.length)parts.push('<strong>OS:</strong> '+s.missing.os.map(o=>esc(o)).join(', '));
-    if(parts.length)missingHtml='<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-top:12px"><div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">\u26a0\ufe0f Missing Requirements</div><div style="font-size:12px;color:#92400e;line-height:1.6">'+parts.join('<br>')+'</div></div>';
+    if(parts.length)missingHtml='<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-top:12px"><div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">${ICONS.warning} Missing Requirements</div><div style="font-size:12px;color:#92400e;line-height:1.6">'+parts.join('<br>')+'</div></div>';
   }
-  const docsLink=s.homepage?'<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" style="font-size:13px;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px">\ud83d\udd17 Documentation</a>':'';
+  const docsLink=s.homepage?'<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" style="font-size:13px;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px">${ICONS.link} Documentation</a>':'';
   const canToggle=s.eligible||s.disabled;
   const toggleHtml=canToggle?'<label class="toggle-switch"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\\''+esc(name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked);closeSkillModal()"><span class="toggle-slider"></span></label>':'';
   const statusDot=isEnabled?'<span class="status-dot dot-green"></span> <span style="color:#16a34a;font-weight:600;font-size:13px">Enabled</span>'
@@ -2699,16 +2801,16 @@ async function searchClawHub(){
     const ver=r.version?'v'+esc(r.version):'';
     const author=r.author?' \u2022 '+esc(r.author):'';
     const desc=r.description?'<div class="market-desc">'+esc(r.description)+'</div>':'';
-    const downloads=r.downloads!==undefined?'<span>\u2b07 '+Number(r.downloads).toLocaleString()+'</span>':'';
-    const stars=r.stars!==undefined?'<span>\u2b50 '+Number(r.stars).toLocaleString()+'</span>':'';
+    const downloads=r.downloads!==undefined?'<span>>${ICONS.download}</span> '+Number(r.downloads).toLocaleString()+'</span>':'';
+    const stars=r.stars!==undefined?'<span>>${ICONS.star}</span> '+Number(r.stars).toLocaleString()+'</span>':'';
     const statsHtml=(downloads||stars)?'<div class="market-stats">'+downloads+stars+'</div>':'';
     h+='<div class="market-card">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
       +'<div style="display:flex;align-items:center;gap:12px">'
-      +'<div class="market-icon">\ud83d\udce6</div>'
+      +'<div class="market-icon">${ICONS.package}</div>'
       +'<div><div class="market-name">'+esc(name)+'</div>'
       +'<div class="market-meta">'+ver+author+'</div></div></div>'
-      +'<button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();installClawHubSkill(\\''+esc(r.slug).replace(/'/g,"\\\\'")+'\\')">\u2b07 Install</button>'
+      +'<button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="event.stopPropagation();installClawHubSkill(\\''+esc(r.slug).replace(/'/g,"\\\\'")+'\\')">${ICONS.download} Install</button>'
       +'</div>'
       +desc
       +statsHtml
@@ -2800,13 +2902,13 @@ async function loadFallback(){
   // Primary always first
   if(d.primaryProvider){
     const pp=PROV_LIST_FB.find(p=>p.key===d.primaryProvider);
-    h+='<div class="fb-item"><div class="fb-icon">'+(pp?pp.icon:'\\u2728')+'</div><div class="fb-info"><div class="fb-name">'+(pp?pp.name:d.primaryProvider)+'</div><div class="fb-model">'+(d.primaryModel||'')+'</div></div><span class="fb-badge primary">PRIMARY</span><div class="fb-status-dot active" title="Active"></div></div>';
+    h+='<div class="fb-item"><div class="fb-icon">'+(pp?pp.icon:'${ICONS.sparkles}')+'</div><div class="fb-info"><div class="fb-name">'+(pp?pp.name:d.primaryProvider)+'</div><div class="fb-model">'+(d.primaryModel||'')+'</div></div><span class="fb-badge primary">PRIMARY</span><div class="fb-status-dot active" title="Active"></div></div>';
   }
   chain.forEach((c,i)=>{
     if(c.provider===d.primaryProvider)return;
     const pp=PROV_LIST_FB.find(p=>p.key===c.provider);
     const hasKey=c.hasKey;
-    h+='<div class="fb-item"><div class="fb-icon">'+(pp?pp.icon:'\\u2728')+'</div><div class="fb-info"><div class="fb-name">'+(pp?pp.name:c.provider)+'</div><div class="fb-model">'+(c.model||'')+'</div></div><span class="fb-badge fallback">FALLBACK #'+(i+1)+'</span><div class="fb-status-dot '+(hasKey?'configured':'nokey')+'" title="'+(hasKey?'Key OK':'No API key')+'"></div><button class="fb-remove" onclick="removeFallbackProvider(\\''+c.provider+'\\')">Remove</button></div>';
+    h+='<div class="fb-item"><div class="fb-icon">'+(pp?pp.icon:'${ICONS.sparkles}')+'</div><div class="fb-info"><div class="fb-name">'+(pp?pp.name:c.provider)+'</div><div class="fb-model">'+(c.model||'')+'</div></div><span class="fb-badge fallback">FALLBACK #'+(i+1)+'</span><div class="fb-status-dot '+(hasKey?'configured':'nokey')+'" title="'+(hasKey?'Key OK':'No API key')+'"></div><button class="fb-remove" onclick="removeFallbackProvider(\\''+c.provider+'\\')">Remove</button></div>';
   });
   if(!chain.length||chain.every(c=>c.provider===d.primaryProvider))h+='<div class="fb-empty" style="margin-top:8px">No fallback provider. Add a backup provider below.</div>';
   el.innerHTML=h;
@@ -2920,7 +3022,7 @@ async function loadHistory(){
   el.innerHTML='';
   d.conversations.forEach((c,i)=>{
     const div=document.createElement('div');div.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s';
-    div.innerHTML='<span style="font-size:18px">\\ud83d\\udcac</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(c.title||'Conversation #'+(i+1))+'</div><div style="font-size:11px;color:var(--text2)">'+esc(c.date||'')+' \\u2014 '+(c.messageCount||0)+' messages'+(c.channel?' \\u2014 '+esc(c.channel):'')+'</div></div>';
+    div.innerHTML='<span style="font-size:18px">${ICONS.messageCircle}</span><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(c.title||'Conversation #'+(i+1))+'</div><div style="font-size:11px;color:var(--text2)">'+esc(c.date||'')+' \\u2014 '+(c.messageCount||0)+' messages'+(c.channel?' \\u2014 '+esc(c.channel):'')+'</div></div>';
     div.onmouseover=()=>{div.style.borderColor='var(--accent)'};div.onmouseout=()=>{div.style.borderColor='var(--border)'};
     div.onclick=()=>showConversation(c.id,c.title||'Conversation #'+(i+1));
     el.appendChild(div);
@@ -3139,7 +3241,7 @@ function renderDoctorResult(summary,output){
     +'<div class="doc-stat"><div class="ds-num" style="color:#ef4444">'+(summary.fail||0)+'</div><div class="ds-label">Fail</div></div>';
   const ch=document.getElementById('doctorChecks');
   if(summary.checks&&summary.checks.length>0){
-    ch.innerHTML=summary.checks.map(c=>'<div class="doc-check '+c.status+'"><span class="dc-icon">'+(c.status==='pass'?'\\u2705':c.status==='warn'?'\\u26a0\\ufe0f':'\\u274c')+'</span><span class="dc-text">'+esc(c.name)+'</span><span class="dc-detail">'+esc(c.detail)+'</span></div>').join('');
+    ch.innerHTML=summary.checks.map(c=>'<div class="doc-check '+c.status+'"><span class="dc-icon">'+(c.status==='pass'?'${ICONS.check}':c.status==='warn'?'${ICONS.warning}':'<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>')+'</span><span class="dc-text">'+esc(c.name)+'</span><span class="dc-detail">'+esc(c.detail)+'</span></div>').join('');
   }else ch.innerHTML='';
   if(output){
     document.getElementById('doctorOutputCard').style.display='block';
@@ -3191,6 +3293,37 @@ document.addEventListener('click',function(e){if(window.innerWidth<=768){const s
 let statusInterval=null;
 const origShowTab=showTab;
 showTab=function(name,el){origShowTab(name,el);if(statusInterval){clearInterval(statusInterval);statusInterval=null}if(name==='status')statusInterval=setInterval(()=>{loadStatus();loadLogs()},30000)};
+
+// Escape key closes any open modal
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){
+  const overlays=document.querySelectorAll('.modal-overlay');
+  overlays.forEach(function(o){if(o.offsetParent!==null||o.style.display==='flex'||getComputedStyle(o).display!=='none'){
+    const container=o.parentElement;if(container)container.innerHTML='';
+  }});
+}});
+
+// Status messages auto-clear after 8 seconds
+(function(){
+  let timers=new WeakMap();
+  const obs=new MutationObserver(function(muts){muts.forEach(function(m){
+    if(m.type==='attributes'&&m.attributeName==='class'){
+      const el=m.target;
+      if(el.classList.contains('status')&&(el.classList.contains('ok')||el.classList.contains('fail'))){
+        if(timers.has(el))clearTimeout(timers.get(el));
+        el.style.opacity='1';el.style.transition='opacity 0.5s ease';
+        timers.set(el,setTimeout(function(){el.style.opacity='0';setTimeout(function(){if(el.style.opacity==='0'){el.className='status';el.textContent='';el.style.opacity='';el.style.transition=''}},500)},8000));
+      }else if(el.classList.contains('status')&&el.classList.contains('loading')){
+        if(timers.has(el)){clearTimeout(timers.get(el));timers.delete(el)}
+        el.style.opacity='1';el.style.transition='';
+      }
+    }
+  })});
+  document.querySelectorAll('.status').forEach(function(el){obs.observe(el,{attributes:true})});
+  // Also observe dynamically added status elements
+  new MutationObserver(function(muts){muts.forEach(function(m){m.addedNodes.forEach(function(n){
+    if(n.nodeType===1){n.querySelectorAll&&n.querySelectorAll('.status').forEach(function(el){obs.observe(el,{attributes:true})})}
+  })})}).observe(document.body,{childList:true,subtree:true});
+})();
 
 showTab('provider',document.querySelector('.nav-item'));
 </script></body></html>`;
