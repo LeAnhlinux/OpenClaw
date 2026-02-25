@@ -3562,18 +3562,18 @@ const server = http.createServer(async (req, res) => {
         if (!cfg.channels) cfg.channels = {};
         if (!cfg.channels[body.channel]) cfg.channels[body.channel] = {};
         cfg.channels[body.channel].enabled = true;
-        // NOTE: Discord/Slack default groupPolicy="allowlist" nếu không set
+        // NOTE: OpenClaw normalize config mỗi lần restart → reset groupPolicy="allowlist"
         //   → bot sẽ im lặng vì chưa có channel nào trong allowlist
-        //   → phải set groupPolicy="open" để bot trả lời mọi nơi khi mới cài
-        if ((body.channel === 'discord' || body.channel === 'slack') && !cfg.channels[body.channel].groupPolicy) {
+        //   → LUÔN force groupPolicy="open" cho Discord/Slack mỗi lần save
+        if (body.channel === 'discord' || body.channel === 'slack') {
           cfg.channels[body.channel].groupPolicy = 'open';
         }
         // NOTE: Slack streaming="partial" + nativeStreaming=true gây double message
         //   → bot gửi partial (edited) rồi gửi thêm 1 final message nữa
-        //   → phải tắt streaming để tránh duplicate reply
+        //   → LUÔN force tắt streaming cho Slack mỗi lần save
         if (body.channel === 'slack') {
-          if (cfg.channels[body.channel].streaming === undefined) cfg.channels[body.channel].streaming = 'off';
-          if (cfg.channels[body.channel].nativeStreaming === undefined) cfg.channels[body.channel].nativeStreaming = false;
+          cfg.channels[body.channel].streaming = 'off';
+          cfg.channels[body.channel].nativeStreaming = false;
         }
         // Always set plugins.entries.{id}.enabled (required for OpenClaw to load channel plugin)
         if (!cfg.plugins) cfg.plugins = {};
