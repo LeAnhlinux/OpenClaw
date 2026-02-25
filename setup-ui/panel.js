@@ -48,6 +48,8 @@ function recordFailedLogin(ip) {
 function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function isSafeShellArg(s) { return /^[a-zA-Z0-9@._\/-]+$/.test(s); }
 function isSafeSlug(s) { return /^[a-zA-Z0-9_-]+$/.test(s); }
+// Shell-safe quoting: wraps value in single quotes (shell does NOT interpret anything inside single quotes)
+function shellEsc(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'"; }
 function verifyPassword(username, password) {
   try {
     if (!/^[a-zA-Z0-9_-]{1,32}$/.test(username)) return false;
@@ -91,9 +93,11 @@ function getEnvValue(key) {
   try { const c = fs.readFileSync(ENV_FILE, 'utf8'); const m = c.match(new RegExp(`^${key}=(.*)$`, 'm')); return m ? m[1].trim() : ''; } catch { return ''; }
 }
 function setEnvValue(key, value) {
+  // Strip newlines/control chars to prevent env injection
+  const safeVal = String(value).replace(/[\r\n\x00-\x1f]/g, '');
   let c = ''; try { c = fs.readFileSync(ENV_FILE, 'utf8'); } catch {}
-  if (new RegExp(`^${key}=`, 'm').test(c)) c = c.replace(new RegExp(`^${key}=.*$`, 'm'), `${key}=${value}`);
-  else c = c.trim() + `\n${key}=${value}\n`;
+  if (new RegExp(`^${key}=`, 'm').test(c)) c = c.replace(new RegExp(`^${key}=.*$`, 'm'), `${key}=${safeVal}`);
+  else c = c.trim() + `\n${key}=${safeVal}\n`;
   fs.writeFileSync(ENV_FILE, c.trim() + '\n', { mode: 0o600 });
 }
 function removeEnvValue(key) { try { let c = fs.readFileSync(ENV_FILE, 'utf8'); c = c.replace(new RegExp(`^#?\\s*${key}=.*$`, 'm'), '').trim() + '\n'; fs.writeFileSync(ENV_FILE, c, 'utf8'); } catch {} }
@@ -453,27 +457,28 @@ function callProvider(provKey, model, apiKey, messages) {
   try {
     if (provKey === 'anthropic' || provKey === 'xiaomi' || provKey === 'synthetic' || provKey === 'minimax' || provKey === 'cloudflare-ai-gateway') {
       let anthropicUrl;
-      if (provKey === 'cloudflare-ai-gateway') { const acct = getEnvValue('CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID') || ''; const gw = getEnvValue('CLOUDFLARE_AI_GATEWAY_GATEWAY_ID') || ''; anthropicUrl = acct && gw ? `https://gateway.ai.cloudflare.com/v1/${acct.trim()}/${gw.trim()}/anthropic/v1/messages` : ''; }
+      if (provKey === 'cloudflare-ai-gateway') { const acct = (getEnvValue('CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID') || '').trim().replace(/[^a-zA-Z0-9_-]/g, ''); const gw = (getEnvValue('CLOUDFLARE_AI_GATEWAY_GATEWAY_ID') || '').trim().replace(/[^a-zA-Z0-9_-]/g, ''); anthropicUrl = acct && gw ? `https://gateway.ai.cloudflare.com/v1/${acct}/${gw}/anthropic/v1/messages` : ''; }
       else if (provKey === 'xiaomi') anthropicUrl = 'https://api.xiaomimimo.com/anthropic/v1/messages';
       else if (provKey === 'synthetic') anthropicUrl = 'https://api.synthetic.new/anthropic/v1/messages';
       else if (provKey === 'minimax') anthropicUrl = 'https://api.minimax.io/anthropic/v1/messages';
       else anthropicUrl = 'https://api.anthropic.com/v1/messages';
       if (!anthropicUrl) return { ok: false, error: 'Missing Cloudflare Account ID or Gateway ID' };
-      const r = safeExec(`curl -s -X POST ${anthropicUrl} -H 'x-api-key: ${apiKey.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '${JSON.stringify({model:actualModel,max_tokens:1024,messages}).replace(/'/g,"'\\''")}'`, 60000);
+      const r = safeExec(`curl -s -X POST '${anthropicUrl}' -H 'x-api-key: '${shellEsc(apiKey)} -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '${JSON.stringify({model:actualModel,max_tokens:1024,messages}).replace(/'/g,"'\\''")}'`, 60000);
       if (!r) return { ok: false, error: 'Empty response' };
       const j = JSON.parse(r);
       if (j.error) return { ok: false, error: j.error.message || j.error.type || 'API error' };
       return { ok: true, reply: j.content?.[0]?.text || 'No response', tokens: (j.usage?.input_tokens||0) + (j.usage?.output_tokens||0) };
     } else if (provKey === 'gemini') {
       const gModel = actualModel.replace('google/', '');
-      const r = safeExec(`curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${apiKey.replace(/'/g,"'\\''")}" -H 'content-type: application/json' -d '${JSON.stringify({contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}))}).replace(/'/g,"'\\''")}'`, 60000);
+      const safeModel = gModel.replace(/[^a-zA-Z0-9._-]/g, '');
+      const r = safeExec(`curl -s -X POST 'https://generativelanguage.googleapis.com/v1beta/models/${safeModel}:generateContent?key='${shellEsc(apiKey)} -H 'content-type: application/json' -d '${JSON.stringify({contents:messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}))}).replace(/'/g,"'\\''")}'`, 60000);
       if (!r) return { ok: false, error: 'Empty response' };
       const j = JSON.parse(r);
       if (j.error) return { ok: false, error: j.error.message || 'API error' };
       return { ok: true, reply: j.candidates?.[0]?.content?.parts?.[0]?.text || 'No response', tokens: j.usageMetadata?.totalTokenCount || 0 };
     } else {
       const baseUrl = getProviderBaseUrl(provKey);
-      const r = safeExec(`curl -s -X POST ${baseUrl}/chat/completions -H 'Authorization: Bearer ${apiKey.replace(/'/g,"'\\''")}' -H 'content-type: application/json' -d '${JSON.stringify({model:actualModel,messages,max_tokens:1024}).replace(/'/g,"'\\''")}'`, 60000);
+      const r = safeExec(`curl -s -X POST '${baseUrl}/chat/completions' -H 'Authorization: Bearer '${shellEsc(apiKey)} -H 'content-type: application/json' -d '${JSON.stringify({model:actualModel,messages,max_tokens:1024}).replace(/'/g,"'\\''")}'`, 60000);
       if (!r) return { ok: false, error: 'Empty response' };
       const j = JSON.parse(r);
       if (j.error) return { ok: false, error: j.error.message || j.error.type || 'API error' };
@@ -619,7 +624,7 @@ const PROVIDERS = {
       { id: 'google/gemini-2.0-flash', name: 'Gemini 2.0 Flash', desc: 'Speed — low latency' },
       { id: 'google/gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', desc: 'Lightweight — cost efficient' }
     ],
-    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' "https://generativelanguage.googleapis.com/v1beta/models?key=${k.replace(/'/g,"'\\''")}"`  , 15000) === '200'; } catch { return false; } }
+    testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' 'https://generativelanguage.googleapis.com/v1beta/models?key='${shellEsc(k)}`, 15000) === '200'; } catch { return false; } }
   },
   xai: {
     name: 'xAI (Grok)', envKey: 'XAI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
@@ -731,7 +736,7 @@ const PROVIDERS = {
       { id: 'amazon-bedrock/anthropic.claude-haiku-4-5-20251001-v1:0', name: 'Claude Haiku 4.5', desc: 'Fast — low cost' },
       { id: 'amazon-bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0', name: 'Claude 3.7 Sonnet', desc: 'Legacy — reasoning' }
     ],
-    testFn: (k) => { try { const secret = getEnvValue('AWS_SECRET_ACCESS_KEY'); const region = getEnvValue('AWS_REGION') || 'us-east-1'; if (!k || !secret) return false; const r = safeExec(`cd /opt/openclaw && node -e "const{BedrockClient,ListFoundationModelsCommand}=require('@aws-sdk/client-bedrock');new BedrockClient({region:'${region}',credentials:{accessKeyId:'${k.replace(/'/g,"\\'")}',secretAccessKey:'${secret.replace(/'/g,"\\'")}'}}).send(new ListFoundationModelsCommand({})).then(()=>console.log('OK')).catch(e=>console.error(e.name))"`, 15000); return r && r.trim() === 'OK'; } catch { return false; } }
+    testFn: (k) => { try { const secret = getEnvValue('AWS_SECRET_ACCESS_KEY'); const region = getEnvValue('AWS_REGION') || 'us-east-1'; if (!k || !secret) return false; const r = spawnSync('node', ['-e', 'const{BedrockClient,ListFoundationModelsCommand}=require("@aws-sdk/client-bedrock");new BedrockClient({region:process.env._R,credentials:{accessKeyId:process.env._K,secretAccessKey:process.env._S}}).send(new ListFoundationModelsCommand({})).then(()=>console.log("OK")).catch(e=>console.error(e.name))'], { cwd: OPENCLAW_DIR, env: { ...process.env, _R: region, _K: k, _S: secret }, timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] }); return (r.stdout || '').toString().trim() === 'OK'; } catch { return false; } }
   },
   synthetic: {
     name: 'Synthetic', envKey: 'SYNTHETIC_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
@@ -818,7 +823,7 @@ const PROVIDERS = {
       { id: 'cloudflare-ai-gateway/claude-haiku-4-5', name: 'Claude Haiku 4.5', desc: 'Fastest — low cost' },
       { id: 'cloudflare-ai-gateway/claude-opus-4-5', name: 'Claude Opus 4.5', desc: 'Previous gen — powerful' }
     ],
-    testFn: (k, extra) => { try { const acct = (extra && extra.CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID) || getEnvValue('CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID') || ''; const gw = (extra && extra.CLOUDFLARE_AI_GATEWAY_GATEWAY_ID) || getEnvValue('CLOUDFLARE_AI_GATEWAY_GATEWAY_ID') || ''; if (!acct || !gw) return false; const url = `https://gateway.ai.cloudflare.com/v1/${acct.trim()}/${gw.trim()}/anthropic/v1/messages`; const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST ${url} -H 'x-api-key: ${k.replace(/'/g,"'\\''")}' -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '{"model":"claude-haiku-4-5","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`, 15000); return r === '200'; } catch { return false; } }
+    testFn: (k, extra) => { try { const acct = (extra && extra.CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID) || getEnvValue('CLOUDFLARE_AI_GATEWAY_ACCOUNT_ID') || ''; const gw = (extra && extra.CLOUDFLARE_AI_GATEWAY_GATEWAY_ID) || getEnvValue('CLOUDFLARE_AI_GATEWAY_GATEWAY_ID') || ''; if (!acct || !gw) return false; const r = safeExec(`curl -s -o /dev/null -w '%{http_code}' -X POST 'https://gateway.ai.cloudflare.com/v1/'${shellEsc(acct.trim())}'/'${shellEsc(gw.trim())}'/anthropic/v1/messages' -H 'x-api-key: '${shellEsc(k)} -H 'anthropic-version: 2023-06-01' -H 'content-type: application/json' -d '{"model":"claude-haiku-4-5","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'`, 15000); return r === '200'; } catch { return false; } }
   },
   litellm: {
     name: 'LiteLLM Proxy', envKey: 'LITELLM_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
@@ -854,7 +859,7 @@ const PROVIDERS = {
 // --- Channel configs ---
 const CHANNELS = {
   telegram: { name: 'Telegram', icon: ICONS.telegram, envKeys: ['TELEGRAM_BOT_TOKEN'], envLabels: { TELEGRAM_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { TELEGRAM_BOT_TOKEN: 'e.g. 123456:ABC-DEF...' }, pairCmd: 'telegram', desc: 'Create bot via @BotFather on Telegram', canPair: true, isBuiltin: true,
-    testFn: (tokens) => { try { const t = tokens.TELEGRAM_BOT_TOKEN; if (!t) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.telegram.org/bot${t.replace(/'/g,"'\\''")}/getMe`, 15000) === '200'; } catch { return false; } } },
+    testFn: (tokens) => { try { const t = tokens.TELEGRAM_BOT_TOKEN; if (!t) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' 'https://api.telegram.org/bot'${shellEsc(t)}'/getMe'`, 15000) === '200'; } catch { return false; } } },
   discord: { name: 'Discord', icon: ICONS.discord, envKeys: ['DISCORD_BOT_TOKEN'], envLabels: { DISCORD_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { DISCORD_BOT_TOKEN: 'e.g. MTQ3NTg...' }, pairCmd: 'discord', desc: 'Create bot at discord.com/developers', canPair: true, isBuiltin: true,
     testFn: (tokens) => { try { const t = tokens.DISCORD_BOT_TOKEN; if (!t) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://discord.com/api/v10/users/@me -H 'Authorization: Bot ${t.replace(/'/g,"'\\''")}'`, 15000) === '200'; } catch { return false; } } },
   slack: { name: 'Slack', icon: ICONS.slack, envKeys: ['SLACK_BOT_TOKEN', 'SLACK_APP_TOKEN'], envLabels: { SLACK_BOT_TOKEN: 'Bot Token (xoxb-...)', SLACK_APP_TOKEN: 'App Token (xapp-...)' }, envPlaceholders: { SLACK_BOT_TOKEN: 'xoxb-...', SLACK_APP_TOKEN: 'xapp-...' }, pairCmd: 'slack', desc: 'Create app at api.slack.com/apps', canPair: true, isBuiltin: true,
@@ -3345,6 +3350,11 @@ showTab('provider',document.querySelector('.nav-item'));
 
 // --- HTTP Server ---
 const server = http.createServer(async (req, res) => {
+  // Security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   const ip = getClientIP(req);
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -3643,8 +3653,8 @@ const server = http.createServer(async (req, res) => {
       const agent = (body.agent || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!agent) return json(res, 400, { ok: false, error: 'Missing agent ID' });
       let cmd = `agents set-identity --agent "${agent}" --json`;
-      if (body.name) { const n = body.name.replace(/"/g, '\\"'); cmd += ` --name "${n}"`; }
-      if (body.emoji) { const e = body.emoji.replace(/"/g, '\\"'); cmd += ` --emoji "${e}"`; }
+      if (body.name) cmd += ` --name ${shellEsc(body.name.substring(0, 64))}`;
+      if (body.emoji) cmd += ` --emoji ${shellEsc(body.emoji.substring(0, 8))}`;
       if (body.theme) { const t = body.theme.replace(/[^a-zA-Z0-9_-]/g, ''); cmd += ` --theme "${t}"`; }
       try { execSync(`/opt/openclaw-cli.sh ${cmd}`, { timeout: 15000, stdio: 'pipe' }); }
       catch (e) { const err = ((e.stderr || '') + (e.stdout || '')).toString().trim(); return json(res, 200, { ok: false, error: err.substring(0, 300) || e.message }); }
@@ -4683,7 +4693,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req);
       if (!body.oldPassword || !body.newPassword) return json(res, 400, { ok: false, error: 'Missing credentials' });
-      if (body.newPassword.length < 6) return json(res, 400, { ok: false, error: 'New password too short' });
+      if (body.newPassword.length < 8) return json(res, 400, { ok: false, error: 'Password must be at least 8 characters' });
       if (!verifyPassword('root', body.oldPassword)) return json(res, 401, { ok: false, error: 'Current password incorrect' });
       try {
         const cp = spawnSync('chpasswd', [], { input: `root:${body.newPassword}\n`, timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] });
