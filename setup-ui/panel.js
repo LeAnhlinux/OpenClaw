@@ -3583,6 +3583,24 @@ const server = http.createServer(async (req, res) => {
         fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), 'utf8');
         try { execSync('chown openclaw:openclaw ' + cfgPath); } catch {}
       } catch (pe) { console.error('[Panel] Channel config error:', pe.message); }
+      // PATCH: Zalo monitor.ts — monitorZaloProvider() resolve Promise ngay lập tức
+      //   → framework coi như channel crash → restart loop vô hạn
+      //   → Thêm await Promise pending giữ monitor sống cho đến khi stop()/abort
+      if (body.channel === 'zalo') {
+        try {
+          const monitorFile = '/opt/openclaw/extensions/zalo/src/monitor.ts';
+          if (fs.existsSync(monitorFile)) {
+            const src = fs.readFileSync(monitorFile, 'utf8');
+            const bugPattern = 'startPollingLoop({\n    token,\n    account,\n    config,\n    runtime,\n    core,\n    abortSignal,\n    isStopped: () => stopped,\n    mediaMaxMb: effectiveMediaMaxMb,\n    statusSink,\n    fetcher,\n  });\n\n  return { stop };\n}';
+            if (src.includes(bugPattern) && !src.includes('Keep monitor Promise pending')) {
+              const patched = src.replace(bugPattern,
+                'startPollingLoop({\n    token,\n    account,\n    config,\n    runtime,\n    core,\n    abortSignal,\n    isStopped: () => stopped,\n    mediaMaxMb: effectiveMediaMaxMb,\n    statusSink,\n    fetcher,\n  });\n\n  // Keep monitor Promise pending until stop() or abortSignal fires\n  // Without this, Promise resolves immediately and framework treats it as crash\n  await new Promise<void>((resolve) => {\n    stopHandlers.push(resolve);\n    abortSignal.addEventListener("abort", () => resolve(), { once: true });\n  });\n\n  return { stop };\n}');
+              fs.writeFileSync(monitorFile, patched, 'utf8');
+              console.log('[Panel] Patched Zalo monitor.ts — fixed restart loop bug');
+            }
+          }
+        } catch (patchErr) { console.error('[Panel] Zalo patch error:', patchErr.message); }
+      }
       restartService('openclaw'); await new Promise(r => setTimeout(r, 3000));
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
