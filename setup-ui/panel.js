@@ -3560,13 +3560,15 @@ const server = http.createServer(async (req, res) => {
         const cfgPath = '/home/openclaw/.openclaw/openclaw.json';
         const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
         // Always set channels.{id}.enabled (required for channel to start)
-        // NOTE: Discord/Telegram/Zalo default groupPolicy="allowlist" nếu không set
-        //   → bot sẽ im lặng vì chưa có channel nào trong allowlist
-        //   → phải set groupPolicy="open" để bot trả lời mọi nơi khi mới cài
         if (!cfg.channels) cfg.channels = {};
         if (!cfg.channels[body.channel]) cfg.channels[body.channel] = {};
         cfg.channels[body.channel].enabled = true;
-        if (!cfg.channels[body.channel].groupPolicy) cfg.channels[body.channel].groupPolicy = 'open';
+        // NOTE: Discord default groupPolicy="allowlist" nếu không set
+        //   → bot sẽ im lặng vì chưa có channel nào trong allowlist
+        //   → phải set groupPolicy="open" để bot trả lời mọi nơi khi mới cài
+        if (body.channel === 'discord' && !cfg.channels[body.channel].groupPolicy) {
+          cfg.channels[body.channel].groupPolicy = 'open';
+        }
         // Always set plugins.entries.{id}.enabled (required for OpenClaw to load channel plugin)
         if (!cfg.plugins) cfg.plugins = {};
         if (!cfg.plugins.entries) cfg.plugins.entries = {};
