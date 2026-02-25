@@ -51,10 +51,24 @@ function isSafeSlug(s) { return /^[a-zA-Z0-9_-]+$/.test(s); }
 function verifyPassword(username, password) {
   try {
     if (!/^[a-zA-Z0-9_-]{1,32}$/.test(username)) return false;
-    const r = spawnSync('su', ['-c', 'echo __AUTH_OK__', username], {
-      input: password + '\n', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
+    // Read /etc/shadow directly (panel runs as root)
+    // Old method `su -c ... username` was broken: root can su to itself without password
+    const shadow = fs.readFileSync('/etc/shadow', 'utf8');
+    const line = shadow.split('\n').find(l => l.startsWith(username + ':'));
+    if (!line) return false;
+    const storedHash = line.split(':')[1];
+    if (!storedHash || storedHash === '!' || storedHash === '*' || storedHash === '!!' || storedHash === '') return false;
+    // Extract algorithm id and salt from $id$salt$hash
+    const m = storedHash.match(/^\$([^$]+)\$([^$]+)\$/);
+    if (!m) return false;
+    const algoId = m[1], salt = m[2];
+    const algoFlag = algoId === '6' ? '-6' : '-5'; // $6$=SHA-512, $5$=SHA-256
+    // Verify via openssl passwd (password passed via stdin, never in args)
+    const r = spawnSync('openssl', ['passwd', algoFlag, '-salt', salt, '-stdin'], {
+      input: password, timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
     });
-    return (r.stdout || '').toString().includes('__AUTH_OK__');
+    const computed = (r.stdout || '').toString().trim();
+    return computed.length > 0 && computed === storedHash;
   } catch { return false; }
 }
 function createSession() { const t = crypto.randomBytes(32).toString('hex'); sessions[t] = { created: Date.now() }; return t; }
