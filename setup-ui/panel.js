@@ -111,6 +111,57 @@ function restartService(n) { try { execSync(`systemctl restart ${n}`, { timeout:
 function isServiceActive(n) { try { execSync(`systemctl is-active --quiet ${n}`); return true; } catch { return false; } }
 function safeExec(cmd, t) { try { return execSync(cmd, { timeout: t || 15000, stdio: 'pipe' }).toString().trim(); } catch { return ''; } }
 
+// --- Task registry for async operations with SSE streaming ---
+const tasks = {};
+let taskCounter = 0;
+
+function createTask(type) {
+  const id = 't' + (++taskCounter) + '_' + Date.now().toString(36);
+  tasks[id] = { id, type, status: 'running', logs: [], startedAt: Date.now(), listeners: new Set(), result: null };
+  setTimeout(() => { delete tasks[id]; }, 600000); // Auto-cleanup 10 min
+  return tasks[id];
+}
+
+function taskLog(task, msg) {
+  const line = { ts: Date.now(), text: msg };
+  task.logs.push(line);
+  for (const r of task.listeners) {
+    try { r.write(`data: ${JSON.stringify({ type: 'log', text: msg })}\n\n`); } catch {}
+  }
+}
+
+function taskDone(task, ok, error) {
+  task.status = ok ? 'done' : 'failed';
+  task.result = { ok, error: error || null };
+  for (const r of task.listeners) {
+    try { r.write(`data: ${JSON.stringify({ type: 'done', ok, error: error || null })}\n\n`); r.end(); } catch {}
+  }
+  task.listeners.clear();
+}
+
+function asyncExec(task, cmd, timeout) {
+  const { spawn } = require('child_process');
+  return new Promise((resolve) => {
+    let out = '', done = false;
+    const child = spawn('bash', ['-c', cmd], { stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.on('data', (d) => {
+      const s = d.toString(); out += s;
+      s.split('\n').filter(l => l.trim()).forEach(l => taskLog(task, l));
+    });
+    child.stderr.on('data', (d) => {
+      const s = d.toString(); out += s;
+      s.split('\n').filter(l => l.trim()).forEach(l => taskLog(task, l));
+    });
+    child.on('close', (code) => { if (!done) { done = true; resolve({ code, out: out.trim() }); } });
+    child.on('error', () => { if (!done) { done = true; resolve({ code: 1, out: '' }); } });
+    if (timeout) {
+      setTimeout(() => {
+        if (!done) { done = true; try { child.kill('SIGKILL'); } catch {} resolve({ code: 1, out: out.trim() }); }
+      }, timeout + 5000);
+    }
+  });
+}
+
 // --- Browser helpers ---
 function clearBrowserSessions() {
   // Clear all conversation sessions so AI starts fresh with correct tool list
@@ -1793,6 +1844,23 @@ async function api(path,method,body){
   try{const r=await fetch(path,o);if(r.status===401){location.href='/';return{ok:false,error:'Session expired'}}return await r.json()}catch(e){return{ok:false,error:'Connection error: '+e.message}}
 }
 async function doLogout(){await api('/api/logout','POST');location.href='/'}
+function streamTask(taskId,logBox,statusEl,onDone){
+  logBox.textContent='';
+  const src=new EventSource('/api/tasks/'+taskId+'/stream');
+  src.onmessage=function(e){
+    try{
+      const d=JSON.parse(e.data);
+      if(d.type==='log'){logBox.textContent+=d.text+'\\n';logBox.scrollTop=logBox.scrollHeight}
+      else if(d.type==='done'){
+        src.close();
+        if(!d.ok){statusEl.className='status fail';statusEl.textContent=d.error||'Operation failed'}
+        if(onDone)onDone(d);
+      }
+    }catch{}
+  };
+  src.onerror=function(){if(src.readyState===EventSource.CLOSED){statusEl.className='status fail';statusEl.textContent='Connection lost'}};
+  return src;
+}
 function toggleTokenVis(){const el=document.getElementById('tokenDisplay');if(!el||!window._gwToken)return;window._gwTokenVis=!window._gwTokenVis;if(window._gwTokenVis)el.textContent=window._gwToken;else{const t=window._gwToken;el.textContent=t.substring(0,8)+'\\u2022'.repeat(8)+t.substring(t.length-8)}}
 
 // === Provider ===
@@ -2405,10 +2473,11 @@ async function doUpdate(){
   const st=document.getElementById('updateStatus');
   st.className='status loading';st.textContent='Updating to '+v+'...';
   document.getElementById('doUpdateBtn').style.display='none';document.getElementById('updateVersionField').style.display='none';
-  document.getElementById('updateLog').style.display='block';document.getElementById('updateLogBox').textContent='Starting...\\n';
+  document.getElementById('updateLog').style.display='block';
+  const logBox=document.getElementById('updateLogBox');logBox.textContent='';
   const d=await api('/api/update','POST',{version:v});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Updated to '+v+' successfully!':d.error||'Error';
-  document.getElementById('updateLogBox').textContent+=d.log||'';if(d.ok)loadUpdate();
+  if(!d.ok||!d.taskId){st.className='status fail';st.textContent=d.error||'Failed to start update';return}
+  streamTask(d.taskId,logBox,st,function(r){if(r.ok){st.className='status ok';st.textContent='Updated to '+v+' successfully!';loadUpdate()}});
 }
 
 // === Panel Update ===
@@ -2479,21 +2548,21 @@ async function installBrowser(type){
   if(!confirm('Install '+(type==='chrome'?'Google Chrome':'CamoFox')+'? '+(type==='camofox'?'This may take a few minutes (~300MB download).':'This will download and install Chrome.')))return;
   const st=document.getElementById('browserStatus');const logCard=document.getElementById('browserLogCard');const logBox=document.getElementById('browserLogBox');
   st.className='status loading';st.textContent='Installing '+(type==='chrome'?'Chrome':'CamoFox')+'...';
-  logCard.style.display='block';logBox.textContent='Starting installation...\\n';logBox.scrollTop=logBox.scrollHeight;
+  logCard.style.display='block';logBox.textContent='';
   const d=await api('/api/browser/install','POST',{browser:type});
-  logBox.textContent+=d.log||'';logBox.scrollTop=logBox.scrollHeight;
-  if(d.ok){st.className='status ok';st.textContent=(type==='chrome'?'Chrome':'CamoFox')+' installed and activated!';loadBrowserStatus()}
-  else{st.className='status fail';st.textContent=d.error||'Installation failed'}
+  if(!d.ok||!d.taskId){st.className='status fail';st.textContent=d.error||'Failed to start installation';return}
+  const name=type==='chrome'?'Chrome':'CamoFox';
+  streamTask(d.taskId,logBox,st,function(r){if(r.ok){st.className='status ok';st.textContent=name+' installed and activated!'}loadBrowserStatus()});
 }
 async function uninstallBrowser(type){
   if(!confirm('Uninstall '+(type==='chrome'?'Google Chrome':'CamoFox')+'? This will remove the browser completely.'))return;
   const st=document.getElementById('browserStatus');const logCard=document.getElementById('browserLogCard');const logBox=document.getElementById('browserLogBox');
-  st.className='status loading';st.textContent='Uninstalling...';
-  logCard.style.display='block';logBox.textContent='Uninstalling...\\n';logBox.scrollTop=logBox.scrollHeight;
+  st.className='status loading';st.textContent='Uninstalling '+(type==='chrome'?'Chrome':'CamoFox')+'...';
+  logCard.style.display='block';logBox.textContent='';
   const d=await api('/api/browser/uninstall','POST',{browser:type});
-  logBox.textContent+=d.log||'';logBox.scrollTop=logBox.scrollHeight;
-  if(d.ok){st.className='status ok';st.textContent=(type==='chrome'?'Chrome':'CamoFox')+' uninstalled.';loadBrowserStatus()}
-  else{st.className='status fail';st.textContent=d.error||'Uninstall failed'}
+  if(!d.ok||!d.taskId){st.className='status fail';st.textContent=d.error||'Failed to start uninstall';return}
+  const name=type==='chrome'?'Chrome':'CamoFox';
+  streamTask(d.taskId,logBox,st,function(r){if(r.ok){st.className='status ok';st.textContent=name+' uninstalled.'}loadBrowserStatus()});
 }
 async function activateBrowser(type){
   const st=document.getElementById('browserStatus');
@@ -3348,6 +3417,193 @@ showTab('provider',document.querySelector('.nav-item'));
 </script></body></html>`;
 }
 
+// --- Async task workers (SSE-streamed) ---
+
+async function runBrowserInstall(task, browser) {
+  try {
+    if (browser === 'chrome') {
+      taskLog(task, 'Downloading Google Chrome...');
+      const tmpDeb = safeExec('mktemp /tmp/google-chrome-XXXXXX.deb', 5000);
+      if (!tmpDeb) return taskDone(task, false, 'Failed to create temp file');
+      await asyncExec(task, `curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o "${tmpDeb}"`, 120000);
+      taskLog(task, 'Installing Chrome deb...');
+      await asyncExec(task, `apt-get install -y "${tmpDeb}" 2>&1 || apt-get install -fy 2>&1`, 120000);
+      safeExec(`rm -f "${tmpDeb}"`, 5000);
+      if (!safeExec('which google-chrome 2>/dev/null', 5000)) return taskDone(task, false, 'Chrome install failed');
+      // Create wrapper script to inject --window-size (headless Chrome defaults to tiny viewport)
+      taskLog(task, 'Creating Chrome wrapper...');
+      fs.writeFileSync('/usr/local/bin/google-chrome-wrapper', '#!/bin/bash\nexec /usr/bin/google-chrome --window-size=1920,1080 "$@"\n', { mode: 0o755 });
+      taskLog(task, 'Setting browser config...');
+      try {
+        const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        cfg.browser = { headless: true, executablePath: '/usr/local/bin/google-chrome-wrapper', defaultProfile: 'openclaw', noSandbox: true };
+        if (cfg.plugins && cfg.plugins.entries && cfg.plugins.entries['camofox-browser']) {
+          cfg.plugins.entries['camofox-browser'].enabled = false;
+        }
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+        safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
+      } catch (e) { taskLog(task, 'Config error: ' + e.message); }
+      taskLog(task, 'Creating media directory...');
+      safeExec('mkdir -p /home/openclaw/.openclaw/media/browser && chown openclaw:openclaw /home/openclaw/.openclaw/media/browser', 5000);
+      taskLog(task, 'Clearing old sessions...'); clearBrowserSessions();
+      updateBrowserToolsMd('chrome');
+      taskLog(task, 'Restarting OpenClaw...'); restartService('openclaw');
+      await new Promise(r => setTimeout(r, 3000));
+      taskLog(task, 'Done!');
+      taskDone(task, true);
+    } else {
+      // CamoFox
+      taskLog(task, 'Installing browser dependencies + Xvfb...');
+      await asyncExec(task, 'apt-get install -qqy libgtk-3-0t64 libasound2t64 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libdbus-glib-1-2 libgbm1 xvfb 2>&1', 120000);
+      if (!safeExec('pgrep Xvfb', 5000)) {
+        taskLog(task, 'Setting up Xvfb virtual display...');
+        const xvfbSvc = `[Unit]\nDescription=Virtual Framebuffer X Server\nAfter=network.target\n[Service]\nExecStart=/usr/bin/Xvfb :99 -screen 0 1920x1080x24\nRestart=on-failure\nRestartSec=3\n[Install]\nWantedBy=multi-user.target\n`;
+        fs.writeFileSync('/etc/systemd/system/xvfb.service', xvfbSvc);
+        safeExec('systemctl daemon-reload && systemctl enable xvfb && systemctl start xvfb', 15000);
+        const oSvc = '/etc/systemd/system/openclaw.service';
+        try {
+          const svcContent = fs.readFileSync(oSvc, 'utf8');
+          if (!svcContent.includes('DISPLAY=')) {
+            fs.writeFileSync(oSvc, svcContent.replace('[Service]', '[Service]\nEnvironment=DISPLAY=:99'));
+            safeExec('systemctl daemon-reload', 10000);
+          }
+        } catch {}
+      }
+      taskLog(task, 'Installing CamoFox plugin (this may take a few minutes)...');
+      await asyncExec(task, `su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install @askjo/camofox-browser" 2>&1`, 300000);
+      const pluginDir = '/home/openclaw/.openclaw/extensions/camofox-browser';
+      if (!fs.existsSync(pluginDir + '/server.js')) return taskDone(task, false, 'CamoFox plugin install failed');
+      taskLog(task, 'Rebuilding native modules...');
+      await asyncExec(task, `cd "${pluginDir}" && npm rebuild better-sqlite3 2>&1`, 60000);
+      safeExec(`chown -R openclaw:openclaw "${pluginDir}/node_modules/better-sqlite3"`, 15000);
+      taskLog(task, 'Ensuring camoufox binary...');
+      if (!fs.existsSync('/home/openclaw/.cache/camoufox')) {
+        if (fs.existsSync('/root/.cache/camoufox')) {
+          safeExec('mkdir -p /home/openclaw/.cache', 5000);
+          await asyncExec(task, 'cp -r /root/.cache/camoufox /home/openclaw/.cache/', 30000);
+          safeExec('chown -R openclaw:openclaw /home/openclaw/.cache/camoufox', 15000);
+        } else {
+          await asyncExec(task, `su - openclaw -c "cd ${pluginDir} && npx camoufox-js fetch" 2>&1`, 300000);
+        }
+      }
+      taskLog(task, 'Configuring browser for CamoFox...');
+      try {
+        const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        cfg.browser = { enabled: false };
+        if (!cfg.plugins) cfg.plugins = { entries: {} };
+        if (!cfg.plugins.entries) cfg.plugins.entries = {};
+        cfg.plugins.entries['camofox-browser'] = { enabled: true };
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+        safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
+      } catch (e) { taskLog(task, 'Config note: ' + e.message); }
+      taskLog(task, 'Patching CamoFox plugin for media delivery...');
+      taskLog(task, formatPatchResult('CamoFox plugin', patchCamofoxPlugin()));
+      taskLog(task, formatPatchResult('Trusted media', patchTrustedMedia()));
+      const mediaDir = '/home/openclaw/.openclaw/media/camofox';
+      safeExec(`mkdir -p "${mediaDir}" && chown openclaw:openclaw "${mediaDir}"`, 5000);
+      taskLog(task, 'Clearing old sessions...'); clearBrowserSessions();
+      updateBrowserToolsMd('camofox');
+      if (fs.existsSync('/etc/systemd/system/camofox.service')) {
+        safeExec('systemctl disable --now camofox 2>/dev/null', 15000);
+        safeExec('rm -f /etc/systemd/system/camofox.service', 5000);
+        safeExec('systemctl daemon-reload', 10000);
+      }
+      taskLog(task, 'Restarting OpenClaw...'); restartService('openclaw');
+      await new Promise(r => setTimeout(r, 5000));
+      taskLog(task, 'Done!');
+      taskDone(task, true);
+    }
+  } catch (e) { taskDone(task, false, e.message); }
+}
+
+async function runBrowserUninstall(task, browser) {
+  try {
+    if (browser === 'chrome') {
+      taskLog(task, 'Removing Google Chrome...');
+      await asyncExec(task, 'apt-get remove -y google-chrome-stable 2>&1', 60000);
+      await asyncExec(task, 'apt-get autoremove -y 2>&1', 30000);
+      taskLog(task, 'Updating config...');
+      try {
+        const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        cfg.browser = { enabled: false };
+        const camofoxPlugin = '/home/openclaw/.openclaw/extensions/camofox-browser/server.js';
+        if (fs.existsSync(camofoxPlugin)) {
+          if (!cfg.plugins) cfg.plugins = { entries: {} };
+          if (!cfg.plugins.entries) cfg.plugins.entries = {};
+          cfg.plugins.entries['camofox-browser'] = { enabled: true };
+          taskLog(task, 'Re-enabling CamoFox plugin...');
+        }
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+        safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
+      } catch (e) { taskLog(task, 'Config error: ' + e.message); }
+      if (fs.existsSync('/home/openclaw/.openclaw/extensions/camofox-browser/server.js')) {
+        taskLog(task, formatPatchResult('Trusted media', patchTrustedMedia()));
+      }
+    } else {
+      taskLog(task, 'Removing CamoFox plugin...');
+      await asyncExec(task, `echo y | su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins uninstall camofox-browser" 2>&1`, 60000);
+      if (fs.existsSync('/etc/systemd/system/camofox.service')) {
+        safeExec('systemctl disable --now camofox 2>/dev/null', 15000);
+        safeExec('rm -f /etc/systemd/system/camofox.service', 5000);
+        safeExec('systemctl daemon-reload', 10000);
+      }
+      if (fs.existsSync('/opt/camofox-browser')) await asyncExec(task, 'rm -rf /opt/camofox-browser', 30000);
+      try {
+        const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        if (safeExec('which google-chrome 2>/dev/null', 5000)) {
+          cfg.browser = { headless: true, executablePath: '/usr/local/bin/google-chrome-wrapper', defaultProfile: 'openclaw', noSandbox: true };
+        } else {
+          cfg.browser = { enabled: false };
+        }
+        if (cfg.plugins?.entries) delete cfg.plugins.entries['camofox-browser'];
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+        safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
+      } catch (e) { taskLog(task, 'Config error: ' + e.message); }
+    }
+    clearBrowserSessions();
+    let remainingBrowser = 'none';
+    if (browser === 'camofox' && safeExec('which google-chrome 2>/dev/null', 5000)) remainingBrowser = 'chrome';
+    else if (browser === 'chrome' && fs.existsSync('/home/openclaw/.openclaw/extensions/camofox-browser/server.js')) remainingBrowser = 'camofox';
+    updateBrowserToolsMd(remainingBrowser);
+    taskLog(task, 'Restarting OpenClaw...'); restartService('openclaw');
+    await new Promise(r => setTimeout(r, 3000));
+    taskLog(task, 'Done!');
+    taskDone(task, true);
+  } catch (e) { taskDone(task, false, e.message); }
+}
+
+async function runUpdate(task, ver) {
+  try {
+    taskLog(task, 'Stopping OpenClaw...');
+    await asyncExec(task, 'systemctl stop openclaw', 30000);
+    taskLog(task, 'Fetching updates...');
+    await asyncExec(task, `cd ${OPENCLAW_DIR} && git stash 2>/dev/null`, 15000);
+    await asyncExec(task, `cd ${OPENCLAW_DIR} && git fetch --tags --all`, 30000);
+    if (ver === 'latest') {
+      await asyncExec(task, `cd ${OPENCLAW_DIR} && git checkout main && git pull origin main`, 30000);
+      taskLog(task, 'Checked out main branch.');
+    } else {
+      await asyncExec(task, `cd ${OPENCLAW_DIR} && git checkout ${ver.replace(/[^a-zA-Z0-9._-]/g, '')}`, 15000);
+      taskLog(task, 'Checked out ' + ver);
+    }
+    taskLog(task, 'Fixing permissions...');
+    await asyncExec(task, `chown -R openclaw:openclaw ${OPENCLAW_DIR}`, 30000);
+    taskLog(task, 'Building (this may take a few minutes)...');
+    await asyncExec(task, `cd ${OPENCLAW_DIR} && su - openclaw -c "cd ${OPENCLAW_DIR} && pnpm install --frozen-lockfile 2>&1 && pnpm build 2>&1 && pnpm ui:install 2>&1 && pnpm ui:build 2>&1"`, 300000);
+    if (ver !== 'latest') setEnvValue('OPENCLAW_VERSION', ver);
+    if (fs.existsSync('/home/openclaw/.openclaw/extensions/camofox-browser/plugin.ts')) {
+      taskLog(task, 'Re-patching CamoFox plugin...');
+      taskLog(task, formatPatchResult('CamoFox plugin', patchCamofoxPlugin()));
+      taskLog(task, formatPatchResult('Trusted media', patchTrustedMedia()));
+    }
+    taskLog(task, 'Starting OpenClaw...'); restartService('openclaw');
+    await new Promise(r => setTimeout(r, 3000));
+    const ok = isServiceActive('openclaw');
+    taskLog(task, ok ? 'OpenClaw started successfully!' : 'Failed to start OpenClaw');
+    taskDone(task, ok, ok ? null : 'Unable to start OpenClaw after update');
+  } catch (e) { taskDone(task, false, e.message); }
+}
+
 // --- HTTP Server ---
 const server = http.createServer(async (req, res) => {
   // Security headers
@@ -3928,30 +4184,16 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // Update
+  // Update (async with SSE streaming)
   if (req.method === 'POST' && url.pathname === '/api/update') {
     try {
-      const body = await parseBody(req); const ver = (body.version || 'latest').trim(); let log = '';
-      log += 'Stop OpenClaw...\n'; safeExec('systemctl stop openclaw', 30000);
-      log += 'Fetch...\n'; safeExec(`cd ${OPENCLAW_DIR} && git stash 2>/dev/null`, 15000); safeExec(`cd ${OPENCLAW_DIR} && git fetch --tags --all`, 30000);
-      if (ver === 'latest') { safeExec(`cd ${OPENCLAW_DIR} && git checkout main && git pull origin main`, 30000); log += 'Checkout main.\n'; }
-      else { safeExec(`cd ${OPENCLAW_DIR} && git checkout ${ver.replace(/[^a-zA-Z0-9._-]/g, '')}`, 15000); log += `Checkout ${ver}.\n`; }
-      log += 'Fix permissions...\n'; safeExec(`chown -R openclaw:openclaw ${OPENCLAW_DIR}`, 30000);
-      log += 'Build...\n';
-      const bo = safeExec(`cd ${OPENCLAW_DIR} && su - openclaw -c "cd ${OPENCLAW_DIR} && pnpm install --frozen-lockfile 2>&1 && pnpm build 2>&1 && pnpm ui:install 2>&1 && pnpm ui:build 2>&1"`, 300000);
-      log += bo ? bo.substring(Math.max(0, bo.length - 500)) + '\n' : 'Done.\n';
-      if (ver !== 'latest') setEnvValue('OPENCLAW_VERSION', ver);
-      // Re-apply CamoFox plugin patch after rebuild (if CamoFox is installed)
-      // TOOLS.md handles browser tool selection — no dist patches needed
-      if (fs.existsSync('/home/openclaw/.openclaw/extensions/camofox-browser/plugin.ts')) {
-        log += 'Re-patching CamoFox plugin...\n';
-        log += formatPatchResult('CamoFox plugin', patchCamofoxPlugin());
-        log += formatPatchResult('Trusted media', patchTrustedMedia());
-      }
-      log += 'Start...\n'; restartService('openclaw'); await new Promise(r => setTimeout(r, 3000));
-      const ok = isServiceActive('openclaw'); log += ok ? 'OK!\n' : 'FAIL\n';
-      return json(res, 200, { ok, log, error: ok ? null : 'Unable to start' });
-    } catch (e) { return json(res, 500, { ok: false, error: e.message, log: e.message }); }
+      const body = await parseBody(req);
+      const ver = (body.version || 'latest').trim();
+      const task = createTask('update');
+      json(res, 200, { ok: true, taskId: task.id });
+      runUpdate(task, ver).catch(e => taskDone(task, false, e.message));
+      return;
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
   // Browser Status
@@ -3985,180 +4227,29 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // Browser Install
+  // Browser Install (async with SSE streaming)
   if (req.method === 'POST' && url.pathname === '/api/browser/install') {
     try {
       const body = await parseBody(req);
       const browser = (body.browser || '').trim();
       if (browser !== 'chrome' && browser !== 'camofox') return json(res, 400, { ok: false, error: 'Invalid browser type' });
-      let log = '';
-      if (browser === 'chrome') {
-        log += 'Downloading Google Chrome...\n';
-        const tmpDeb = safeExec('mktemp /tmp/google-chrome-XXXXXX.deb', 5000);
-        if (!tmpDeb) return json(res, 500, { ok: false, error: 'Failed to create temp file', log });
-        safeExec(`curl -fsSL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o "${tmpDeb}"`, 120000);
-        log += 'Installing Chrome deb...\n';
-        const inst = safeExec(`apt-get install -y "${tmpDeb}" 2>&1 || apt-get install -fy 2>&1`, 120000);
-        log += inst + '\n';
-        safeExec(`rm -f "${tmpDeb}"`, 5000);
-        if (!safeExec('which google-chrome 2>/dev/null', 5000)) return json(res, 500, { ok: false, error: 'Chrome install failed', log });
-        log += 'Setting browser config...\n';
-        try {
-          const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-          cfg.browser = { headless: true, executablePath: '/usr/bin/google-chrome', defaultProfile: 'openclaw', noSandbox: true };
-          // Disable CamoFox plugin if present
-          if (cfg.plugins && cfg.plugins.entries && cfg.plugins.entries['camofox-browser']) {
-            cfg.plugins.entries['camofox-browser'].enabled = false;
-          }
-          fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
-          safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
-        } catch (e) { log += 'Config error: ' + e.message + '\n'; }
-        // CamoFox server is managed by plugin — will stop automatically when plugin is disabled + OpenClaw restarts
-        log += 'Clearing old sessions...\n'; clearBrowserSessions();
-        updateBrowserToolsMd('chrome');
-        log += 'Restarting OpenClaw...\n'; restartService('openclaw'); await new Promise(r => setTimeout(r, 3000));
-        log += 'Done!\n';
-        return json(res, 200, { ok: true, log });
-      } else {
-        // CamoFox: install OpenClaw plugin (plugin auto-starts its own server, no systemd service needed)
-        log += 'Installing browser dependencies + Xvfb...\n';
-        safeExec('apt-get install -qqy libgtk-3-0t64 libasound2t64 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libdbus-glib-1-2 libgbm1 xvfb 2>&1', 120000);
-        // Ensure Xvfb (virtual display) is running — required for Firefox-based CamoFox
-        if (!safeExec('pgrep Xvfb', 5000)) {
-          log += 'Setting up Xvfb virtual display...\n';
-          const xvfbSvc = `[Unit]\nDescription=Virtual Framebuffer X Server\nAfter=network.target\n[Service]\nExecStart=/usr/bin/Xvfb :99 -screen 0 1920x1080x24\nRestart=on-failure\nRestartSec=3\n[Install]\nWantedBy=multi-user.target\n`;
-          fs.writeFileSync('/etc/systemd/system/xvfb.service', xvfbSvc);
-          safeExec('systemctl daemon-reload && systemctl enable xvfb && systemctl start xvfb', 15000);
-          // Add DISPLAY=:99 to openclaw service if not already set
-          const oSvc = '/etc/systemd/system/openclaw.service';
-          try {
-            const svcContent = fs.readFileSync(oSvc, 'utf8');
-            if (!svcContent.includes('DISPLAY=')) {
-              fs.writeFileSync(oSvc, svcContent.replace('[Service]', '[Service]\nEnvironment=DISPLAY=:99'));
-              safeExec('systemctl daemon-reload', 10000);
-            }
-          } catch {}
-        }
-        // Install CamoFox as OpenClaw plugin (includes server.js + camoufox binary download)
-        log += 'Installing CamoFox plugin (this may take a few minutes)...\n';
-        const pluginOut = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install @askjo/camofox-browser" 2>&1`, 300000);
-        log += pluginOut ? pluginOut.substring(Math.max(0, pluginOut.length - 1000)) + '\n' : '';
-        const pluginDir = '/home/openclaw/.openclaw/extensions/camofox-browser';
-        if (!fs.existsSync(pluginDir + '/server.js')) return json(res, 500, { ok: false, error: 'CamoFox plugin install failed', log });
-        // Rebuild native modules (better-sqlite3 needs compilation)
-        log += 'Rebuilding native modules...\n';
-        safeExec(`cd "${pluginDir}" && npm rebuild better-sqlite3 2>&1`, 60000);
-        safeExec(`chown -R openclaw:openclaw "${pluginDir}/node_modules/better-sqlite3"`, 15000);
-        // Ensure camoufox binary is available for openclaw user
-        log += 'Ensuring camoufox binary...\n';
-        if (!fs.existsSync('/home/openclaw/.cache/camoufox')) {
-          // Binary not downloaded during plugin install — fetch it explicitly
-          if (fs.existsSync('/root/.cache/camoufox')) {
-            safeExec('mkdir -p /home/openclaw/.cache', 5000);
-            safeExec('cp -r /root/.cache/camoufox /home/openclaw/.cache/', 30000);
-            safeExec('chown -R openclaw:openclaw /home/openclaw/.cache/camoufox', 15000);
-          } else {
-            safeExec(`su - openclaw -c "cd ${pluginDir} && npx camoufox-js fetch" 2>&1`, 300000);
-          }
-        }
-        // Disable built-in browser so AI uses CamoFox plugin tools (camofox_*)
-        log += 'Configuring browser for CamoFox...\n';
-        try {
-          const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-          cfg.browser = { enabled: false };
-          if (!cfg.plugins) cfg.plugins = { entries: {} };
-          if (!cfg.plugins.entries) cfg.plugins.entries = {};
-          cfg.plugins.entries['camofox-browser'] = { enabled: true };
-          fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
-          safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
-        } catch (e) { log += 'Config note: ' + e.message + '\n'; }
-        log += 'Patching CamoFox plugin for media delivery...\n';
-        log += formatPatchResult('CamoFox plugin', patchCamofoxPlugin());
-        log += formatPatchResult('Trusted media', patchTrustedMedia());
-        // Pre-create media directory for screenshot delivery
-        const mediaDir = '/home/openclaw/.openclaw/media/camofox';
-        safeExec(`mkdir -p "${mediaDir}" && chown openclaw:openclaw "${mediaDir}"`, 5000);
-        log += 'Clearing old sessions...\n'; clearBrowserSessions();
-        updateBrowserToolsMd('camofox');
-        // Clean up any leftover systemd service (from previous installs)
-        if (fs.existsSync('/etc/systemd/system/camofox.service')) {
-          safeExec('systemctl disable --now camofox 2>/dev/null', 15000);
-          safeExec('rm -f /etc/systemd/system/camofox.service', 5000);
-          safeExec('systemctl daemon-reload', 10000);
-        }
-        log += 'Restarting OpenClaw...\n'; restartService('openclaw'); await new Promise(r => setTimeout(r, 5000));
-        log += 'Done!\n';
-        return json(res, 200, { ok: true, log });
-      }
-    } catch (e) { return json(res, 500, { ok: false, error: e.message, log: e.message }); }
+      const task = createTask('browser-install');
+      json(res, 200, { ok: true, taskId: task.id });
+      runBrowserInstall(task, browser).catch(e => taskDone(task, false, e.message));
+      return;
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // Browser Uninstall
+  // Browser Uninstall (async with SSE streaming)
   if (req.method === 'POST' && url.pathname === '/api/browser/uninstall') {
     try {
       const body = await parseBody(req);
       const browser = (body.browser || '').trim();
       if (browser !== 'chrome' && browser !== 'camofox') return json(res, 400, { ok: false, error: 'Invalid browser type' });
-      let log = '';
-      if (browser === 'chrome') {
-        log += 'Removing Google Chrome...\n';
-        const out = safeExec('apt-get remove -y google-chrome-stable 2>&1', 60000);
-        log += out + '\n';
-        safeExec('apt-get autoremove -y 2>&1', 30000);
-        log += 'Updating config...\n';
-        try {
-          const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-          cfg.browser = { enabled: false };
-          // If CamoFox is installed, re-enable it as the active browser
-          const camofoxPlugin = '/home/openclaw/.openclaw/extensions/camofox-browser/server.js';
-          if (fs.existsSync(camofoxPlugin)) {
-            if (!cfg.plugins) cfg.plugins = { entries: {} };
-            if (!cfg.plugins.entries) cfg.plugins.entries = {};
-            cfg.plugins.entries['camofox-browser'] = { enabled: true };
-            log += 'Re-enabling CamoFox plugin...\n';
-          }
-          fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
-          safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
-        } catch (e) { log += 'Config error: ' + e.message + '\n'; }
-        // Re-apply CamoFox patches if it becomes active
-        if (fs.existsSync('/home/openclaw/.openclaw/extensions/camofox-browser/server.js')) {
-          log += formatPatchResult('Trusted media', patchTrustedMedia());
-        }
-      } else {
-        // CamoFox uninstall: plugin manages server lifecycle, just uninstall plugin
-        log += 'Removing CamoFox plugin...\n';
-        const pluginOut = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins uninstall camofox-browser --yes" 2>&1`, 60000);
-        log += pluginOut + '\n';
-        // Clean up systemd service if exists (from older installs)
-        if (fs.existsSync('/etc/systemd/system/camofox.service')) {
-          safeExec('systemctl disable --now camofox 2>/dev/null', 15000);
-          safeExec('rm -f /etc/systemd/system/camofox.service', 5000);
-          safeExec('systemctl daemon-reload', 10000);
-        }
-        // Clean up standalone server dir if exists
-        if (fs.existsSync('/opt/camofox-browser')) safeExec('rm -rf /opt/camofox-browser', 30000);
-        // Restore built-in browser if Chrome is installed, otherwise disable
-        try {
-          const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-          if (safeExec('which google-chrome 2>/dev/null', 5000)) {
-            cfg.browser = { headless: true, executablePath: '/usr/bin/google-chrome', defaultProfile: 'openclaw', noSandbox: true };
-          } else {
-            cfg.browser = { enabled: false };
-          }
-          if (cfg.plugins?.entries) delete cfg.plugins.entries['camofox-browser'];
-          fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
-          safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
-        } catch (e) { log += 'Config error: ' + e.message + '\n'; }
-      }
-      clearBrowserSessions();
-      // Determine which browser remains after uninstall
-      let remainingBrowser = 'none';
-      if (browser === 'camofox' && safeExec('which google-chrome 2>/dev/null', 5000)) remainingBrowser = 'chrome';
-      else if (browser === 'chrome' && fs.existsSync('/home/openclaw/.openclaw/extensions/camofox-browser/server.js')) remainingBrowser = 'camofox';
-      updateBrowserToolsMd(remainingBrowser);
-      log += 'Restarting OpenClaw...\n'; restartService('openclaw'); await new Promise(r => setTimeout(r, 3000));
-      log += 'Done!\n';
-      return json(res, 200, { ok: true, log });
+      const task = createTask('browser-uninstall');
+      json(res, 200, { ok: true, taskId: task.id });
+      runBrowserUninstall(task, browser).catch(e => taskDone(task, false, e.message));
+      return;
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -4173,11 +4264,16 @@ const server = http.createServer(async (req, res) => {
       const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
       if (browser === 'chrome') {
         // Set Chrome browser config
-        cfg.browser = { headless: true, executablePath: '/usr/bin/google-chrome', defaultProfile: 'openclaw', noSandbox: true };
+        cfg.browser = { headless: true, executablePath: '/usr/local/bin/google-chrome-wrapper', defaultProfile: 'openclaw', noSandbox: true };
         // Disable CamoFox plugin if present
         if (cfg.plugins && cfg.plugins.entries && cfg.plugins.entries['camofox-browser']) {
           cfg.plugins.entries['camofox-browser'].enabled = false;
         }
+        // Ensure wrapper script and media directory exist
+        if (!fs.existsSync('/usr/local/bin/google-chrome-wrapper')) {
+          fs.writeFileSync('/usr/local/bin/google-chrome-wrapper', '#!/bin/bash\nexec /usr/bin/google-chrome --window-size=1920,1080 "$@"\n', { mode: 0o755 });
+        }
+        safeExec('mkdir -p /home/openclaw/.openclaw/media/browser && chown openclaw:openclaw /home/openclaw/.openclaw/media/browser', 5000);
       } else {
         // CamoFox: disable built-in browser, enable plugin (plugin auto-starts server)
         cfg.browser = { enabled: false };
@@ -4203,7 +4299,7 @@ const server = http.createServer(async (req, res) => {
           } catch {}
         }
         // Ensure TRUSTED_TOOL_RESULT_MEDIA has camofox tools (may be missing after OpenClaw update)
-        log += formatPatchResult('Trusted media', patchTrustedMedia());
+        patchTrustedMedia();
       }
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
       safeExec(`chown openclaw:openclaw "${CONFIG_FILE}"`, 5000);
@@ -4877,6 +4973,34 @@ const server = http.createServer(async (req, res) => {
       if (!Array.isArray(history)) history = [];
       return json(res, 200, { ok: true, history });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // SSE Task Stream — real-time log streaming for long-running operations
+  if (req.method === 'GET' && url.pathname.startsWith('/api/tasks/') && url.pathname.endsWith('/stream')) {
+    const taskId = url.pathname.split('/')[3];
+    const task = tasks[taskId];
+    if (!task) return json(res, 404, { ok: false, error: 'Task not found' });
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive', 'X-Accel-Buffering': 'no'
+    });
+    // Send catch-up logs
+    for (const line of task.logs) {
+      res.write(`data: ${JSON.stringify({ type: 'log', text: line.text })}\n\n`);
+    }
+    // If already done, send done event and close
+    if (task.status !== 'running') {
+      res.write(`data: ${JSON.stringify({ type: 'done', ...task.result })}\n\n`);
+      res.end();
+      return;
+    }
+    // Register for live updates
+    task.listeners.add(res);
+    req.on('close', () => task.listeners.delete(res));
+    // Heartbeat every 15s
+    const hb = setInterval(() => { try { res.write(': heartbeat\n\n'); } catch { clearInterval(hb); } }, 15000);
+    req.on('close', () => clearInterval(hb));
+    return;
   }
 
   json(res, 404, { error: 'Not found' });
