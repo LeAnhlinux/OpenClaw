@@ -471,12 +471,17 @@ function writeCaddyfile(domain, email) {
     const el = email ? `email ${email}\n` : '';
     const tlsBlock = `    tls {\n        issuer acme {\n            dir https://acme-v02.api.letsencrypt.org/directory\n            profile shortlived\n        }\n    }`;
     cfg = `${el}${domain} {\n${tlsBlock}\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n\n${domain}:9443 {\n${tlsBlock}\n    reverse_proxy ${BIND}:${PANEL_PORT}\n}\n`;
-    // Firewall: mo 9443, dong 9999
+    // Firewall: open 9443, close 9999 (panel only via Caddy HTTPS)
     try { execSync('ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null', { stdio: 'ignore' }); } catch {}
+    try { execSync('ufw deny 9999/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
+    // Bind gateway to loopback (Caddy handles external traffic)
+    setEnvValue('OPENCLAW_GATEWAY_BIND', BIND);
   } else {
     const serverIP = getServerIP();
     cfg = `${serverIP} {\n    tls internal\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n`;
+    // Firewall: open 9999, close 9443
     try { execSync('ufw allow 9999/tcp comment "OpenClaw Panel HTTP" 2>/dev/null', { stdio: 'ignore' }); } catch {}
+    try { execSync('ufw delete deny 9999/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
   }
   fs.writeFileSync(CADDYFILE, cfg, 'utf8');
 }
@@ -2432,18 +2437,32 @@ async function applyCustomToken(){
 // === Domain ===
 async function loadDomain(){
   const d=await api('/api/current-config'),el=document.getElementById('domainInfo');
-  el.innerHTML='<div class="info-row"><span class="info-k">Domain/IP</span><span class="info-v">'+esc(d.domain||d.serverIP)+'</span></div><div class="info-row"><span class="info-k">SSL</span><span class="info-v">'+(d.domain?"Let\\'s Encrypt":'Self-signed')+'</span></div>';
+  let panelUrl=d.domain?'https://'+d.domain+':9443':'http://'+d.serverIP+':9999';
+  let gwUrl=d.domain?'https://'+d.domain:'http://'+d.serverIP;
+  el.innerHTML='<div class="info-row"><span class="info-k">Domain/IP</span><span class="info-v">'+esc(d.domain||d.serverIP)+'</span></div>'
+    +'<div class="info-row"><span class="info-k">SSL</span><span class="info-v">'+(d.domain?"Let\\'s Encrypt":'Self-signed')+'</span></div>'
+    +'<div class="info-row"><span class="info-k">Panel URL</span><span class="info-v"><a href="'+esc(panelUrl)+'" style="color:var(--accent)">'+esc(panelUrl)+'</a></span></div>'
+    +'<div class="info-row"><span class="info-k">Gateway URL</span><span class="info-v"><a href="'+esc(gwUrl)+'" style="color:var(--accent)">'+esc(gwUrl)+'</a></span></div>';
 }
 async function saveDomain(){
   const st=document.getElementById('domainStatus'),dm=document.getElementById('domainInput').value.trim(),em=document.getElementById('domainEmail').value.trim();
   if(!dm){st.className='status fail';st.textContent='Enter domain';return}
   st.className='status loading';st.textContent='Configuring Caddy + SSL...';
-  const d=await api('/api/domain','POST',{domain:dm,email:em});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'SSL configured for '+dm+'!':d.error||'Error';if(d.ok)setTimeout(loadDomain,1500);
+  const d=await api('/api/domain','POST',{domain:dm,email:em});
+  if(d.ok){
+    st.className='status ok';st.textContent='SSL configured! Redirecting to https://'+dm+':9443 ...';
+    setTimeout(function(){window.location.href='https://'+dm+':9443'},3000);
+  }else{st.className='status fail';st.textContent=d.error||'Error'}
 }
 async function resetDomainToIP(){
   if(!confirm('Switch to IP? This will remove SSL configuration.'))return;
   const st=document.getElementById('domainStatus');st.className='status loading';st.textContent='Switching to IP...';
-  const d=await api('/api/domain','POST',{resetToIP:true});st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Switched to IP!':d.error||'Error';if(d.ok)setTimeout(loadDomain,1500);
+  const d=await api('/api/domain','POST',{resetToIP:true});
+  if(d.ok){
+    st.className='status ok';st.textContent='Switched to IP! Redirecting...';
+    const ip=d.serverIP||location.hostname;
+    setTimeout(function(){window.location.href='http://'+ip+':9999'},3000);
+  }else{st.className='status fail';st.textContent=d.error||'Error'}
 }
 
 // === Update ===
@@ -4145,7 +4164,10 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req); const serverIP = getServerIP();
       if (body.resetToIP) {
         writeCaddyfile(null);
-        restartService('caddy'); await new Promise(r => setTimeout(r, 2000)); return json(res, 200, { ok: true });
+        removeEnvValue('OPENCLAW_GATEWAY_BIND');
+        restartService('caddy'); restartService('openclaw');
+        await new Promise(r => setTimeout(r, 2000));
+        return json(res, 200, { ok: true, serverIP });
       }
       const domain = (body.domain || '').trim().toLowerCase(), email = (body.email || '').trim();
       if (!domain) return json(res, 400, { ok: false, error: 'Missing domain' });
@@ -4158,7 +4180,10 @@ const server = http.createServer(async (req, res) => {
       if (!ips.includes(serverIP)) return json(res, 400, { ok: false, error: `DNS points to ${ips.join(', ')} — not ${serverIP}.` });
       writeCaddyfile(domain, email);
       execSync('systemctl enable caddy 2>/dev/null || true', { timeout: 10000 }); restartService('caddy'); await new Promise(r => setTimeout(r, 3000));
-      if (isServiceActive('caddy')) return json(res, 200, { ok: true, domain });
+      if (isServiceActive('caddy')) {
+        restartService('openclaw'); // Reload with OPENCLAW_GATEWAY_BIND
+        return json(res, 200, { ok: true, domain });
+      }
       writeCaddyfile(null); restartService('caddy');
       return json(res, 500, { ok: false, error: 'Caddy error. Rolled back.' });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
