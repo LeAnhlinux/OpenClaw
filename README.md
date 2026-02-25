@@ -32,7 +32,7 @@ curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install.sh
 curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-dev.sh | bash
 ```
 
-> Yeu cau: Ubuntu 24.04 LTS, toi thieu 1 vCPU / 2GB RAM
+> Yeu cau: Ubuntu 24.04 LTS, toi thieu 2 vCPU / 4GB RAM
 
 ---
 
