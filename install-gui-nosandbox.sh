@@ -19,7 +19,7 @@ set -euo pipefail
 #   SANDBOX=false GUI=true   → Giong install-gui-nosandbox.sh
 # =============================================================================
 
-ENABLE_SANDBOX=true    # true | false
+ENABLE_SANDBOX=false    # true | false
 ENABLE_GUI=true         # true | false
 
 # --- App config ---
