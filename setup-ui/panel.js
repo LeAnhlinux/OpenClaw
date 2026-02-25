@@ -21,7 +21,7 @@ const CONFIG_FILE = '/home/openclaw/.openclaw/openclaw.json';
 const CONFIG_DIR = '/etc/config';
 const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
-const PANEL_VERSION = '2026.02.25.2';
+const PANEL_VERSION = '2026.02.25.3';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -4206,7 +4206,7 @@ const server = http.createServer(async (req, res) => {
   // Panel Update
   if (req.method === 'POST' && url.pathname === '/api/panel-update') {
     try {
-      const tmpFile = PANEL_FILE + '.new';
+      const tmpFile = '/tmp/panel-update.js';
       let log = '';
       log += 'Downloading latest panel.js...\n';
       const dlResult = safeExec(`curl -fsSL --max-time 30 -o "${tmpFile}" "${PANEL_UPDATE_URL}" && echo "OK"`, 45000);
