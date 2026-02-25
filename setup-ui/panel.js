@@ -3563,10 +3563,10 @@ const server = http.createServer(async (req, res) => {
         if (!cfg.channels) cfg.channels = {};
         if (!cfg.channels[body.channel]) cfg.channels[body.channel] = {};
         cfg.channels[body.channel].enabled = true;
-        // NOTE: Discord default groupPolicy="allowlist" nếu không set
+        // NOTE: Discord/Slack default groupPolicy="allowlist" nếu không set
         //   → bot sẽ im lặng vì chưa có channel nào trong allowlist
         //   → phải set groupPolicy="open" để bot trả lời mọi nơi khi mới cài
-        if (body.channel === 'discord' && !cfg.channels[body.channel].groupPolicy) {
+        if ((body.channel === 'discord' || body.channel === 'slack') && !cfg.channels[body.channel].groupPolicy) {
           cfg.channels[body.channel].groupPolicy = 'open';
         }
         // Always set plugins.entries.{id}.enabled (required for OpenClaw to load channel plugin)
