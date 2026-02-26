@@ -22,8 +22,74 @@ const CONFIG_DIR = '/etc/config';
 const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
 function suOC(cmd) { return `su - openclaw -c "set -a; source ${ENV_FILE} 2>/dev/null; set +a; ${cmd}"`; }
-const INSTALLABLE_DEPS = { gh: 'curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list && apt update -qq && apt install gh -y', tmux: 'apt install -y tmux', ffmpeg: 'apt install -y ffmpeg', rg: 'apt install -y ripgrep', jq: 'apt install -y jq', uv: 'curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh' };
-const PANEL_VERSION = '2026.02.26.3';
+// Read install metadata from SKILL.md files (cached)
+const SKILLS_DIR = '/opt/openclaw/skills';
+const LINUX_INSTALL_KINDS = { apt: 1, node: 1, npm: 1, go: 1, uv: 1, brew: 1 };
+// Fallback apt installs for common bins missing from SKILL.md
+const APT_FALLBACKS = { ffmpeg: 'ffmpeg', tmux: 'tmux', rg: 'ripgrep', jq: 'jq', curl: 'curl', wget: 'wget', git: 'git', python3: 'python3', pip3: 'python3-pip' };
+let _skillInstallsCache = null;
+function getSkillInstalls() {
+  if (_skillInstallsCache) return _skillInstallsCache;
+  _skillInstallsCache = {};
+  try {
+    const dirs = fs.readdirSync(SKILLS_DIR);
+    for (const d of dirs) {
+      try {
+        const md = fs.readFileSync(SKILLS_DIR + '/' + d + '/SKILL.md', 'utf8');
+        const idx = md.indexOf('"install"');
+        if (idx < 0) continue;
+        const start = md.indexOf('[', idx);
+        if (start < 0 || start - idx > 30) continue;
+        let depth = 0;
+        for (let i = start; i < md.length && i < start + 3000; i++) {
+          if (md[i] === '[') depth++;
+          else if (md[i] === ']') { depth--; if (depth === 0) {
+            const raw = md.substring(start, i + 1).replace(/,(\s*[}\]])/g, '$1');
+            try { _skillInstallsCache[d] = JSON.parse(raw); } catch {}
+            break;
+          }}
+        }
+      } catch {}
+    }
+  } catch {}
+  return _skillInstallsCache;
+}
+function buildInstallCmd(inst) {
+  const pkg = (inst.package || '').replace(/[^a-zA-Z0-9@._\/-]/g, '');
+  const mod = (inst.module || '').replace(/[^a-zA-Z0-9@._\/-]/g, '');
+  const formula = (inst.formula || pkg).replace(/[^a-zA-Z0-9@._\/-]/g, '');
+  if (inst.kind === 'apt') return 'apt-get install -y ' + pkg + ' 2>&1';
+  if (inst.kind === 'node' || inst.kind === 'npm') return 'npm install -g ' + pkg + ' 2>&1 && ln -sf "$(npm prefix -g)/bin"/* /usr/local/bin/ 2>/dev/null';
+  if (inst.kind === 'go') return 'GOPATH=/home/openclaw/go PATH=$PATH:/home/openclaw/go/bin:/usr/local/go/bin go install ' + mod + ' 2>&1 && ln -sf /home/openclaw/go/bin/* /usr/local/bin/ 2>/dev/null';
+  if (inst.kind === 'uv') return 'uv tool install ' + pkg + ' 2>&1 && ln -sf /root/.local/bin/* /usr/local/bin/ 2>/dev/null';
+  if (inst.kind === 'brew') return "su - openclaw -c 'eval \"$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)\" && brew install " + formula + "' 2>&1 && ln -sf /home/linuxbrew/.linuxbrew/bin/* /usr/local/bin/ 2>/dev/null";
+  return null;
+}
+// Pre-check prerequisites before running install. Returns {ok:true} or {ok:false, error:'...'}
+function checkInstallPrereqs(inst) {
+  const formula = inst.formula || inst.package || inst.module || '';
+  if (inst.kind === 'brew') {
+    if (!safeExec('which brew 2>/dev/null', 5000) && !fs.existsSync('/home/linuxbrew/.linuxbrew/bin/brew'))
+      return { ok: false, needsBrew: true, error: 'brew not installed \u2014 Homebrew is not installed. Install it from https://brew.sh or install "' + formula + '" manually.' };
+  }
+  if (inst.kind === 'go') {
+    if (!safeExec('which go 2>/dev/null', 5000))
+      return { ok: false, needsTool: 'go', error: 'go not installed \u2014 Go is required to build "' + formula + '". Click below to install it via apt.' };
+  }
+  if (inst.kind === 'uv') {
+    if (!safeExec('which uv 2>/dev/null', 5000)) {
+      safeExec('curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh 2>&1', 60000);
+      if (!safeExec('which uv 2>/dev/null', 5000))
+        return { ok: false, error: 'uv not installed \u2014 uv could not be auto-installed. Install it from https://docs.astral.sh/uv/getting-started/installation/' };
+    }
+  }
+  if (inst.kind === 'node' || inst.kind === 'npm') {
+    if (!safeExec('which npm 2>/dev/null', 5000))
+      return { ok: false, error: 'npm not installed \u2014 Node.js/npm is not installed. Install Node.js from https://nodejs.org/' };
+  }
+  return { ok: true };
+}
+const PANEL_VERSION = '2026.02.26.5';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -970,8 +1036,13 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .sidebar-logout-btn{flex:1;justify-content:center}
 .sidebar-logout-btn:hover{background:rgba(234,67,53,.15);color:#f87171;border-color:rgba(234,67,53,.3)}
 
+/* Panel Footer */
+.panel-footer{margin-top:auto;text-align:center;padding:32px 0 12px;font-size:12px;color:var(--text2)}
+.panel-footer a{color:var(--accent);text-decoration:none;font-weight:600}
+.panel-footer a:hover{text-decoration:underline}
+
 /* Main */
-.main{margin-left:var(--sidebar-w);flex:1;padding:32px 36px;min-height:100vh}
+.main{margin-left:var(--sidebar-w);flex:1;padding:32px 36px;min-height:100vh;display:flex;flex-direction:column}
 .page-title{font-size:26px;font-weight:800;margin-bottom:6px;color:var(--text);letter-spacing:-.3px;display:flex;align-items:center;gap:10px}
 .page-title svg{width:28px;height:28px;flex-shrink:0}
 .page-desc{font-size:14px;color:var(--text2);margin-bottom:28px;line-height:1.6}
@@ -1054,7 +1125,7 @@ body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;b
 .config-pane{margin-top:18px;padding:22px;background:#f8f9fa;border:2px solid var(--border);border-radius:12px}
 
 /* Sections */
-.section{display:none} .section.active{display:block}
+.section{display:none;flex-shrink:0} .section.active{display:block}
 
 /* Chat */
 .chat-box{display:flex;flex-direction:column;height:440px;border:2px solid var(--border);border-radius:16px;overflow:hidden;background:#fafbfc}
@@ -1314,6 +1385,9 @@ body.dark .field input{background:#0f172a;border-color:#334155;color:#e2e8f0}
 body.dark .field input:focus{background:#0f172a;border-color:#4285f4;box-shadow:0 0 0 4px rgba(66,133,244,.2)}
 body.dark .field label{color:#94a3b8} body.dark .logo p{color:#94a3b8}
 body.dark .err{background:#2e0a0a;border-color:#4a1a1a;color:#f87171}
+.login-footer{position:fixed;bottom:12px;left:0;right:0;text-align:center;font-size:12px;color:#5f6368}
+.login-footer a{color:#4285f4;text-decoration:none;font-weight:600} .login-footer a:hover{text-decoration:underline}
+body.dark .login-footer{color:#94a3b8} body.dark .login-footer a{color:#60a5fa}
 </style></head><body>
 <script>try{if(localStorage.getItem('oc-dark')==='1')document.body.classList.add('dark')}catch{}</script>
 <div class="wrap">
@@ -1327,6 +1401,7 @@ body.dark .err{background:#2e0a0a;border-color:#4a1a1a;color:#f87171}
     </form>
   </div>
 </div>
+<div class="login-footer">\u26A1 VPS by <a href="https://tino.vn?php=14956" target="_blank" rel="noopener">TinoHost</a> \u2014 SSD NVMe, 99.9% uptime, t\u1EEB 89k/th</div>
 <script>
 document.getElementById('f').addEventListener('submit',async e=>{
   e.preventDefault();const b=document.getElementById('b'),err=document.getElementById('e');
@@ -1772,6 +1847,10 @@ function panelPage() {
       <div id="skillsList"></div>
       <div class="status" id="skillsStatus"></div>
     </div>
+    <div class="card" id="skillsLogCard" style="display:none">
+      <div class="card-title"><span class="ct-icon">${ICONS.fileText}</span> Install Log</div>
+      <div class="log-box" id="skillsLogBox" style="max-height:300px;overflow-y:auto;font-size:12px"></div>
+    </div>
     <div class="card">
       <div class="card-title"><span class="ct-icon">${ICONS.globe}</span> ClawHub \u2014 Marketplace</div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Search and install community skills from the ClawHub public registry.</p>
@@ -1831,6 +1910,10 @@ function panelPage() {
       </div>
     </div>
   </div>
+
+  <!-- Footer -->
+  <div class="panel-footer">\u26a1 VPS by <a href="https://tino.vn?php=14956" target="_blank" rel="noopener">TinoHost</a> \u2014 SSD NVMe, 99.9% uptime, t\u1eeb 89k/th</div>
+
 </div>
 
 <script>
@@ -2758,23 +2841,25 @@ async function loadSkills(){
   if(!d.ok){el.innerHTML='';st.className='status fail';st.textContent=d.error||'Error loading skills';return}
   allSkills=d.skills||[];
   const total=allSkills.length,eligible=allSkills.filter(s=>s.eligible&&!s.disabled).length,disabled=allSkills.filter(s=>s.disabled).length,missing=allSkills.filter(s=>!s.eligible&&!s.disabled).length;
+  const canInstall=allSkills.filter(s=>!s.eligible&&!s.disabled&&s.installs&&s.installs.some(function(i){return i.supported})).length;
   // Stat cards
   sum.innerHTML='<div class="stat-card blue"><div class="stat-num">'+total+'</div><div class="stat-label">Total</div></div>'
     +'<div class="stat-card green"><div class="stat-num">'+eligible+'</div><div class="stat-label">Active</div></div>'
     +'<div class="stat-card red"><div class="stat-num">'+disabled+'</div><div class="stat-label">Disabled</div></div>'
     +'<div class="stat-card amber"><div class="stat-num">'+missing+'</div><div class="stat-label">Missing</div></div>';
   // Filter pills
-  renderSkillFilterPills(total,eligible,disabled,missing);
+  renderSkillFilterPills(total,eligible,disabled,missing,canInstall);
   filterSkills();
   loadClawHubInstalled();
 }
 
-function renderSkillFilterPills(total,eligible,disabled,missing){
+function renderSkillFilterPills(total,eligible,disabled,missing,canInstall){
   const el=document.getElementById('skillsFilterPills');
   if(!el)return;
   const pills=[
     {key:'all',label:'All',count:total},
     {key:'eligible',label:'Eligible',count:eligible},
+    {key:'installable',label:'\\u26A1 Can Install',count:canInstall||0},
     {key:'disabled',label:'Disabled',count:disabled},
     {key:'missing',label:'Missing Reqs',count:missing}
   ];
@@ -2792,7 +2877,8 @@ function setSkillFilter(mode){
   });
   // Simpler: re-render pills
   const total=allSkills.length,eligible=allSkills.filter(s=>s.eligible&&!s.disabled).length,disabled=allSkills.filter(s=>s.disabled).length,missing=allSkills.filter(s=>!s.eligible&&!s.disabled).length;
-  renderSkillFilterPills(total,eligible,disabled,missing);
+  const canInstall=allSkills.filter(s=>!s.eligible&&!s.disabled&&s.installs&&s.installs.some(function(i){return i.supported})).length;
+  renderSkillFilterPills(total,eligible,disabled,missing,canInstall);
 }
 
 function filterSkills(){
@@ -2800,6 +2886,7 @@ function filterSkills(){
   if(skillsFilterMode==='eligible')list=allSkills.filter(s=>s.eligible&&!s.disabled);
   else if(skillsFilterMode==='disabled')list=allSkills.filter(s=>s.disabled);
   else if(skillsFilterMode==='missing')list=allSkills.filter(s=>!s.eligible&&!s.disabled);
+  else if(skillsFilterMode==='installable')list=allSkills.filter(s=>!s.eligible&&!s.disabled&&s.installs&&s.installs.some(function(i){return i.supported}));
   // Text search
   const q=(document.getElementById('skillsSearchInput')||{}).value;
   if(q&&q.trim()){
@@ -2835,14 +2922,27 @@ function renderSkills(skills){
       else{
         if(s.missing.bins&&s.missing.bins.length)parts.push('Need: '+s.missing.bins.join(', '));
         if(s.missing.anyBins&&s.missing.anyBins.length)parts.push('Any of: '+s.missing.anyBins.join(' / '));
-        if(s.missing.env&&s.missing.env.length)parts.push('Env: '+s.missing.env.join(', '));
+        if(s.missing.env&&s.missing.env.length)parts.push('Env: '+s.missing.env.map(function(e){return e+(s.envStatus&&s.envStatus[e]==='set'?' \\u2705':'')}).join(', '));
         if(s.missing.config&&s.missing.config.length)parts.push(s.missing.config.map(function(c){return c.replace('channels.','')}).join(', '));
       }
-      if(parts.length)missingHtml='<div class="skill-missing">${ICONS.warning} '+esc(parts.join(' \u2022 '))+'</div>';
-      if(!hasMacOS&&s.installable&&s.installable.length)missingHtml+='<div style="margin-top:4px"><button class="btn btn-sm" style="font-size:11px;padding:2px 10px" onclick="event.stopPropagation();installSkillDeps(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\')"> ${ICONS.download} Auto Install</button></div>';
+      if(parts.length)missingHtml='<div class="skill-missing">${ICONS.warning} '+esc(parts.join(' \\u2022 '))+'</div>';
+      if(!hasMacOS){
+        var btns='';
+        if(s.installs&&s.installs.length){
+          s.installs.forEach(function(inst){
+            if(inst.supported){
+              btns+='<button class="btn btn-sm" style="font-size:11px;padding:3px 12px;background:#16a34a;color:#fff;border-color:#16a34a" data-skill="'+esc(s.name)+'" data-install="'+esc(inst.id)+'" onclick="event.stopPropagation();runSkillInstall(this)">${ICONS.download} '+esc(inst.label)+'</button>';
+            }
+          });
+        }
+        if(s.homepage)btns+='<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" class="btn btn-sm" style="font-size:11px;padding:3px 12px;text-decoration:none;display:inline-flex;align-items:center;gap:4px" onclick="event.stopPropagation()">${ICONS.link} Install Guide</a>';
+        else if(hasConfigOnly)btns+='<button class="btn btn-sm" style="font-size:11px;padding:3px 12px" onclick="event.stopPropagation();showTab(\\'channels\\')">\\u2699\\uFE0F Configure Channel</button>';
+        if(btns)missingHtml+='<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'+btns+'</div>';
+      }
     }
-    const canToggle=s.eligible||s.disabled;
-    const toggleHtml=canToggle?'<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked)"><span class="toggle-slider"></span></label>':'';
+    const canToggle=!hasMacOS;
+    const isActive=!s.disabled;
+    const toggleHtml=canToggle?'<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isActive?'checked':'')+' onchange="toggleSkill(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked)"><span class="toggle-slider"></span></label>':'';
     h+='<div class="'+cardClass+'" onclick="showSkillDetail(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\')">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
       +'<div style="display:flex;align-items:center;gap:12px"><span class="skill-emoji">'+(s.emoji||'\ud83e\udde9')+'</span>'
@@ -2865,18 +2965,132 @@ async function toggleSkill(name,disable){
   if(d.ok)setTimeout(loadSkills,2000);
 }
 
-async function installSkillDeps(name){
-  const s=allSkills.find(function(sk){return sk.name===name});
-  if(!s||!s.installable||!s.installable.length)return;
-  const st=document.getElementById('skillsStatus');
-  for(var i=0;i<s.installable.length;i++){
-    var dep=s.installable[i];
-    st.className='status loading';st.textContent='Installing '+dep+'... ('+(i+1)+'/'+s.installable.length+')';
-    var d=await api('/api/skills/install-dep','POST',{dep:dep});
-    if(!d.ok&&!d.installed){st.className='status fail';st.textContent='Failed to install '+dep+': '+(d.error||'Unknown error');return}
+async function runSkillInstall(el){
+  var skill=el.getAttribute('data-skill');
+  var installId=el.getAttribute('data-install');
+  if(!skill||!installId)return;
+  var label=el.textContent.trim();
+  var st=document.getElementById('skillsStatus');
+  var logCard=document.getElementById('skillsLogCard');
+  var logBox=document.getElementById('skillsLogBox');
+  st.className='status loading';st.textContent='Installing: '+label+'...';
+  el.disabled=true;el.style.opacity='0.5';
+  // Remove old inline error if any
+  var oldErr=el.parentElement.querySelector('.skill-install-error');
+  if(oldErr)oldErr.remove();
+  var d=await api('/api/skills/run-install','POST',{skill:skill,installId:installId});
+  if(d.ok&&d.taskId){
+    // Show dedicated log card and stream
+    logCard.style.display='block';logBox.textContent='';
+    logCard.scrollIntoView({behavior:'smooth',block:'center'});
+    streamTask(d.taskId,logBox,st,function(r){
+      el.disabled=false;el.style.opacity='';
+      if(r.ok){
+        st.className='status ok';st.textContent='Installed! Refreshing skills...';
+        setTimeout(function(){logCard.style.display='none';loadSkills()},2000);
+      } else {
+        st.className='status fail';st.textContent='Install failed';
+      }
+    });
+  } else if(!d.ok){
+    el.disabled=false;el.style.opacity='';
+    st.className='status fail';st.textContent='Install failed';
+    var errDiv=document.createElement('div');
+    errDiv.className='skill-install-error';
+    errDiv.style.cssText='margin-top:6px;padding:8px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#991b1b;line-height:1.5';
+    errDiv.innerHTML=esc(d.error||'Unknown error');
+    if(d.needsBrew||d.needsTool){
+      var toolBtn=document.createElement('button');
+      toolBtn.className='btn btn-sm';
+      toolBtn.style.cssText='margin-top:8px;background:#f59e0b;color:#fff;border-color:#f59e0b;padding:4px 14px;font-size:12px';
+      if(d.needsBrew){
+        toolBtn.innerHTML='\\ud83c\\udf7a Install Homebrew, then retry';
+        toolBtn.onclick=function(){installToolThenRetry(el,toolBtn,'brew')};
+      } else {
+        toolBtn.innerHTML='\\ud83d\\udce6 Install '+d.needsTool+', then retry';
+        toolBtn.onclick=function(){installToolThenRetry(el,toolBtn,d.needsTool)};
+      }
+      errDiv.appendChild(toolBtn);
+    }
+    el.parentElement.appendChild(errDiv);
   }
-  st.className='status ok';st.textContent='Dependencies installed! Refreshing skills...';
-  setTimeout(loadSkills,2000);
+}
+async function installToolThenRetry(origBtn,toolBtn,tool){
+  var st=document.getElementById('skillsStatus');
+  var logCard=document.getElementById('skillsLogCard');
+  var logBox=document.getElementById('skillsLogBox');
+  var label=tool==='brew'?'Homebrew':tool;
+  var errDiv=toolBtn.parentElement;
+  toolBtn.disabled=true;toolBtn.style.opacity='0.5';
+  toolBtn.textContent='Installing '+label+'...';
+  st.className='status loading';st.textContent='Installing '+label+'...';
+  // Show dedicated log card
+  logCard.style.display='block';logBox.textContent='Connecting...\\n';
+  logCard.scrollIntoView({behavior:'smooth',block:'center'});
+  var d=await api('/api/skills/install-tool','POST',{tool:tool});
+  if(d.skipped){
+    st.className='status ok';st.textContent=label+' already installed! Retrying skill install...';
+    logCard.style.display='none';
+    if(errDiv)errDiv.remove();
+    await new Promise(function(r){setTimeout(r,500)});
+    runSkillInstall(origBtn);
+    return;
+  }
+  if(!d.ok||!d.taskId){
+    st.className='status fail';st.textContent=d.error||label+' install failed';
+    toolBtn.disabled=false;toolBtn.style.opacity='';
+    toolBtn.textContent='Retry Install '+label;
+    logCard.style.display='none';
+    return;
+  }
+  // Stream task logs in real-time in the dedicated log card
+  streamTask(d.taskId,logBox,st,function(r){
+    if(r.ok){
+      st.className='status ok';st.textContent=label+' installed! Retrying skill install...';
+      toolBtn.textContent=label+' installed! Retrying...';
+      setTimeout(function(){
+        logCard.style.display='none';
+        if(errDiv)errDiv.remove();
+        runSkillInstall(origBtn);
+      },1500);
+    } else {
+      toolBtn.disabled=false;toolBtn.style.opacity='';
+      toolBtn.textContent='Retry Install '+label;
+    }
+  });
+}
+
+async function saveSkillEnv(btn,key){
+  var inp=document.getElementById('env_'+key);
+  if(!inp||!inp.value.trim()){inp&&inp.focus();return}
+  var st=document.getElementById('skillsStatus');
+  btn.disabled=true;btn.textContent='Saving...';
+  st.className='status loading';st.textContent='Saving '+key+'...';
+  var d=await api('/api/skills/set-env','POST',{key:key,value:inp.value.trim()});
+  if(d.ok){
+    st.className='status ok';st.textContent=key+' saved! Refreshing...';
+    inp.value='';inp.placeholder='\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022 (already set)';
+    inp.style.borderColor='#86efac';inp.style.background='#f0fdf4';
+    btn.textContent='\\u2705 Update';btn.style.background='#16a34a';btn.style.borderColor='#16a34a';
+    btn.disabled=false;
+    setTimeout(function(){closeSkillModal();loadSkills()},1500);
+  } else {
+    st.className='status fail';st.textContent=d.error||'Failed to save';
+    btn.disabled=false;btn.textContent='\\ud83d\\udcbe Save';
+  }
+}
+async function removeSkillEnv(btn,key){
+  if(!confirm('Remove '+key+'?'))return;
+  var st=document.getElementById('skillsStatus');
+  btn.disabled=true;st.className='status loading';st.textContent='Removing '+key+'...';
+  var d=await api('/api/skills/set-env','POST',{key:key,value:''});
+  if(d.ok){
+    st.className='status ok';st.textContent=key+' removed! Refreshing...';
+    setTimeout(function(){closeSkillModal();loadSkills()},1500);
+  } else {
+    st.className='status fail';st.textContent=d.error||'Failed to remove';
+    btn.disabled=false;
+  }
 }
 
 function showSkillDetail(name){
@@ -2899,22 +3113,51 @@ function showSkillDetail(name){
   let missingHtml='';
   if(s.missing&&!s.eligible){
     const parts=[];
-    if(isMac){parts.push('<strong>OS:</strong> Requires macOS — not available on Linux')}
+    if(isMac){parts.push('<strong>OS:</strong> Requires macOS \\u2014 not available on Linux')}
     else{
-      if(s.missing.bins&&s.missing.bins.length)parts.push('<strong>Binaries:</strong> '+s.missing.bins.map(function(b){return '<code>'+esc(b)+'</code>'+(s.installable&&s.installable.indexOf(b)>=0?' <span style="color:#16a34a;font-size:11px">(installable)</span>':'')}).join(', '));
-      if(s.missing.anyBins&&s.missing.anyBins.length)parts.push('<strong>Any of:</strong> '+s.missing.anyBins.map(function(b){return '<code>'+esc(b)+'</code>'+(s.installable&&s.installable.indexOf(b)>=0?' <span style="color:#16a34a;font-size:11px">(installable)</span>':'')}).join(', '));
-      if(s.missing.env&&s.missing.env.length)parts.push('<strong>Env vars:</strong> '+s.missing.env.map(function(e){return '<code>'+esc(e)+'</code>'}).join(', '));
+      if(s.missing.bins&&s.missing.bins.length)parts.push('<strong>Binaries:</strong> '+s.missing.bins.map(function(b){var canInst=s.installs&&s.installs.some(function(i){return i.supported&&i.bins&&i.bins.indexOf(b)>=0});return '<code>'+esc(b)+'</code>'+(canInst?' <span style="color:#16a34a;font-size:11px">(auto-installable)</span>':'')}).join(', '));
+      if(s.missing.anyBins&&s.missing.anyBins.length)parts.push('<strong>Any of:</strong> '+s.missing.anyBins.map(function(b){var canInst=s.installs&&s.installs.some(function(i){return i.supported&&i.bins&&i.bins.indexOf(b)>=0});return '<code>'+esc(b)+'</code>'+(canInst?' <span style="color:#16a34a;font-size:11px">(auto-installable)</span>':'')}).join(', '));
+      if(s.missing.env&&s.missing.env.length){
+        var envHtml='<strong>Env vars:</strong><div style="margin-top:6px">';
+        s.missing.env.forEach(function(e){
+          var isSet=s.envStatus&&s.envStatus[e]==='set';
+          envHtml+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+            +'<code style="min-width:140px;font-size:12px">'+esc(e)+'</code>'
+            +'<input type="text" id="env_'+esc(e)+'" placeholder="'+(isSet?'\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022 (already set)':'Enter value...')+'" style="flex:1;padding:4px 8px;border:1px solid '+(isSet?'#86efac':'var(--border)')+';border-radius:6px;font-size:12px;background:'+(isSet?'#f0fdf4':'var(--bg)')+';font-family:monospace">'
+            +'<button class="btn btn-sm" style="padding:4px 12px;font-size:11px;background:'+(isSet?'#16a34a':'var(--accent)')+';color:#fff;border-color:'+(isSet?'#16a34a':'var(--accent)')+'" onclick="saveSkillEnv(this,\\''+esc(e)+'\\')">'+( isSet?'\\u2705 Update':'\\ud83d\\udcbe Save')+'</button>'
+            +(isSet?'<button class="btn btn-sm" style="padding:4px 8px;font-size:11px;background:#fee2e2;color:#dc2626;border-color:#fca5a5" onclick="removeSkillEnv(this,\\''+esc(e)+'\\')">\\u2716</button>':'')
+            +'</div>';
+        });
+        envHtml+='</div>';
+        parts.push(envHtml);
+      }
       if(s.missing.config&&s.missing.config.length)parts.push('<strong>Config:</strong> '+s.missing.config.map(function(c){return '<code>'+esc(c)+'</code>'}).join(', '));
     }
     if(parts.length){
       missingHtml='<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-top:12px"><div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">${ICONS.warning} Missing Requirements</div><div style="font-size:12px;color:#92400e;line-height:1.6">'+parts.join('<br>')+'</div>';
-      if(!isMac&&s.installable&&s.installable.length)missingHtml+='<div style="margin-top:10px"><button class="btn btn-accent btn-sm" onclick="installSkillDeps(\\''+esc(name).replace(/'/g,"\\\\'")+'\\');closeSkillModal()">${ICONS.download} Install Dependencies ('+s.installable.join(', ')+')</button></div>';
+      if(!isMac){
+        var mBtns='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">';
+        if(s.installs&&s.installs.length){
+          s.installs.forEach(function(inst){
+            if(inst.supported){
+              mBtns+='<button class="btn btn-sm" style="background:#16a34a;color:#fff;border-color:#16a34a;padding:5px 16px" data-skill="'+esc(s.name)+'" data-install="'+esc(inst.id)+'" onclick="runSkillInstall(this);closeSkillModal()">${ICONS.download} '+esc(inst.label)+'</button>';
+            } else {
+              mBtns+='<span class="btn btn-sm" style="padding:5px 16px;opacity:0.6;cursor:default" title="'+esc(inst.kind)+' not available on Linux">'+esc(inst.label)+' <span style="font-size:10px">('+esc(inst.kind)+')</span></span>';
+            }
+          });
+        }
+        if(s.homepage)mBtns+='<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" class="btn btn-sm" style="padding:5px 16px;text-decoration:none;display:inline-flex;align-items:center;gap:4px">${ICONS.link} Installation Guide</a>';
+        if(s.missing.config&&s.missing.config.length&&!s.missing.bins.length&&!s.missing.anyBins.length)mBtns+='<button class="btn btn-sm" style="padding:5px 16px" onclick="showTab(\\'channels\\');closeSkillModal()">\\u2699\\uFE0F Go to Channels</button>';
+        mBtns+='</div>';
+        missingHtml+=mBtns;
+      }
       missingHtml+='</div>';
     }
   }
   const docsLink=s.homepage?'<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" style="font-size:13px;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px">${ICONS.link} Documentation</a>':'';
-  const canToggle=s.eligible||s.disabled;
-  const toggleHtml=canToggle?'<label class="toggle-switch"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\\''+esc(name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked);closeSkillModal()"><span class="toggle-slider"></span></label>':'';
+  const canToggle=!isMac;
+  const isActive2=!s.disabled;
+  const toggleHtml=canToggle?'<label class="toggle-switch"><input type="checkbox" '+(isActive2?'checked':'')+' onchange="toggleSkill(\\''+esc(name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked);closeSkillModal()"><span class="toggle-slider"></span></label>':'';
   const statusDot=isEnabled?'<span class="status-dot dot-green"></span> <span style="color:#16a34a;font-weight:600;font-size:13px">Enabled</span>'
     :s.disabled?'<span class="status-dot dot-red"></span> <span style="color:#dc2626;font-weight:600;font-size:13px">Disabled</span>'
     :isMac?'<span class="status-dot" style="background:#9ca3af"></span> <span style="color:#6b7280;font-weight:600;font-size:13px">macOS Only</span>'
@@ -2987,10 +3230,25 @@ async function searchClawHub(){
 }
 async function installClawHubSkill(slug){
   if(!confirm('Install skill "'+slug+'" from ClawHub?'))return;
-  const st=document.getElementById('clawhubStatus');st.className='status loading';st.textContent='Installing '+slug+'...';
+  const st=document.getElementById('clawhubStatus');
+  const logCard=document.getElementById('skillsLogCard');
+  const logBox=document.getElementById('skillsLogBox');
+  st.className='status loading';st.textContent='Installing '+slug+'...';
   const d=await api('/api/clawhub/install','POST',{slug});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Installed '+slug+'!':d.error||'Error';
-  if(d.ok){loadClawHubInstalled();setTimeout(loadSkills,2000)}
+  if(d.ok&&d.taskId){
+    logCard.style.display='block';logBox.textContent='';
+    logCard.scrollIntoView({behavior:'smooth',block:'center'});
+    streamTask(d.taskId,logBox,st,function(r){
+      if(r.ok){
+        st.className='status ok';st.textContent='Installed '+slug+'!';
+        setTimeout(function(){logCard.style.display='none';loadClawHubInstalled();loadSkills()},2000);
+      } else {
+        st.className='status fail';st.textContent=r.error||'Install failed';
+      }
+    });
+  } else {
+    st.className='status fail';st.textContent=d.error||'Install failed';
+  }
 }
 async function loadClawHubInstalled(){
   const el=document.getElementById('clawhubInstalled');const st=document.getElementById('clawhubInstalledStatus');
@@ -3012,25 +3270,35 @@ async function loadClawHubInstalled(){
   el.innerHTML=h;
   st.className='status ok';st.textContent=items.length+' skill(s) installed from ClawHub.';
 }
-async function uninstallClawHubSkill(slug){
+function clawhubStream(slug,action,apiPath,body){
+  var st=document.getElementById('clawhubInstalledStatus');
+  var logCard=document.getElementById('skillsLogCard');
+  var logBox=document.getElementById('skillsLogBox');
+  var label=action+' '+slug;
+  st.className='status loading';st.textContent=label+'...';
+  logCard.style.display='block';logBox.textContent='';
+  logCard.scrollIntoView({behavior:'smooth',block:'center'});
+  api(apiPath,'POST',body).then(function(d){
+    if(d.ok&&d.taskId){
+      streamTask(d.taskId,logBox,st,function(r){
+        if(r.ok){
+          st.className='status ok';st.textContent=label+' done!';
+          setTimeout(function(){logCard.style.display='none';loadClawHubInstalled();loadSkills()},2000);
+        } else {st.className='status fail';st.textContent=r.error||'Failed'}
+      });
+    } else {st.className='status fail';st.textContent=d.error||'Failed';logCard.style.display='none'}
+  });
+}
+function uninstallClawHubSkill(slug){
   if(!confirm('Uninstall skill "'+slug+'"?'))return;
-  const st=document.getElementById('clawhubInstalledStatus');st.className='status loading';st.textContent='Uninstalling '+slug+'...';
-  const d=await api('/api/clawhub/uninstall','POST',{slug});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Uninstalled '+slug+'.':d.error||'Error';
-  if(d.ok){loadClawHubInstalled();setTimeout(loadSkills,2000)}
+  clawhubStream(slug,'Uninstalling','/api/clawhub/uninstall',{slug:slug});
 }
-async function updateClawHubSkill(slug){
-  const st=document.getElementById('clawhubInstalledStatus');st.className='status loading';st.textContent='Updating '+slug+'...';
-  const d=await api('/api/clawhub/update','POST',{slug});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Updated '+slug+'.':d.error||'Error';
-  if(d.ok)loadClawHubInstalled();
+function updateClawHubSkill(slug){
+  clawhubStream(slug,'Updating','/api/clawhub/update',{slug:slug});
 }
-async function updateAllClawHub(){
+function updateAllClawHub(){
   if(!confirm('Update all ClawHub skills?'))return;
-  const st=document.getElementById('clawhubInstalledStatus');st.className='status loading';st.textContent='Updating all...';
-  const d=await api('/api/clawhub/update','POST',{slug:'--all'});
-  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'All ClawHub skills updated.':d.error||'Error';
-  if(d.ok)loadClawHubInstalled();
+  clawhubStream('all skills','Updating','/api/clawhub/update',{slug:'--all'});
 }
 
 // === Status ===
@@ -4482,33 +4750,137 @@ const server = http.createServer(async (req, res) => {
       if (!out) return json(res, 500, { ok: false, error: 'Failed to list skills' });
       const data = JSON.parse(out);
       const skills = data.skills || [];
-      skills.forEach(s => { if (s.missing) { const allBins = [...(s.missing.bins || []), ...(s.missing.anyBins || [])]; s.installable = allBins.filter(b => INSTALLABLE_DEPS[b]); } });
+      const installsMap = getSkillInstalls();
+      skills.forEach(s => {
+        const si = installsMap[s.name] || [];
+        s.installs = si.map(i => ({ id: i.id, kind: i.kind, label: i.label || (i.kind + ' install'), bins: i.bins || [], supported: !!LINUX_INSTALL_KINDS[i.kind] }));
+        // Add apt fallbacks for bins without any supported install option
+        if (s.missing && !s.installs.some(i => i.supported)) {
+          const allBins = [...(s.missing.bins || []), ...(s.missing.anyBins || [])];
+          allBins.forEach(b => { if (APT_FALLBACKS[b]) s.installs.push({ id: 'apt-' + b, kind: 'apt', label: 'Install ' + b + ' (apt)', bins: [b], package: APT_FALLBACKS[b], supported: true }); });
+        }
+        // Add env key status (set/unset) for missing env vars
+        if (s.missing && s.missing.env && s.missing.env.length) {
+          s.envStatus = {};
+          s.missing.env.forEach(k => { const v = getEnvValue(k); s.envStatus[k] = v && v !== '#disabled' ? 'set' : 'unset'; });
+        }
+      });
       return json(res, 200, { ok: true, skills });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // Skills Toggle (enable/disable)
+  // Skills Toggle (enable/disable) via config set
   if (req.method === 'POST' && url.pathname === '/api/skills/toggle') {
     try {
       const body = await parseBody(req);
       const name = (body.name || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!name) return json(res, 400, { ok: false, error: 'Missing skill name' });
-      const action = body.disable ? 'disable' : 'enable';
-      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js skills ${action} ${name}`) + ' 2>&1', 30000);
+      const enabled = body.disable ? 'false' : 'true';
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js config set skills.entries.${name}.enabled ${enabled}`) + ' 2>&1', 30000);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true, log: out });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // Skills Install Dependency
-  if (req.method === 'POST' && url.pathname === '/api/skills/install-dep') {
+  // Skills Set Env Key (for skills that require API keys)
+  if (req.method === 'POST' && url.pathname === '/api/skills/set-env') {
     try {
       const body = await parseBody(req);
-      const dep = (body.dep || '').replace(/[^a-zA-Z0-9_-]/g, '');
-      if (!dep || !INSTALLABLE_DEPS[dep]) return json(res, 400, { ok: false, error: 'Unknown dependency: ' + dep });
-      const out = safeExec(INSTALLABLE_DEPS[dep] + ' 2>&1', 120000);
-      const check = safeExec('which ' + dep + ' 2>/dev/null', 5000);
-      return json(res, 200, { ok: !!check, log: out, installed: !!check });
+      const envKey = (body.key || '').replace(/[^A-Z0-9_]/g, '');
+      const envVal = (body.value || '').trim();
+      if (!envKey) return json(res, 400, { ok: false, error: 'Missing env key' });
+      if (!envVal) {
+        removeEnvValue(envKey);
+        restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+        return json(res, 200, { ok: true, removed: true });
+      }
+      setEnvValue(envKey, envVal);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Skills Install Dependency (from SKILL.md metadata + apt fallbacks)
+  if (req.method === 'POST' && url.pathname === '/api/skills/run-install') {
+    try {
+      const body = await parseBody(req);
+      const skillName = (body.skill || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      const installId = (body.installId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!skillName || !installId) return json(res, 400, { ok: false, error: 'Missing skill or installId' });
+      // Check SKILL.md metadata first
+      const installsMap = getSkillInstalls();
+      let inst = (installsMap[skillName] || []).find(i => i.id === installId);
+      // Check apt fallbacks (synthetic installs with id like "apt-ffmpeg")
+      if (!inst && installId.startsWith('apt-')) {
+        const bin = installId.substring(4);
+        if (APT_FALLBACKS[bin]) inst = { id: installId, kind: 'apt', package: APT_FALLBACKS[bin], bins: [bin] };
+      }
+      if (!inst) return json(res, 400, { ok: false, error: 'Install option not found for ' + skillName });
+      // Pre-check prerequisites (brew installed? go installed? etc.)
+      const prereq = checkInstallPrereqs(inst);
+      if (!prereq.ok) return json(res, 200, { ok: false, error: prereq.error, needsBrew: prereq.needsBrew || false, needsTool: prereq.needsTool || null });
+      const cmd = buildInstallCmd(inst);
+      if (!cmd) return json(res, 400, { ok: false, error: 'Install kind "' + inst.kind + '" not supported on this system' });
+      // Async task-based install with SSE streaming
+      const task = createTask('skill-install-' + skillName);
+      json(res, 200, { ok: true, taskId: task.id });
+      (async () => {
+        try {
+          taskLog(task, (inst.label || ('Installing ' + skillName)) + ' via ' + inst.kind + '...');
+          await asyncExec(task, cmd, 300000);
+          const bins = inst.bins || [];
+          const allInstalled = bins.length === 0 || bins.every(b => safeExec('which ' + b.replace(/[^a-zA-Z0-9_-]/g, '') + ' 2>/dev/null', 5000));
+          if (allInstalled) { _skillInstallsCache = null; taskLog(task, 'Installation successful!'); taskDone(task, true); }
+          else { taskDone(task, false, 'Installation completed but binaries not found: ' + bins.join(', ')); }
+        } catch (e) { taskDone(task, false, e.message); }
+      })();
+      return;
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Install prerequisite tool (brew, go) — async with SSE streaming
+  if (req.method === 'POST' && url.pathname === '/api/skills/install-tool') {
+    try {
+      const body = await parseBody(req);
+      const tool = (body.tool || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (tool === 'brew') {
+        if (safeExec('which brew 2>/dev/null', 5000) || fs.existsSync('/home/linuxbrew/.linuxbrew/bin/brew'))
+          return json(res, 200, { ok: true, skipped: true });
+        const task = createTask('install-brew');
+        json(res, 200, { ok: true, taskId: task.id });
+        (async () => {
+          try {
+            taskLog(task, 'Installing build dependencies...');
+            await asyncExec(task, 'apt-get install -y build-essential procps curl file git 2>&1', 120000);
+            taskLog(task, 'Downloading and installing Homebrew (this may take a few minutes)...');
+            await asyncExec(task, "su - openclaw -c 'NONINTERACTIVE=1 /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"' 2>&1", 600000);
+            if (fs.existsSync('/home/linuxbrew/.linuxbrew/bin/brew')) {
+              safeExec('ln -sf /home/linuxbrew/.linuxbrew/bin/brew /usr/local/bin/brew 2>/dev/null', 5000);
+              taskLog(task, 'Homebrew installed successfully!');
+              taskDone(task, true);
+            } else { taskDone(task, false, 'Homebrew installation failed'); }
+          } catch (e) { taskDone(task, false, e.message); }
+        })();
+        return;
+      }
+      if (tool === 'go') {
+        if (safeExec('which go 2>/dev/null', 5000))
+          return json(res, 200, { ok: true, skipped: true });
+        const task = createTask('install-go');
+        json(res, 200, { ok: true, taskId: task.id });
+        (async () => {
+          try {
+            taskLog(task, 'Installing Go via apt...');
+            await asyncExec(task, 'apt-get install -y golang-go 2>&1', 180000);
+            if (safeExec('which go 2>/dev/null', 5000)) {
+              taskLog(task, 'Go installed successfully!');
+              taskDone(task, true);
+            } else { taskDone(task, false, 'Go installation failed'); }
+          } catch (e) { taskDone(task, false, e.message); }
+        })();
+        return;
+      }
+      return json(res, 400, { ok: false, error: 'Unknown tool: ' + tool });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -4520,49 +4892,83 @@ const server = http.createServer(async (req, res) => {
       if (!query || !isSafeShellArg(query)) return json(res, 400, { ok: false, error: 'Invalid query (only alphanumeric, @, ., /, - allowed)' });
       const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub search '${query}'`) + ' 2>/dev/null', 30000);
       if (!out) return json(res, 200, { ok: true, results: [] });
-      const results = out.split('\n').filter(l => l.trim()).map(l => {
-        const m = l.match(/^(\S+)\s+(v[\d.]+)\s+(.+?)\s+\(([\d.]+)\)$/);
-        return m ? { slug: m[1], version: m[2], name: m[3].trim(), score: parseFloat(m[4]) } : null;
+      const results = out.split('\n').filter(l => l.trim() && !l.startsWith('-')).map(l => {
+        const m = l.match(/^(\S+)\s+(v[\d.]+\s+)?(.+?)\s+\(([\d.]+)\)$/);
+        return m ? { slug: m[1], version: (m[2] || '').trim(), name: m[3].trim(), score: parseFloat(m[4]) } : null;
       }).filter(Boolean);
       return json(res, 200, { ok: true, results });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // ClawHub Install
+  // ClawHub Install — async with SSE streaming
   if (req.method === 'POST' && url.pathname === '/api/clawhub/install') {
     try {
       const body = await parseBody(req);
       const slug = (body.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!slug) return json(res, 400, { ok: false, error: 'Missing slug' });
-      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub install ${slug} --force`) + ' 2>&1', 60000);
-      const ok = !out.includes('Error:') && !out.includes('error:') && !out.includes('ENOENT');
-      if (ok) { restartService('openclaw'); await new Promise(r => setTimeout(r, 2000)); }
-      return json(res, 200, { ok, log: out, error: ok ? null : out });
+      const task = createTask('clawhub-install-' + slug);
+      json(res, 200, { ok: true, taskId: task.id });
+      (async () => {
+        try {
+          taskLog(task, 'Installing ' + slug + ' from ClawHub...');
+          const result = await asyncExec(task, suOC(`cd ${OPENCLAW_DIR} && npx clawhub install ${slug} --force`) + ' 2>&1', 120000);
+          const log = (result && result.out) || '';
+          const failed = result.code !== 0 || log.includes('Error:') || log.includes('ENOENT');
+          if (!failed) {
+            taskLog(task, 'Restarting OpenClaw...');
+            restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+            taskLog(task, slug + ' installed successfully!');
+            taskDone(task, true);
+          } else { taskDone(task, false, log || 'Installation failed'); }
+        } catch (e) { taskDone(task, false, e.message); }
+      })();
+      return;
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // ClawHub Uninstall
+  // ClawHub Uninstall — async with SSE streaming
   if (req.method === 'POST' && url.pathname === '/api/clawhub/uninstall') {
     try {
       const body = await parseBody(req);
       const slug = (body.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!slug) return json(res, 400, { ok: false, error: 'Missing slug' });
-      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub uninstall ${slug} --yes`) + ' 2>&1', 30000);
-      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
-      return json(res, 200, { ok: true, log: out });
+      const task = createTask('clawhub-uninstall-' + slug);
+      json(res, 200, { ok: true, taskId: task.id });
+      (async () => {
+        try {
+          taskLog(task, 'Uninstalling ' + slug + '...');
+          await asyncExec(task, suOC(`cd ${OPENCLAW_DIR} && npx clawhub uninstall ${slug} --yes`) + ' 2>&1', 60000);
+          taskLog(task, 'Restarting OpenClaw...');
+          restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+          taskLog(task, slug + ' uninstalled.');
+          taskDone(task, true);
+        } catch (e) { taskDone(task, false, e.message); }
+      })();
+      return;
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
-  // ClawHub Update
+  // ClawHub Update — async with SSE streaming
   if (req.method === 'POST' && url.pathname === '/api/clawhub/update') {
     try {
       const body = await parseBody(req);
       const slug = (body.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!slug) return json(res, 400, { ok: false, error: 'Missing slug' });
       const cmd = slug === '--all' ? 'update --all' : `update ${slug}`;
-      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub ${cmd}`) + ' 2>&1', 60000);
-      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
-      return json(res, 200, { ok: true, log: out });
+      const label = slug === '--all' ? 'all skills' : slug;
+      const task = createTask('clawhub-update-' + slug);
+      json(res, 200, { ok: true, taskId: task.id });
+      (async () => {
+        try {
+          taskLog(task, 'Updating ' + label + '...');
+          await asyncExec(task, suOC(`cd ${OPENCLAW_DIR} && npx clawhub ${cmd}`) + ' 2>&1', 120000);
+          taskLog(task, 'Restarting OpenClaw...');
+          restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+          taskLog(task, label + ' updated!');
+          taskDone(task, true);
+        } catch (e) { taskDone(task, false, e.message); }
+      })();
+      return;
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -5039,7 +5445,7 @@ const server = http.createServer(async (req, res) => {
       let output = '';
       try {
         output = execSync(
-          `su -l openclaw -c 'cd ${OPENCLAW_DIR} && node dist/index.js ${cmd}' 2>&1`,
+          suOC(`cd ${OPENCLAW_DIR} && node dist/index.js ${cmd}`) + ' 2>&1',
           { timeout: 120000, stdio: 'pipe', maxBuffer: 1024 * 1024 }
         ).toString();
       } catch (e) {
