@@ -89,7 +89,7 @@ function checkInstallPrereqs(inst) {
   }
   return { ok: true };
 }
-const PANEL_VERSION = '2026.02.26.6';
+const PANEL_VERSION = '2026.02.26.7';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -4114,10 +4114,7 @@ const server = http.createServer(async (req, res) => {
       // Auto-add max_completion_tokens compat for OpenAI reasoning models (o1/o3-mini/o4/o4-mini)
       const OPENAI_REASONING_MODELS = [
         { id: 'o4-mini', name: 'OpenAI o4-mini', input: ['text','image'], ctx: 200000, max: 100000, ci: 1.1, co: 4.4 },
-        { id: 'o4', name: 'OpenAI o4', input: ['text','image'], ctx: 200000, max: 100000, ci: 2, co: 8 },
-        { id: 'o3-mini', name: 'OpenAI o3-mini', input: ['text'], ctx: 200000, max: 100000, ci: 1.1, co: 4.4 },
-        { id: 'o1', name: 'OpenAI o1', input: ['text','image'], ctx: 200000, max: 100000, ci: 15, co: 60 },
-        { id: 'o1-mini', name: 'OpenAI o1-mini', input: ['text'], ctx: 128000, max: 65536, ci: 1.1, co: 4.4 }
+        { id: 'o4', name: 'OpenAI o4', input: ['text','image'], ctx: 200000, max: 100000, ci: 2, co: 8 }
       ];
       const selModel = (body.model || '').replace('openai/', '');
       if (selModel && OPENAI_REASONING_MODELS.some(m => m.id === selModel)) {
