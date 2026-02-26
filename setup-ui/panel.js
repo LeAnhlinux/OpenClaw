@@ -23,7 +23,7 @@ const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
 function suOC(cmd) { return `su - openclaw -c "set -a; source ${ENV_FILE} 2>/dev/null; set +a; ${cmd}"`; }
 const INSTALLABLE_DEPS = { gh: 'curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list && apt update -qq && apt install gh -y', tmux: 'apt install -y tmux', ffmpeg: 'apt install -y ffmpeg', rg: 'apt install -y ripgrep', jq: 'apt install -y jq', uv: 'curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh' };
-const PANEL_VERSION = '2026.02.26.2';
+const PANEL_VERSION = '2026.02.26.3';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -2839,7 +2839,7 @@ function renderSkills(skills){
         if(s.missing.config&&s.missing.config.length)parts.push(s.missing.config.map(function(c){return c.replace('channels.','')}).join(', '));
       }
       if(parts.length)missingHtml='<div class="skill-missing">${ICONS.warning} '+esc(parts.join(' \u2022 '))+'</div>';
-      if(!hasMacOS&&s.installable&&s.installable.length)missingHtml+='<div style="margin-top:4px"><button class="btn btn-sm" style="font-size:11px;padding:2px 10px" onclick="event.stopPropagation();installSkillDeps(\''+esc(s.name).replace(/'/g,"\\\\'")+'\')">${ICONS.download} Auto Install</button></div>';
+      if(!hasMacOS&&s.installable&&s.installable.length)missingHtml+='<div style="margin-top:4px"><button class="btn btn-sm" style="font-size:11px;padding:2px 10px" onclick="event.stopPropagation();installSkillDeps(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\')"> ${ICONS.download} Auto Install</button></div>';
     }
     const canToggle=s.eligible||s.disabled;
     const toggleHtml=canToggle?'<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked)"><span class="toggle-slider"></span></label>':'';
@@ -2908,7 +2908,7 @@ function showSkillDetail(name){
     }
     if(parts.length){
       missingHtml='<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-top:12px"><div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">${ICONS.warning} Missing Requirements</div><div style="font-size:12px;color:#92400e;line-height:1.6">'+parts.join('<br>')+'</div>';
-      if(!isMac&&s.installable&&s.installable.length)missingHtml+='<div style="margin-top:10px"><button class="btn btn-accent btn-sm" onclick="installSkillDeps(\''+esc(name).replace(/'/g,"\\\\'")+'\');closeSkillModal()">${ICONS.download} Install Dependencies ('+s.installable.join(', ')+')</button></div>';
+      if(!isMac&&s.installable&&s.installable.length)missingHtml+='<div style="margin-top:10px"><button class="btn btn-accent btn-sm" onclick="installSkillDeps(\\''+esc(name).replace(/'/g,"\\\\'")+'\\');closeSkillModal()">${ICONS.download} Install Dependencies ('+s.installable.join(', ')+')</button></div>';
       missingHtml+='</div>';
     }
   }
