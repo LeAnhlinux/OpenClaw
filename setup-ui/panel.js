@@ -21,7 +21,8 @@ const CONFIG_FILE = '/home/openclaw/.openclaw/openclaw.json';
 const CONFIG_DIR = '/etc/config';
 const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
-const PANEL_VERSION = '2026.02.25.5';
+function suOC(cmd) { return `su - openclaw -c "set -a; source ${ENV_FILE} 2>/dev/null; set +a; ${cmd}"`; }
+const PANEL_VERSION = '2026.02.26.1';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -30,7 +31,13 @@ const sessions = {};
 const loginAttempts = {};
 
 // --- Helpers ---
-function getClientIP(req) { return req.socket.remoteAddress.replace('::ffff:', ''); }
+function getClientIP(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (fwd) { const first = fwd.split(',')[0].trim(); if (first && first !== '127.0.0.1' && first !== '::1') return first; }
+  const real = req.headers['x-real-ip'];
+  if (real && real !== '127.0.0.1' && real !== '::1') return real;
+  return req.socket.remoteAddress.replace('::ffff:', '');
+}
 function isBlocked(ip) {
   const r = loginAttempts[ip]; if (!r) return false;
   if (r.blockedUntil && Date.now() < r.blockedUntil) return true;
@@ -470,7 +477,7 @@ function writeCaddyfile(domain, email) {
   if (domain) {
     const el = email ? `email ${email}\n` : '';
     const tlsBlock = `    tls {\n        issuer acme {\n            dir https://acme-v02.api.letsencrypt.org/directory\n            profile shortlived\n        }\n    }`;
-    cfg = `${el}${domain} {\n${tlsBlock}\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n\n${domain}:9443 {\n${tlsBlock}\n    reverse_proxy ${BIND}:${PANEL_PORT}\n}\n`;
+    cfg = `${el}${domain} {\n${tlsBlock}\n    reverse_proxy ${BIND}:${GW_PORT}\n}\n\n${domain}:9443 {\n${tlsBlock}\n    reverse_proxy ${BIND}:${PANEL_PORT} {\n        header_up X-Real-IP {remote_host}\n    }\n}\n`;
     // Firewall: open 9443, close 9999 (panel only via Caddy HTTPS)
     try { execSync('ufw allow 9443/tcp comment "OpenClaw Panel HTTPS" 2>/dev/null', { stdio: 'ignore' }); } catch {}
     try { execSync('ufw deny 9999/tcp 2>/dev/null', { stdio: 'ignore' }); } catch {}
@@ -3501,7 +3508,7 @@ async function runBrowserInstall(task, browser) {
         } catch {}
       }
       taskLog(task, 'Installing CamoFox plugin (this may take a few minutes)...');
-      await asyncExec(task, `su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install @askjo/camofox-browser" 2>&1`, 300000);
+      await asyncExec(task, suOC(`cd ${OPENCLAW_DIR} && node dist/index.js plugins install @askjo/camofox-browser`) + ' 2>&1', 300000);
       const pluginDir = '/home/openclaw/.openclaw/extensions/camofox-browser';
       if (!fs.existsSync(pluginDir + '/server.js')) return taskDone(task, false, 'CamoFox plugin install failed');
       taskLog(task, 'Rebuilding native modules...');
@@ -3514,7 +3521,7 @@ async function runBrowserInstall(task, browser) {
           await asyncExec(task, 'cp -r /root/.cache/camoufox /home/openclaw/.cache/', 30000);
           safeExec('chown -R openclaw:openclaw /home/openclaw/.cache/camoufox', 15000);
         } else {
-          await asyncExec(task, `su - openclaw -c "cd ${pluginDir} && npx camoufox-js fetch" 2>&1`, 300000);
+          await asyncExec(task, suOC(`cd ${pluginDir} && npx camoufox-js fetch`) + ' 2>&1', 300000);
         }
       }
       taskLog(task, 'Configuring browser for CamoFox...');
@@ -3572,7 +3579,7 @@ async function runBrowserUninstall(task, browser) {
       }
     } else {
       taskLog(task, 'Removing CamoFox plugin...');
-      await asyncExec(task, `echo y | su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins uninstall camofox-browser" 2>&1`, 60000);
+      await asyncExec(task, 'echo y | ' + suOC(`cd ${OPENCLAW_DIR} && node dist/index.js plugins uninstall camofox-browser`) + ' 2>&1', 60000);
       if (fs.existsSync('/etc/systemd/system/camofox.service')) {
         safeExec('systemctl disable --now camofox 2>/dev/null', 15000);
         safeExec('rm -f /etc/systemd/system/camofox.service', 5000);
@@ -3620,7 +3627,7 @@ async function runUpdate(task, ver) {
     taskLog(task, 'Fixing permissions...');
     await asyncExec(task, `chown -R openclaw:openclaw ${OPENCLAW_DIR}`, 30000);
     taskLog(task, 'Building (this may take a few minutes)...');
-    await asyncExec(task, `cd ${OPENCLAW_DIR} && su - openclaw -c "cd ${OPENCLAW_DIR} && pnpm install --frozen-lockfile 2>&1 && pnpm build 2>&1 && pnpm ui:install 2>&1 && pnpm ui:build 2>&1"`, 300000);
+    await asyncExec(task, suOC(`cd ${OPENCLAW_DIR} && pnpm install --frozen-lockfile 2>&1 && pnpm build 2>&1 && pnpm ui:install 2>&1 && pnpm ui:build 2>&1`), 300000);
     if (ver !== 'latest') setEnvValue('OPENCLAW_VERSION', ver);
     if (fs.existsSync('/home/openclaw/.openclaw/extensions/camofox-browser/plugin.ts')) {
       taskLog(task, 'Re-patching CamoFox plugin...');
@@ -4371,7 +4378,7 @@ const server = http.createServer(async (req, res) => {
   // Plugins List
   if (req.method === 'GET' && url.pathname === '/api/plugins') {
     try {
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins list --json" 2>/dev/null`, 30000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js plugins list --json`) + ' 2>/dev/null', 30000);
       if (!out) return json(res, 500, { ok: false, error: 'Failed to list plugins' });
       const data = JSON.parse(out);
       return json(res, 200, { ok: true, plugins: data.plugins || [] });
@@ -4385,7 +4392,7 @@ const server = http.createServer(async (req, res) => {
       const id = (body.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!id) return json(res, 400, { ok: false, error: 'Missing plugin id' });
       const action = body.enable ? 'enable' : 'disable';
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins ${action} ${id}" 2>&1`, 30000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js plugins ${action} ${id}`) + ' 2>&1', 30000);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true, log: out });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -4397,7 +4404,7 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const spec = (body.spec || '').trim();
       if (!spec || !isSafeShellArg(spec)) return json(res, 400, { ok: false, error: 'Invalid package spec (only alphanumeric, @, ., /, - allowed)' });
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install '${spec}'" 2>&1`, 120000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js plugins install '${spec}'`) + ' 2>&1', 120000);
       const ok = !out.includes('Error') && !out.includes('error:');
       if (ok) { restartService('openclaw'); await new Promise(r => setTimeout(r, 2000)); }
       return json(res, 200, { ok, log: out, error: ok ? null : out });
@@ -4410,7 +4417,7 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const id = (body.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!id) return json(res, 400, { ok: false, error: 'Missing plugin id' });
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins uninstall ${id} --yes" 2>&1`, 60000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js plugins uninstall ${id} --yes`) + ' 2>&1', 60000);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true, log: out });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -4423,7 +4430,7 @@ const server = http.createServer(async (req, res) => {
       const id = (body.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!id) return json(res, 400, { ok: false, error: 'Missing plugin id' });
       const cmd = id === '--all' ? 'plugins update --all --yes' : `plugins update ${id} --yes`;
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js ${cmd}" 2>&1`, 120000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js ${cmd}`) + ' 2>&1', 120000);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true, log: out });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -4432,7 +4439,7 @@ const server = http.createServer(async (req, res) => {
   // Skills List
   if (req.method === 'GET' && url.pathname === '/api/skills') {
     try {
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js skills list --json" 2>/dev/null`, 30000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js skills list --json`) + ' 2>/dev/null', 30000);
       if (!out) return json(res, 500, { ok: false, error: 'Failed to list skills' });
       const data = JSON.parse(out);
       return json(res, 200, { ok: true, skills: data.skills || [] });
@@ -4446,7 +4453,7 @@ const server = http.createServer(async (req, res) => {
       const name = (body.name || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!name) return json(res, 400, { ok: false, error: 'Missing skill name' });
       const action = body.disable ? 'disable' : 'enable';
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js skills ${action} ${name}" 2>&1`, 30000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js skills ${action} ${name}`) + ' 2>&1', 30000);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true, log: out });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -4458,7 +4465,7 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const query = (body.query || '').trim().substring(0, 100);
       if (!query || !isSafeShellArg(query)) return json(res, 400, { ok: false, error: 'Invalid query (only alphanumeric, @, ., /, - allowed)' });
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub search '${query}'" 2>/dev/null`, 30000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub search '${query}'`) + ' 2>/dev/null', 30000);
       if (!out) return json(res, 200, { ok: true, results: [] });
       const results = out.split('\n').filter(l => l.trim()).map(l => {
         const m = l.match(/^(\S+)\s+(v[\d.]+)\s+(.+?)\s+\(([\d.]+)\)$/);
@@ -4474,7 +4481,7 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const slug = (body.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!slug) return json(res, 400, { ok: false, error: 'Missing slug' });
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub install ${slug} --force" 2>&1`, 60000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub install ${slug} --force`) + ' 2>&1', 60000);
       const ok = !out.includes('Error:') && !out.includes('error:') && !out.includes('ENOENT');
       if (ok) { restartService('openclaw'); await new Promise(r => setTimeout(r, 2000)); }
       return json(res, 200, { ok, log: out, error: ok ? null : out });
@@ -4487,7 +4494,7 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       const slug = (body.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!slug) return json(res, 400, { ok: false, error: 'Missing slug' });
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub uninstall ${slug} --yes" 2>&1`, 30000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub uninstall ${slug} --yes`) + ' 2>&1', 30000);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true, log: out });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -4500,7 +4507,7 @@ const server = http.createServer(async (req, res) => {
       const slug = (body.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
       if (!slug) return json(res, 400, { ok: false, error: 'Missing slug' });
       const cmd = slug === '--all' ? 'update --all' : `update ${slug}`;
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub ${cmd}" 2>&1`, 60000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub ${cmd}`) + ' 2>&1', 60000);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true, log: out });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -4509,7 +4516,7 @@ const server = http.createServer(async (req, res) => {
   // ClawHub List Installed
   if (req.method === 'GET' && url.pathname === '/api/clawhub/list') {
     try {
-      const out = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub list" 2>/dev/null`, 30000);
+      const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub list`) + ' 2>/dev/null', 30000);
       if (!out || out.includes('No installed skills')) return json(res, 200, { ok: true, items: [] });
       const items = out.split('\n').filter(l => l.trim() && !l.includes('Installed skills')).map(l => {
         const m = l.match(/^(\S+)\s+(v[\d.]+)?/);
@@ -4869,12 +4876,12 @@ const server = http.createServer(async (req, res) => {
       try { data.fallback = JSON.parse(fs.readFileSync(FALLBACK_FILE, 'utf8')); if (data.fallback?.chain) data.fallback.chain.forEach(c => { if (c.apiKey) c.apiKey = '***REDACTED***'; }); } catch { data.fallback = null; }
       // Save installed plugins (npm-installed only, for reinstall on restore)
       try {
-        const pout = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins list --json" 2>/dev/null`, 30000);
+        const pout = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js plugins list --json`) + ' 2>/dev/null', 30000);
         if (pout) { const pd = JSON.parse(pout); data.installedPlugins = (pd.plugins || []).filter(p => p.origin === 'npm').map(p => ({ id: p.id, name: p.name, enabled: p.enabled })); }
       } catch { data.installedPlugins = []; }
       // Save installed ClawHub skills
       try {
-        const cout = safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub list" 2>/dev/null`, 30000);
+        const cout = safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub list`) + ' 2>/dev/null', 30000);
         if (cout && !cout.includes('No installed skills')) {
           data.installedClawHubSkills = cout.split('\n').filter(l => l.trim() && !l.includes('Installed skills')).map(l => { const m = l.match(/^(\S+)\s+(v[\d.]+)?/); return m ? { slug: m[1], version: (m[2] || '').trim() } : null; }).filter(Boolean);
         } else { data.installedClawHubSkills = []; }
@@ -4916,7 +4923,7 @@ const server = http.createServer(async (req, res) => {
         for (const p of d.installedPlugins) {
           try {
             const spec = (p.name || p.id || '').trim();
-            if (spec && isSafeShellArg(spec)) { restoreLog += 'Installing plugin: ' + spec + '...\n'; safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && node dist/index.js plugins install '${spec}'" 2>&1`, 120000); }
+            if (spec && isSafeShellArg(spec)) { restoreLog += 'Installing plugin: ' + spec + '...\n'; safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js plugins install '${spec}'`) + ' 2>&1', 120000); }
             else if (spec) { restoreLog += 'Skipping plugin (unsafe chars): ' + spec + '\n'; }
           } catch (e) { restoreLog += 'Plugin install error: ' + e.message + '\n'; }
         }
@@ -4926,7 +4933,7 @@ const server = http.createServer(async (req, res) => {
         for (const s of d.installedClawHubSkills) {
           try {
             const slug = (s.slug || '').replace(/[^a-zA-Z0-9_-]/g, '');
-            if (slug) { restoreLog += 'Installing skill: ' + slug + '...\n'; safeExec(`su - openclaw -c "cd ${OPENCLAW_DIR} && npx clawhub install ${slug} --force" 2>&1`, 60000); }
+            if (slug) { restoreLog += 'Installing skill: ' + slug + '...\n'; safeExec(suOC(`cd ${OPENCLAW_DIR} && npx clawhub install ${slug} --force`) + ' 2>&1', 60000); }
           } catch (e) { restoreLog += 'Skill install error: ' + e.message + '\n'; }
         }
       }
