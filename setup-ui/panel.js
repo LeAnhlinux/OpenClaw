@@ -89,7 +89,7 @@ function checkInstallPrereqs(inst) {
   }
   return { ok: true };
 }
-const PANEL_VERSION = '2026.02.26.5';
+const PANEL_VERSION = '2026.02.26.6';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -737,11 +737,12 @@ const PROVIDERS = {
     name: 'OpenAI', envKey: 'OPENAI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
     color: '#10a37f', icon: ICONS.openai, category: 'cloud',
     models: [
-      { id: 'openai/gpt-5.1-codex', name: 'GPT-5.1 Codex', desc: 'Latest — code + reasoning' },
-      { id: 'openai/gpt-5.2', name: 'GPT-5.2', desc: 'Powerful — general purpose' },
-      { id: 'openai/o3', name: 'o3', desc: 'Reasoning — logic & math' },
+      { id: 'openai/o4-mini', name: 'o4-mini', desc: 'Reasoning — fast & cheap' },
       { id: 'openai/gpt-4.1', name: 'GPT-4.1', desc: 'Balanced — fast' },
-      { id: 'openai/gpt-4.1-mini', name: 'GPT-4.1 Mini', desc: 'Lightweight — low cost' }
+      { id: 'openai/gpt-4.1-mini', name: 'GPT-4.1 Mini', desc: 'Lightweight — low cost' },
+      { id: 'openai/o4', name: 'o4', desc: 'Reasoning — strongest' },
+      { id: 'openai/gpt-5.1-codex', name: 'GPT-5.1 Codex', desc: 'Code + reasoning' },
+      { id: 'openai/gpt-5.2', name: 'GPT-5.2', desc: 'Powerful — general purpose' }
     ],
     testFn: (k) => { try { return safeExec(`curl -s -o /dev/null -w '%{http_code}' https://api.openai.com/v1/models -H 'Authorization: Bearer ${k.replace(/'/g,"'\\''")}' `, 15000) === '200'; } catch { return false; } }
   },
@@ -4110,6 +4111,32 @@ const server = http.createServer(async (req, res) => {
       config.gateway = config.gateway || {}; config.gateway.auth = config.gateway.auth || {}; config.gateway.auth.token = token;
       config.agents = config.agents || { defaults: { model: {} } }; config.agents.defaults = config.agents.defaults || { model: {} }; config.agents.defaults.model = config.agents.defaults.model || {};
       if (body.model) config.agents.defaults.model.primary = body.model;
+      // Auto-add max_completion_tokens compat for OpenAI reasoning models (o1/o3-mini/o4/o4-mini)
+      const OPENAI_REASONING_MODELS = [
+        { id: 'o4-mini', name: 'OpenAI o4-mini', input: ['text','image'], ctx: 200000, max: 100000, ci: 1.1, co: 4.4 },
+        { id: 'o4', name: 'OpenAI o4', input: ['text','image'], ctx: 200000, max: 100000, ci: 2, co: 8 },
+        { id: 'o3-mini', name: 'OpenAI o3-mini', input: ['text'], ctx: 200000, max: 100000, ci: 1.1, co: 4.4 },
+        { id: 'o1', name: 'OpenAI o1', input: ['text','image'], ctx: 200000, max: 100000, ci: 15, co: 60 },
+        { id: 'o1-mini', name: 'OpenAI o1-mini', input: ['text'], ctx: 128000, max: 65536, ci: 1.1, co: 4.4 }
+      ];
+      const selModel = (body.model || '').replace('openai/', '');
+      if (selModel && OPENAI_REASONING_MODELS.some(m => m.id === selModel)) {
+        config.models = config.models || {};
+        config.models.providers = config.models.providers || {};
+        config.models.providers.openai = config.models.providers.openai || { baseUrl: 'https://api.openai.com/v1', models: [] };
+        if (!config.models.providers.openai.baseUrl) config.models.providers.openai.baseUrl = 'https://api.openai.com/v1';
+        const existingIds = new Set((config.models.providers.openai.models || []).map(m => m.id));
+        for (const rm of OPENAI_REASONING_MODELS) {
+          if (!existingIds.has(rm.id)) {
+            config.models.providers.openai.models.push({
+              id: rm.id, name: rm.name, reasoning: true, input: rm.input,
+              cost: { input: rm.ci, output: rm.co, cacheRead: rm.ci * 0.25, cacheWrite: 0 },
+              contextWindow: rm.ctx, maxTokens: rm.max,
+              compat: { maxTokensField: 'max_completion_tokens', supportsReasoningEffort: true }
+            });
+          }
+        }
+      }
       config.browser = config.browser || {};
       config.gateway.mode = config.gateway.mode || 'local'; config.gateway.bind = config.gateway.bind || 'loopback'; config.gateway.trustedProxies = config.gateway.trustedProxies || ['127.0.0.1', '::1'];
       saveConfig(config); restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
