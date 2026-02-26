@@ -22,7 +22,8 @@ const CONFIG_DIR = '/etc/config';
 const CADDYFILE = '/etc/caddy/Caddyfile';
 const OPENCLAW_DIR = '/opt/openclaw';
 function suOC(cmd) { return `su - openclaw -c "set -a; source ${ENV_FILE} 2>/dev/null; set +a; ${cmd}"`; }
-const PANEL_VERSION = '2026.02.26.1';
+const INSTALLABLE_DEPS = { gh: 'curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list && apt update -qq && apt install gh -y', tmux: 'apt install -y tmux', ffmpeg: 'apt install -y ffmpeg', rg: 'apt install -y ripgrep', jq: 'apt install -y jq', uv: 'curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="/usr/local/bin" sh' };
+const PANEL_VERSION = '2026.02.26.2';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -2818,17 +2819,27 @@ function renderSkills(skills){
   skills.forEach(s=>{
     const isEnabled=s.eligible&&!s.disabled;
     const isMissing=!s.eligible&&!s.disabled;
+    const hasMacOS=s.missing&&s.missing.os&&s.missing.os.includes('darwin');
+    const hasConfigOnly=isMissing&&s.missing&&s.missing.config&&s.missing.config.length&&!(s.missing.bins&&s.missing.bins.length)&&!(s.missing.anyBins&&s.missing.anyBins.length)&&!(s.missing.env&&s.missing.env.length);
     const cardClass='skill-card'+(isEnabled?' enabled':'')+(s.disabled?' disabled-card':'');
     const badge=s.disabled?'<span class="badge" style="background:#fee2e2;color:#dc2626">Disabled</span>'
       :s.eligible?'<span class="badge bg-green">Eligible</span>'
-      :'<span class="badge" style="background:#fef3c7;color:#b45309">Missing</span>';
+      :hasMacOS?'<span class="badge" style="background:#e5e7eb;color:#6b7280">macOS Only</span>'
+      :hasConfigOnly?'<span class="badge" style="background:#dbeafe;color:#2563eb">Setup Required</span>'
+      :'<span class="badge" style="background:#fef3c7;color:#b45309">Missing Deps</span>';
     const src='<span style="font-size:10px;color:var(--text2);background:var(--border);padding:1px 6px;border-radius:4px">'+esc(s.source||'bundled')+'</span>';
     let missingHtml='';
-    if(s.missing){
+    if(s.missing&&isMissing){
       const parts=[];
-      if(s.missing.bins&&s.missing.bins.length)parts.push(s.missing.bins.join(', '));
-      if(s.missing.env&&s.missing.env.length)parts.push(s.missing.env.join(', '));
+      if(hasMacOS){parts.push('Requires macOS')}
+      else{
+        if(s.missing.bins&&s.missing.bins.length)parts.push('Need: '+s.missing.bins.join(', '));
+        if(s.missing.anyBins&&s.missing.anyBins.length)parts.push('Any of: '+s.missing.anyBins.join(' / '));
+        if(s.missing.env&&s.missing.env.length)parts.push('Env: '+s.missing.env.join(', '));
+        if(s.missing.config&&s.missing.config.length)parts.push(s.missing.config.map(function(c){return c.replace('channels.','')}).join(', '));
+      }
       if(parts.length)missingHtml='<div class="skill-missing">${ICONS.warning} '+esc(parts.join(' \u2022 '))+'</div>';
+      if(!hasMacOS&&s.installable&&s.installable.length)missingHtml+='<div style="margin-top:4px"><button class="btn btn-sm" style="font-size:11px;padding:2px 10px" onclick="event.stopPropagation();installSkillDeps(\''+esc(s.name).replace(/'/g,"\\\\'")+'\')">${ICONS.download} Auto Install</button></div>';
     }
     const canToggle=s.eligible||s.disabled;
     const toggleHtml=canToggle?'<label class="toggle-switch" onclick="event.stopPropagation()"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\\''+esc(s.name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked)"><span class="toggle-slider"></span></label>':'';
@@ -2854,33 +2865,61 @@ async function toggleSkill(name,disable){
   if(d.ok)setTimeout(loadSkills,2000);
 }
 
+async function installSkillDeps(name){
+  const s=allSkills.find(function(sk){return sk.name===name});
+  if(!s||!s.installable||!s.installable.length)return;
+  const st=document.getElementById('skillsStatus');
+  for(var i=0;i<s.installable.length;i++){
+    var dep=s.installable[i];
+    st.className='status loading';st.textContent='Installing '+dep+'... ('+(i+1)+'/'+s.installable.length+')';
+    var d=await api('/api/skills/install-dep','POST',{dep:dep});
+    if(!d.ok&&!d.installed){st.className='status fail';st.textContent='Failed to install '+dep+': '+(d.error||'Unknown error');return}
+  }
+  st.className='status ok';st.textContent='Dependencies installed! Refreshing skills...';
+  setTimeout(loadSkills,2000);
+}
+
 function showSkillDetail(name){
   const s=allSkills.find(sk=>sk.name===name);
   if(!s)return;
   const container=document.getElementById('skillModalContainer');
   if(!container)return;
   const isEnabled=s.eligible&&!s.disabled;
+  const isMac=s.missing&&s.missing.os&&s.missing.os.includes('darwin');
+  const hasConfigOnly2=!s.eligible&&!s.disabled&&s.missing&&s.missing.config&&s.missing.config.length&&!(s.missing.bins&&s.missing.bins.length)&&!(s.missing.anyBins&&s.missing.anyBins.length)&&!(s.missing.env&&s.missing.env.length);
   const badge=s.disabled?'<span class="badge" style="background:#fee2e2;color:#dc2626">Disabled</span>'
     :s.eligible?'<span class="badge bg-green">Eligible</span>'
-    :'<span class="badge" style="background:#fef3c7;color:#b45309">Missing Reqs</span>';
+    :isMac?'<span class="badge" style="background:#e5e7eb;color:#6b7280">macOS Only</span>'
+    :hasConfigOnly2?'<span class="badge" style="background:#dbeafe;color:#2563eb">Setup Required</span>'
+    :'<span class="badge" style="background:#fef3c7;color:#b45309">Missing Deps</span>';
   const src=s.source||'bundled';
   const srcBadge=src==='bundled'?'<span class="badge" style="background:var(--border);color:var(--text2)">Bundled</span>'
     :src==='npm'?'<span class="badge" style="background:#ede9fe;color:#7c3aed">npm</span>'
     :'<span class="badge" style="background:var(--border);color:var(--text2)">'+esc(src)+'</span>';
   let missingHtml='';
-  if(s.missing){
+  if(s.missing&&!s.eligible){
     const parts=[];
-    if(s.missing.bins&&s.missing.bins.length)parts.push('<strong>Binaries:</strong> '+s.missing.bins.map(b=>esc(b)).join(', '));
-    if(s.missing.env&&s.missing.env.length)parts.push('<strong>Env vars:</strong> '+s.missing.env.map(e=>esc(e)).join(', '));
-    if(s.missing.os&&s.missing.os.length)parts.push('<strong>OS:</strong> '+s.missing.os.map(o=>esc(o)).join(', '));
-    if(parts.length)missingHtml='<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-top:12px"><div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">${ICONS.warning} Missing Requirements</div><div style="font-size:12px;color:#92400e;line-height:1.6">'+parts.join('<br>')+'</div></div>';
+    if(isMac){parts.push('<strong>OS:</strong> Requires macOS — not available on Linux')}
+    else{
+      if(s.missing.bins&&s.missing.bins.length)parts.push('<strong>Binaries:</strong> '+s.missing.bins.map(function(b){return '<code>'+esc(b)+'</code>'+(s.installable&&s.installable.indexOf(b)>=0?' <span style="color:#16a34a;font-size:11px">(installable)</span>':'')}).join(', '));
+      if(s.missing.anyBins&&s.missing.anyBins.length)parts.push('<strong>Any of:</strong> '+s.missing.anyBins.map(function(b){return '<code>'+esc(b)+'</code>'+(s.installable&&s.installable.indexOf(b)>=0?' <span style="color:#16a34a;font-size:11px">(installable)</span>':'')}).join(', '));
+      if(s.missing.env&&s.missing.env.length)parts.push('<strong>Env vars:</strong> '+s.missing.env.map(function(e){return '<code>'+esc(e)+'</code>'}).join(', '));
+      if(s.missing.config&&s.missing.config.length)parts.push('<strong>Config:</strong> '+s.missing.config.map(function(c){return '<code>'+esc(c)+'</code>'}).join(', '));
+    }
+    if(parts.length){
+      missingHtml='<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-top:12px"><div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px">${ICONS.warning} Missing Requirements</div><div style="font-size:12px;color:#92400e;line-height:1.6">'+parts.join('<br>')+'</div>';
+      if(!isMac&&s.installable&&s.installable.length)missingHtml+='<div style="margin-top:10px"><button class="btn btn-accent btn-sm" onclick="installSkillDeps(\''+esc(name).replace(/'/g,"\\\\'")+'\');closeSkillModal()">${ICONS.download} Install Dependencies ('+s.installable.join(', ')+')</button></div>';
+      missingHtml+='</div>';
+    }
   }
   const docsLink=s.homepage?'<a href="'+esc(s.homepage)+'" target="_blank" rel="noopener" style="font-size:13px;color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px">${ICONS.link} Documentation</a>':'';
   const canToggle=s.eligible||s.disabled;
   const toggleHtml=canToggle?'<label class="toggle-switch"><input type="checkbox" '+(isEnabled?'checked':'')+' onchange="toggleSkill(\\''+esc(name).replace(/'/g,"\\\\'")+'\\'  ,!this.checked);closeSkillModal()"><span class="toggle-slider"></span></label>':'';
   const statusDot=isEnabled?'<span class="status-dot dot-green"></span> <span style="color:#16a34a;font-weight:600;font-size:13px">Enabled</span>'
     :s.disabled?'<span class="status-dot dot-red"></span> <span style="color:#dc2626;font-weight:600;font-size:13px">Disabled</span>'
-    :'<span class="status-dot dot-amber"></span> <span style="color:#d97706;font-weight:600;font-size:13px">Missing Requirements</span>';
+    :isMac?'<span class="status-dot" style="background:#9ca3af"></span> <span style="color:#6b7280;font-weight:600;font-size:13px">macOS Only</span>'
+    :hasConfigOnly2?'<span class="status-dot" style="background:#3b82f6"></span> <span style="color:#2563eb;font-weight:600;font-size:13px">Setup Required</span>'
+    :'<span class="status-dot dot-amber"></span> <span style="color:#d97706;font-weight:600;font-size:13px">Missing Dependencies</span>';
 
   container.innerHTML='<div class="modal-overlay" onclick="closeSkillModal()">'
     +'<div class="modal-card" onclick="event.stopPropagation()">'
@@ -4442,7 +4481,9 @@ const server = http.createServer(async (req, res) => {
       const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js skills list --json`) + ' 2>/dev/null', 30000);
       if (!out) return json(res, 500, { ok: false, error: 'Failed to list skills' });
       const data = JSON.parse(out);
-      return json(res, 200, { ok: true, skills: data.skills || [] });
+      const skills = data.skills || [];
+      skills.forEach(s => { if (s.missing) { const allBins = [...(s.missing.bins || []), ...(s.missing.anyBins || [])]; s.installable = allBins.filter(b => INSTALLABLE_DEPS[b]); } });
+      return json(res, 200, { ok: true, skills });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -4456,6 +4497,18 @@ const server = http.createServer(async (req, res) => {
       const out = safeExec(suOC(`cd ${OPENCLAW_DIR} && node dist/index.js skills ${action} ${name}`) + ' 2>&1', 30000);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true, log: out });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Skills Install Dependency
+  if (req.method === 'POST' && url.pathname === '/api/skills/install-dep') {
+    try {
+      const body = await parseBody(req);
+      const dep = (body.dep || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!dep || !INSTALLABLE_DEPS[dep]) return json(res, 400, { ok: false, error: 'Unknown dependency: ' + dep });
+      const out = safeExec(INSTALLABLE_DEPS[dep] + ' 2>&1', 120000);
+      const check = safeExec('which ' + dep + ' 2>/dev/null', 5000);
+      return json(res, 200, { ok: !!check, log: out, installed: !!check });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
