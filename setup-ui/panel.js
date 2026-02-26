@@ -89,7 +89,7 @@ function checkInstallPrereqs(inst) {
   }
   return { ok: true };
 }
-const PANEL_VERSION = '2026.02.26.7';
+const PANEL_VERSION = '2026.02.26.8';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -1402,7 +1402,7 @@ body.dark .login-footer{color:#94a3b8} body.dark .login-footer a{color:#60a5fa}
     </form>
   </div>
 </div>
-<div class="login-footer">\u26A1 VPS by <a href="https://tino.vn?php=14956" target="_blank" rel="noopener">TinoHost</a> \u2014 SSD NVMe, 99.9% uptime, t\u1EEB 89k/th</div>
+<div class="login-footer">\u26A1 VPS by <a href="https://tino.vn?php=14956" target="_blank" rel="noopener">Tino Group</a> - VPS t\u1ED1i \u01B0u cho OpenClaw</div>
 <script>
 document.getElementById('f').addEventListener('submit',async e=>{
   e.preventDefault();const b=document.getElementById('b'),err=document.getElementById('e');
@@ -1913,7 +1913,7 @@ function panelPage() {
   </div>
 
   <!-- Footer -->
-  <div class="panel-footer">\u26a1 VPS by <a href="https://tino.vn?php=14956" target="_blank" rel="noopener">TinoHost</a> \u2014 SSD NVMe, 99.9% uptime, t\u1eeb 89k/th</div>
+  <div class="panel-footer">\u26a1 VPS by <a href="https://tino.vn?php=14956" target="_blank" rel="noopener">Tino Group</a> - VPS t\u1ed1i \u01b0u cho OpenClaw</div>
 
 </div>
 
@@ -2581,12 +2581,16 @@ async function checkUpdate(){
   document.getElementById('updateVersionField').style.display='none';document.getElementById('doUpdateBtn').style.display='none';
   const d=await api('/api/update-check');
   if(d.ok){availVersions=d.versions||[];
-    if(availVersions.length>0){
-      const sel=document.getElementById('updateVersionSelect');sel.innerHTML='';
-      availVersions.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o)});
-      document.getElementById('updateVersionField').style.display='';document.getElementById('doUpdateBtn').style.display='inline-flex';
-      st.className='status ok';st.textContent=availVersions.length+' newer version(s) available.';
-    }else{st.className='status ok';st.textContent='Already up to date!'}
+    const sel=document.getElementById('updateVersionSelect');sel.innerHTML='';
+    // Always add main (latest dev) option
+    var o0=document.createElement('option');o0.value='latest';o0.textContent='main (latest dev)';sel.appendChild(o0);
+    // Add top 3 stable releases with (current) marker
+    availVersions.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v+(v===d.current?' (current)':'');if(v===d.current)o.style.fontWeight='bold';sel.appendChild(o)});
+    // Auto-select first non-current version
+    var firstNew=availVersions.find(v=>v!==d.current);
+    if(firstNew)sel.value=firstNew;
+    document.getElementById('updateVersionField').style.display='';document.getElementById('doUpdateBtn').style.display='inline-flex';
+    st.className='status ok';st.textContent='Current: '+(d.current||'unknown')+' \u2014 '+availVersions.length+' release(s) available';
   }else{st.className='status fail';st.textContent=d.error||'Error'}
 }
 async function doUpdate(){
@@ -4569,14 +4573,13 @@ const server = http.createServer(async (req, res) => {
       }
       safeExec(`cd ${OPENCLAW_DIR} && git fetch --tags 2>/dev/null`, 30000);
       const raw = safeExec(`cd ${OPENCLAW_DIR} && git tag --sort=-version:refname 2>/dev/null`, 10000);
-      // Only stable releases: vYYYY.M.D (no -beta, -rc, -2 suffixes)
       const tags = raw.split('\n').map(t => t.trim()).filter(t => /^v\d+\.\d+\.\d+$/.test(t));
-      // Parse version for comparison: v2026.2.18 => [2026, 2, 18]
       const parseVer = v => (v.replace(/^v/, '').split('.').map(Number));
       const cmpVer = (a, b) => { const pa = parseVer(a), pb = parseVer(b); for (let i = 0; i < 3; i++) { if ((pa[i]||0) !== (pb[i]||0)) return (pb[i]||0) - (pa[i]||0); } return 0; };
       tags.sort(cmpVer);
-      const newer = cur && /^v\d+\.\d+\.\d+$/.test(cur) ? tags.filter(t => cmpVer(t, cur) < 0) : tags.filter(t => t !== cur);
-      return json(res, 200, { ok: true, current: cur, versions: newer.slice(0, 20) });
+      // Return top 3 stable releases (for upgrade or downgrade)
+      const top3 = tags.slice(0, 3);
+      return json(res, 200, { ok: true, current: cur, versions: top3 });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
