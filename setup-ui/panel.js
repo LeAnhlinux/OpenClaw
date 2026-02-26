@@ -2450,8 +2450,19 @@ async function saveDomain(){
   st.className='status loading';st.textContent='Configuring Caddy + SSL...';
   const d=await api('/api/domain','POST',{domain:dm,email:em});
   if(d.ok){
-    st.className='status ok';st.textContent='SSL configured! Redirecting to https://'+dm+':9443 ...';
-    setTimeout(function(){window.location.href='https://'+dm+':9443'},3000);
+    var target='https://'+dm+':9443';
+    st.className='status loading';st.textContent='SSL configured! Waiting for HTTPS ready...';
+    var attempts=0,maxAttempts=30;
+    (function pollReady(){
+      attempts++;
+      st.textContent='SSL configured! Waiting for HTTPS ready... ('+attempts+'/'+maxAttempts+')';
+      fetch(target+'/api/current-config',{mode:'no-cors',cache:'no-store'}).then(function(){
+        st.className='status ok';st.textContent='HTTPS ready! Redirecting...';window.location.href=target;
+      }).catch(function(){
+        if(attempts<maxAttempts){setTimeout(pollReady,2000)}
+        else{st.className='status ok';st.textContent='SSL configured! Auto-redirect timed out.';st.innerHTML+=' <a href="'+target+'" style="color:var(--accent)">Open manually</a>'}
+      });
+    })();
   }else{st.className='status fail';st.textContent=d.error||'Error'}
 }
 async function resetDomainToIP(){
@@ -2459,9 +2470,10 @@ async function resetDomainToIP(){
   const st=document.getElementById('domainStatus');st.className='status loading';st.textContent='Switching to IP...';
   const d=await api('/api/domain','POST',{resetToIP:true});
   if(d.ok){
-    st.className='status ok';st.textContent='Switched to IP! Redirecting...';
     const ip=d.serverIP||location.hostname;
-    setTimeout(function(){window.location.href='http://'+ip+':9999'},3000);
+    var target='http://'+ip+':9999';
+    st.className='status ok';st.textContent='Switched to IP! Redirecting in 3s...';
+    setTimeout(function(){window.location.href=target},3000);
   }else{st.className='status fail';st.textContent=d.error||'Error'}
 }
 
@@ -4165,9 +4177,18 @@ const server = http.createServer(async (req, res) => {
       if (body.resetToIP) {
         writeCaddyfile(null);
         removeEnvValue('OPENCLAW_GATEWAY_BIND');
-        restartService('caddy'); restartService('openclaw');
-        await new Promise(r => setTimeout(r, 2000));
-        return json(res, 200, { ok: true, serverIP });
+        // Remove domain origins, keep IP origin
+        try {
+          const config = getConfig();
+          if (config.gateway?.controlUi) {
+            config.gateway.controlUi.allowedOrigins = ['http://' + serverIP + ':9999'];
+            saveConfig(config);
+          }
+        } catch {}
+        // Send response BEFORE restarting (Caddy restart kills HTTPS connection)
+        json(res, 200, { ok: true, serverIP });
+        setTimeout(() => { restartService('caddy'); restartService('openclaw'); }, 500);
+        return;
       }
       const domain = (body.domain || '').trim().toLowerCase(), email = (body.email || '').trim();
       if (!domain) return json(res, 400, { ok: false, error: 'Missing domain' });
@@ -4179,9 +4200,21 @@ const server = http.createServer(async (req, res) => {
       if (!ips.length) return json(res, 400, { ok: false, error: `DNS resolution failed. Point A record to ${serverIP}.` });
       if (!ips.includes(serverIP)) return json(res, 400, { ok: false, error: `DNS points to ${ips.join(', ')} — not ${serverIP}.` });
       writeCaddyfile(domain, email);
+      // Add gateway.controlUi.allowedOrigins for panel access via domain
+      try {
+        const config = getConfig();
+        config.gateway = config.gateway || {};
+        config.gateway.controlUi = config.gateway.controlUi || {};
+        const origins = new Set(config.gateway.controlUi.allowedOrigins || []);
+        origins.add('https://' + domain + ':9443');
+        origins.add('https://' + domain);
+        origins.add('http://' + serverIP + ':9999');
+        config.gateway.controlUi.allowedOrigins = [...origins];
+        saveConfig(config);
+      } catch {}
       execSync('systemctl enable caddy 2>/dev/null || true', { timeout: 10000 }); restartService('caddy'); await new Promise(r => setTimeout(r, 3000));
       if (isServiceActive('caddy')) {
-        restartService('openclaw'); // Reload with OPENCLAW_GATEWAY_BIND
+        restartService('openclaw'); // Reload with OPENCLAW_GATEWAY_BIND + allowedOrigins
         return json(res, 200, { ok: true, domain });
       }
       writeCaddyfile(null); restartService('caddy');

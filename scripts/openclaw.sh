@@ -258,7 +258,7 @@ EOF
 cat > /opt/openclaw-cli.sh << 'EOF'
 #!/bin/bash
 # Helper script to run Openclaw CLI commands as the openclaw user
-su - openclaw -c "cd /opt/openclaw && node dist/index.js $*"
+su - openclaw -c "set -a; source /opt/openclaw.env 2>/dev/null; set +a; cd /opt/openclaw && node dist/index.js $*"
 EOF
 
 cat > /opt/openclaw-tui.sh << 'EOF'
