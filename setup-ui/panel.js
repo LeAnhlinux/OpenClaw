@@ -89,7 +89,7 @@ function checkInstallPrereqs(inst) {
   }
   return { ok: true };
 }
-const PANEL_VERSION = '2026.02.27.2';
+const PANEL_VERSION = '2026.02.27.3';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -1302,6 +1302,14 @@ body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scroll
 .binding-badge{background:var(--border);color:var(--text2);display:inline-flex;align-items:center;gap:4px}
 .binding-badge .badge-icon{display:inline-flex;align-items:center}
 .binding-badge .badge-icon svg{width:12px;height:12px}
+.tag-input-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border:2px solid var(--border);border-radius:10px;background:var(--bg2);min-height:42px;align-items:center;cursor:text;transition:border-color .2s}
+.tag-input-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(66,133,244,.1)}
+.tag-item{display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 10px;background:var(--accent);color:#fff;border-radius:16px;font-size:12px;font-weight:600;font-family:monospace}
+.tag-item .tag-remove{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:14px;padding:0 2px;line-height:1}
+.tag-item .tag-remove:hover{color:#fff}
+.tag-input{border:none;outline:none;background:transparent;font-size:13px;padding:2px 4px;min-width:100px;flex:1;color:var(--text)}
+.mention-badge{background:#fef3c7;color:#92400e;font-size:10px;font-family:monospace;padding:2px 6px;border-radius:8px;display:inline-block;margin:1px 2px}
+body.dark .mention-badge{background:#78350f;color:#fef3c7}
 
 /* Marketplace Card */
 .market-card{border:2px solid var(--border);border-radius:14px;padding:18px;transition:all .3s ease;background:var(--card-bg);cursor:pointer}
@@ -1605,6 +1613,17 @@ function panelPage() {
       <div id="agentGrid" class="skill-grid"><div class="muted">Loading...</div></div>
     </div>
     <div class="card">
+      <div class="card-title"><span class="ct-icon">${ICONS.messageCircle}</span> Agent-to-Agent Communication</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Allow agents to send messages to and read history from other agents during conversations.</div>
+      <div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600"><input type="checkbox" id="a2aEnabled" style="accent-color:var(--accent)" onchange="document.getElementById('a2aSettings').style.display=this.checked?'block':'none'"> Enable Agent-to-Agent messaging</label></div>
+      <div id="a2aSettings" style="display:none">
+        <div class="field"><label>Allowed Agents</label><div id="a2aAgentChecks" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:8px"></div></div>
+        <div class="field"><label>Max Ping-Pong Turns <span style="color:var(--text2);font-weight:400">(0-5)</span></label><input type="number" id="a2aMaxTurns" min="0" max="5" value="3" style="width:80px"></div>
+      </div>
+      <div class="btn-row" style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="saveA2ASettings()">${ICONS.save} Save</button><button class="btn btn-outline btn-sm" onclick="loadA2ASettings()">${ICONS.refreshCw} Reload</button></div>
+      <div class="status" id="a2aStatus"></div>
+    </div>
+    <div class="card">
       <div class="card-title"><span class="ct-icon">${ICONS.plus}</span> Add New Agent</div>
       <div class="field"><label>Template</label><select id="agentTemplate" onchange="applyAgentTemplate()"><option value="">-- Custom --</option><option value="support">\ud83c\udfa7 Support Bot</option><option value="community">\ud83c\udf89 Community Manager</option><option value="developer">\ud83d\udcbb Developer Assistant</option></select></div>
       <div class="field"><label>Agent Name (ID)</label><input type="text" id="newAgentName" placeholder="e.g. support, sales, dev"></div>
@@ -1636,6 +1655,19 @@ function panelPage() {
           <div class="field"><label>Pairing Code</label><input type="text" id="pairCode" placeholder="Enter code manually"></div>
           <div class="btn-row"><button class="btn btn-success" onclick="pairChannel()">Approve</button></div>
           <div class="status" id="pairStatus"></div>
+        </div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+          <div style="font-weight:600;margin-bottom:6px">\ud83d\udc65 Multi-Account</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Add multiple bot accounts for this channel. Each account can be routed to a different agent via bindings.</div>
+          <div id="channelAccountsList"></div>
+          <div class="btn-row" style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="showAddAccountForm()">\u2795 Add Account</button></div>
+          <div id="channelAccountForm" style="display:none;margin-top:12px;padding:14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px">
+            <div style="font-weight:600;margin-bottom:10px" id="chAccFormTitle">New Account</div>
+            <div class="field"><label>Account ID</label><input type="text" id="chAccId" placeholder="e.g. support-bot, sales"></div>
+            <div id="channelAccountFields"></div>
+            <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="saveChannelAccount()">Save Account</button><button class="btn btn-outline btn-sm" onclick="document.getElementById('channelAccountForm').style.display='none'">Cancel</button></div>
+            <div class="status" id="chAccStatus"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -2246,6 +2278,7 @@ async function loadChannels(){
       // Pre-fill current values
       if(isActive)(async()=>{const cfg=await api('/api/channel-values','POST',{channel:c.id});if(cfg.ok&&cfg.values)Object.entries(cfg.values).forEach(([k,v])=>{const el=document.getElementById('chfield-'+k);if(el&&v)el.value=v})})();
       document.getElementById('channelConfig').style.display='block';
+      loadChannelAccounts(c.id);
     };
     list.appendChild(div);
   });
@@ -2261,6 +2294,53 @@ async function disableChannel(chId){
   if(!confirm('Disable channel '+chId+'? Token will be deleted and service restarted.'))return;
   const d=await api('/api/channel-disable','POST',{channel:chId});
   if(d.ok){setTimeout(loadChannels,1500)}else{alert(d.error||'Error disabling channel')}
+}
+var _chAccEnvKeys=[],_chAccEnvLabels={},_chAccEnvPlaceholders={};
+async function loadChannelAccounts(channelId){
+  var el=document.getElementById('channelAccountsList');if(!el)return;
+  el.innerHTML='<div class="muted" style="font-size:12px">Loading accounts...</div>';
+  var d=await api('/api/channel-accounts','POST',{channel:channelId});
+  if(!d.ok){el.innerHTML='<div class="muted" style="font-size:12px">'+esc(d.error||'Error')+'</div>';return}
+  _chAccEnvKeys=d.envKeys||[];_chAccEnvLabels=d.envLabels||{};_chAccEnvPlaceholders=d.envPlaceholders||{};
+  var accounts=d.accounts||{};
+  if(!Object.keys(accounts).length){el.innerHTML='<div class="muted" style="font-size:12px">No accounts. Use the form above to add the default token, or add extra accounts below.</div>';return}
+  var h='';
+  for(var id in accounts){var acc=accounts[id];
+    var tokenParts=[];for(var k in acc){if(typeof acc[k]==='string'&&(k.toLowerCase().indexOf('token')!==-1||k.toLowerCase().indexOf('secret')!==-1))tokenParts.push(esc((_chAccEnvLabels[k]||k))+': '+esc(acc[k]))}
+    h+='<div class="binding-card"><div class="binding-card-header">'
+      +'<span class="binding-card-channel" style="font-weight:600">'+esc(id)+'</span>'
+      +(id==='default'?'<span class="badge bg-blue" style="font-size:9px;margin-left:4px">DEFAULT</span>':'')
+      +(id!=='default'?'<button class="binding-remove" onclick="deleteChannelAccount(\\''+esc(id)+'\\')" title="Delete">\\u2715</button>':'')
+      +'</div>'
+      +(tokenParts.length?'<div class="binding-card-details" style="font-size:11px;color:var(--text2);margin-top:4px">'+tokenParts.join(' &bull; ')+'</div>':'')
+      +'</div>'}
+  el.innerHTML=h;
+}
+function showAddAccountForm(){
+  if(!selectedChannel)return;
+  document.getElementById('chAccFormTitle').textContent='New Account';
+  document.getElementById('chAccId').value='';document.getElementById('chAccId').disabled=false;
+  var fields=document.getElementById('channelAccountFields');
+  fields.innerHTML=_chAccEnvKeys.map(function(k){
+    return '<div class="field"><label>'+esc((_chAccEnvLabels[k]||k))+'</label><input type="text" id="chAccField-'+k+'" placeholder="'+esc((_chAccEnvPlaceholders[k]||'Enter '+k))+'"></div>'
+  }).join('');
+  document.getElementById('channelAccountForm').style.display='block';
+}
+async function saveChannelAccount(){
+  if(!selectedChannel)return;var st=document.getElementById('chAccStatus');
+  var accId=document.getElementById('chAccId').value.trim().replace(/[^a-zA-Z0-9_-]/g,'');
+  if(!accId){st.className='status fail';st.textContent='Enter account ID';return}
+  var tokens={};_chAccEnvKeys.forEach(function(k){var el=document.getElementById('chAccField-'+k);if(el&&el.value.trim())tokens[k]=el.value.trim()});
+  if(!Object.keys(tokens).length){st.className='status fail';st.textContent='Enter at least one token';return}
+  st.className='status loading';st.textContent='Saving account...';
+  var d=await api('/api/channel-accounts/save','POST',{channel:selectedChannel.id,accountId:accId,tokens:tokens});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Account saved! Restarting...':(d.error||'Error');
+  if(d.ok){document.getElementById('channelAccountForm').style.display='none';setTimeout(function(){loadChannelAccounts(selectedChannel.id)},1500)}
+}
+async function deleteChannelAccount(accId){
+  if(!selectedChannel||!confirm('Delete account "'+accId+'"?'))return;
+  var d=await api('/api/channel-accounts','DELETE',{channel:selectedChannel.id,accountId:accId});
+  if(d.ok)loadChannelAccounts(selectedChannel.id);else alert(d.error||'Error');
 }
 async function showPairForm(){
   document.getElementById('pairForm').style.display='block';
@@ -2311,6 +2391,7 @@ async function loadAgents(){
   renderAgentFilterPills(allAgents.length,defCount,customCount);
   filterAgents();
   populateAgentFormDropdowns();
+  loadA2ASettings();
 }
 function populateAgentFormDropdowns(){
   const modelSel=document.getElementById('newAgentModel');
@@ -2320,6 +2401,28 @@ function populateAgentFormDropdowns(){
   // Clear binding rows
   const bindContainer=document.getElementById('newAgentBindings');
   if(bindContainer)bindContainer.innerHTML='';
+}
+async function loadA2ASettings(){
+  var d=await api('/api/agent-to-agent');if(!d.ok)return;
+  var cb=document.getElementById('a2aEnabled');if(cb)cb.checked=d.enabled;
+  var settings=document.getElementById('a2aSettings');if(settings)settings.style.display=d.enabled?'block':'none';
+  var turns=document.getElementById('a2aMaxTurns');if(turns)turns.value=d.maxPingPongTurns||3;
+  var el=document.getElementById('a2aAgentChecks');
+  if(el&&allAgents.length){el.innerHTML=allAgents.map(function(a){
+    var checked=!d.allow.length||d.allow.indexOf('*')!==-1||d.allow.indexOf(a.id)!==-1;
+    var name=a.identity&&a.identity.name?a.identity.name:a.id;
+    return '<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg2);border-radius:8px;cursor:pointer;font-size:13px">'
+      +'<input type="checkbox" class="a2a-agent-cb" value="'+esc(a.id)+'"'+(checked?' checked':'')+' style="accent-color:var(--accent)">'
+      +'<span>'+(a.identity&&a.identity.emoji?a.identity.emoji:'\ud83e\udd16')+' '+esc(name)+'</span></label>'}).join('')}
+}
+async function saveA2ASettings(){
+  var st=document.getElementById('a2aStatus');
+  var enabled=document.getElementById('a2aEnabled').checked;
+  var maxTurns=parseInt(document.getElementById('a2aMaxTurns').value,10)||0;
+  var allow=[];document.querySelectorAll('.a2a-agent-cb:checked').forEach(function(cb){allow.push(cb.value)});
+  st.className='status loading';st.textContent='Saving...';
+  var d=await api('/api/agent-to-agent','POST',{enabled:enabled,allow:allow,maxPingPongTurns:maxTurns});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Saved! Restarting...':(d.error||'Error');
 }
 function getNewAgentChannelOptions(){
   let opts='<option value="">-- Select --</option>';
@@ -2353,7 +2456,8 @@ function onNewAgentBindChChange(idx){
       +'<input type="text" id="nabDcGuild'+idx+'" placeholder="Guild ID (opt)" style="flex:1;min-width:120px">'
       +'<select id="nabDcKind'+idx+'" style="flex:1;min-width:100px"><option value="">Any peer</option><option value="direct">direct (DM)</option><option value="channel">channel</option></select>'
       +'<input type="text" id="nabDcPeerId'+idx+'" placeholder="Peer ID (opt)" style="flex:1;min-width:120px">'
-      +'</div>';
+      +'</div>'
+      +'<input type="text" id="nabDcRoles'+idx+'" placeholder="Role IDs (comma-sep, opt)" style="margin-top:6px;width:100%">';
   } else {
     fields.innerHTML='';
   }
@@ -2418,6 +2522,7 @@ function renderAgentGrid(agents){
         let parts=[b.match&&b.match.channel?b.match.channel:'?'];
         if(b.match&&b.match.peer)parts.push(b.match.peer.kind+':'+b.match.peer.id);
         else if(b.match&&b.match.guildId)parts.push('guild:'+b.match.guildId);
+        if(b.match&&b.match.roles&&b.match.roles.length)parts.push('roles:'+b.match.roles.length);
         return parts.join('/');
       }).join(', ');
     } else {
@@ -2431,6 +2536,7 @@ function renderAgentGrid(agents){
       +'<div class="skill-badges">'+defaultBadge+bindCountBadge+channelBadges+'</div>'
       +'<div class="skill-desc" style="margin-top:6px">'+esc(model)+'</div>'
       +'<div style="font-size:11px;color:var(--text2);margin-top:4px">'+esc(bindDetail)+'</div>'
+      +(a.groupChat&&a.groupChat.mentionPatterns&&a.groupChat.mentionPatterns.length?'<div style="margin-top:4px">'+a.groupChat.mentionPatterns.slice(0,3).map(function(p){return '<span class="mention-badge">'+esc(p)+'</span>'}).join('')+(a.groupChat.mentionPatterns.length>3?'<span class="mention-badge">+'+(a.groupChat.mentionPatterns.length-3)+'</span>':'')+'</div>':'')
       +'</div>';
   });
   el.innerHTML=h;
@@ -2478,6 +2584,7 @@ function showAgentDetail(id){
       if(b.match.peer)details.push('Peer: '+esc(b.match.peer.kind)+':'+esc(b.match.peer.id));
       if(b.match.guildId)details.push('Guild: '+esc(b.match.guildId));
       if(b.match.teamId)details.push('Team: '+esc(b.match.teamId));
+      if(b.match.roles&&b.match.roles.length)details.push('Roles: '+b.match.roles.map(function(r){return esc(r)}).join(', '));
       bindingsHtml+='<div class="binding-card"><div class="binding-card-header"><span class="binding-card-icon">'+chIcon+'</span><span class="binding-card-channel">'+esc(chName)+'</span>'
         +'<button class="binding-remove" onclick="removeAgentBinding(\\''+esc(id).replace(/'/g,"\\\\'")+'\\',' +i+')" title="Remove binding">\\u2715</button></div>'
         +(details.length?'<div class="binding-card-details">'+details.join(' \\u00b7 ')+'</div>':'<div class="binding-card-details" style="color:var(--text2)">All messages on '+esc(chName)+'</div>')
@@ -2493,6 +2600,7 @@ function showAgentDetail(id){
   const bindFormHtml='<div class="binding-add-form">'
     +'<div style="font-weight:600;margin-bottom:12px">Add New Binding</div>'
     +'<div class="field"><label>Channel</label><select id="bindNewChannel" onchange="onBindChannelChange()">'+bindChannelOpts+'</select></div>'
+    +'<div class="field"><label>Account ID <span style="color:var(--text2);font-weight:400">(optional, for multi-account)</span></label><input type="text" id="bindAccId" placeholder="e.g. default, support-bot"></div>'
     +'<div id="bindTelegramFields" style="display:none">'
     +'<div class="field"><label>Peer Kind <span style="color:var(--text2);font-weight:400">(optional)</span></label><select id="bindTgPeerKind"><option value="">-- Any --</option><option value="direct">direct (DM)</option><option value="group">group</option><option value="channel">channel</option></select></div>'
     +'<div class="field"><label>Peer / Chat ID <span style="color:var(--text2);font-weight:400">(optional)</span></label><input type="text" id="bindTgPeerId" placeholder="e.g. 123456789"></div>'
@@ -2501,6 +2609,7 @@ function showAgentDetail(id){
     +'<div class="field"><label>Guild ID <span style="color:var(--text2);font-weight:400">(optional)</span></label><input type="text" id="bindDcGuildId" placeholder="e.g. 123456789"></div>'
     +'<div class="field"><label>Peer Kind <span style="color:var(--text2);font-weight:400">(optional)</span></label><select id="bindDcPeerKind"><option value="">-- Any --</option><option value="direct">direct (DM)</option><option value="channel">channel</option></select></div>'
     +'<div class="field"><label>Peer ID <span style="color:var(--text2);font-weight:400">(optional)</span></label><input type="text" id="bindDcPeerId" placeholder="e.g. channel or user ID"></div>'
+    +'<div class="field"><label>Role IDs <span style="color:var(--text2);font-weight:400">(optional, comma-separated)</span></label><input type="text" id="bindDcRoles" placeholder="e.g. 123456789,987654321"></div>'
     +'</div>'
     +'<div class="btn-row" style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="addAgentBinding(\\''+esc(id).replace(/'/g,"\\\\'")+'\\')">${ICONS.plus} Add Binding</button></div>'
     +'<div class="status" id="agentBindingStatus"></div>'
@@ -2533,6 +2642,13 @@ function showAgentDetail(id){
     +'<div class="field" id="agentCustomModelField" style="display:'+(isCustomAgentModel?'block':'none')+'"><label>Custom Model ID</label><input type="text" id="agentCustomModel" placeholder="e.g. openai/gpt-4o-2024-08-06" value="'+(isCustomAgentModel?esc(a.model):'')+'">'
     +'<div style="font-size:11px;color:var(--text2);margin-top:4px">Format: provider/model-id</div></div>'
     +'</div>'
+    +'<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">'
+    +'<div style="font-weight:600;margin-bottom:6px">Group Chat Mention Patterns</div>'
+    +'<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Regex patterns that trigger this agent in group chats (e.g. <code>^@support</code>, <code>^help</code>)</div>'
+    +'<div class="tag-input-wrap" onclick="document.getElementById(\\'agentPatternInput\\').focus()">'
+    +'<span id="agentPatternTags"></span>'
+    +'<input type="text" class="tag-input" id="agentPatternInput" placeholder="Type pattern, press Enter..." onkeydown="if(event.key===\\'Enter\\'){event.preventDefault();addAgentMentionPattern()}">'
+    +'</div></div>'
     +'<div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" onclick="saveAgentFromModal(\\''+escId+'\\')">${ICONS.save} Save Changes</button>'
     +(isDefault?'':'<button class="btn btn-outline" style="color:var(--danger)" onclick="deleteAgent(\\''+escId+'\\')">${ICONS.trash} Delete</button>')
     +'</div><div class="status" id="agentModalStatus"></div>'
@@ -2553,8 +2669,14 @@ function showAgentDetail(id){
     +'</div>'
     +'<div class="modal-footer"><span class="status-dot dot-green"></span> Active <span style="margin-left:auto;color:var(--text2);font-size:12px;font-family:monospace">'+esc(id)+'</span></div>'
     +'</div></div>';
+  initModalMentionPatterns(a.groupChat&&a.groupChat.mentionPatterns?a.groupChat.mentionPatterns:[]);
 }
 function closeAgentModal(){const c=document.getElementById('agentModalContainer');if(c)c.innerHTML=''}
+var _modalMentionPatterns=[];
+function initModalMentionPatterns(patterns){_modalMentionPatterns=Array.isArray(patterns)?patterns.slice():[];renderModalMentionPatterns()}
+function renderModalMentionPatterns(){var el=document.getElementById('agentPatternTags');if(!el)return;el.innerHTML=_modalMentionPatterns.map(function(p,i){return '<span class="tag-item"><code>'+esc(p)+'</code><button class="tag-remove" onclick="removeAgentMentionPattern('+i+')">\u2715</button></span>'}).join('')}
+function addAgentMentionPattern(){var input=document.getElementById('agentPatternInput');if(!input)return;var val=input.value.trim();if(!val)return;try{new RegExp(val)}catch(e){var st=document.getElementById('agentModalStatus');if(st){st.className='status fail';st.textContent='Invalid regex: '+e.message}return}if(_modalMentionPatterns.indexOf(val)===-1)_modalMentionPatterns.push(val);renderModalMentionPatterns();input.value=''}
+function removeAgentMentionPattern(idx){_modalMentionPatterns.splice(idx,1);renderModalMentionPatterns()}
 function switchAgentModalTab(tab,btn){
   const info=document.getElementById('agentTabInfo'),bindings=document.getElementById('agentTabBindings'),skills=document.getElementById('agentTabSkills');
   if(info)info.style.display=tab==='info'?'block':'none';
@@ -2576,17 +2698,21 @@ async function addAgentBinding(agentId){
   const ch=(document.getElementById('bindNewChannel')||{}).value||'';
   if(!ch){if(st){st.className='status fail';st.textContent='Select a channel'}return}
   const match={channel:ch};
+  const accId=(document.getElementById('bindAccId')||{}).value||'';
+  if(accId.trim())match.accountId=accId.trim();
   if(ch==='telegram'){
     const peerKind=(document.getElementById('bindTgPeerKind')||{}).value||'';
     const peerId=(document.getElementById('bindTgPeerId')||{}).value||'';
     if(peerKind&&peerId)match.peer={kind:peerKind,id:peerId.trim()};
-    else if(peerId)match.peer={kind:'user',id:peerId.trim()};
+    else if(peerId)match.peer={kind:'direct',id:peerId.trim()};
   } else if(ch==='discord'){
     const guildId=(document.getElementById('bindDcGuildId')||{}).value||'';
     const peerKind=(document.getElementById('bindDcPeerKind')||{}).value||'';
     const peerId=(document.getElementById('bindDcPeerId')||{}).value||'';
     if(guildId)match.guildId=guildId.trim();
     if(peerKind&&peerId)match.peer={kind:peerKind,id:peerId.trim()};
+    const rolesStr=(document.getElementById('bindDcRoles')||{}).value||'';
+    if(rolesStr.trim())match.roles=rolesStr.split(',').map(r=>r.trim()).filter(Boolean);
   }
   if(st){st.className='status loading';st.textContent='Adding binding...'}
   const d=await api('/api/agents/bindings','POST',{agent:agentId,match:match});
@@ -2614,9 +2740,10 @@ async function saveAgentFromModal(id){
   // Save identity
   const idRes=await api('/api/agents/identity','POST',{agent:id,name:name.trim(),emoji:emoji.trim(),theme:theme.trim()});
   if(!idRes.ok){st.className='status fail';st.textContent=idRes.error||'Error saving identity';return}
-  // Save model override
-  const cfgRes=await api('/api/agents/update-config','POST',{agent:id,model:model});
-  if(!cfgRes.ok){st.className='status fail';st.textContent=cfgRes.error||'Error saving model';return}
+  // Save model override + mentionPatterns
+  const groupChat=_modalMentionPatterns.length>0?{mentionPatterns:_modalMentionPatterns}:null;
+  const cfgRes=await api('/api/agents/update-config','POST',{agent:id,model:model,groupChat:groupChat});
+  if(!cfgRes.ok){st.className='status fail';st.textContent=cfgRes.error||'Error saving config';return}
   st.className='status ok';st.textContent='Saved! Restarting...';
   setTimeout(()=>{closeAgentModal();loadAgents()},2000);
 }
@@ -2663,13 +2790,15 @@ async function addAgent(){
         const kind=(document.getElementById('nabTgKind'+idx)||{}).value||'';
         const pid=(document.getElementById('nabTgId'+idx)||{}).value||'';
         if(kind&&pid)bnd.peer={kind:kind,id:pid.trim()};
-        else if(pid)bnd.peer={kind:'user',id:pid.trim()};
+        else if(pid)bnd.peer={kind:'direct',id:pid.trim()};
       } else if(ch==='discord'){
         const guildId=(document.getElementById('nabDcGuild'+idx)||{}).value||'';
         const kind=(document.getElementById('nabDcKind'+idx)||{}).value||'';
         const pid=(document.getElementById('nabDcPeerId'+idx)||{}).value||'';
         if(guildId)bnd.guildId=guildId.trim();
         if(kind&&pid)bnd.peer={kind:kind,id:pid.trim()};
+        const rolesStr=(document.getElementById('nabDcRoles'+idx)||{}).value||'';
+        if(rolesStr.trim())bnd.roles=rolesStr.split(',').map(r=>r.trim()).filter(Boolean);
       }
       bindings.push(bnd);
     });
@@ -4453,6 +4582,7 @@ const server = http.createServer(async (req, res) => {
           model: a.model || agentCfg[a.id]?.model || defaultModel,
           identity: a.identity || {},
           skills: agentCfg[a.id]?.skills !== undefined ? agentCfg[a.id].skills : null,
+          groupChat: agentCfg[a.id]?.groupChat || null,
           bindings: agentBindings,
           bindingChannels: agentBindings.map(b => b.match?.channel || 'unknown')
         };
@@ -4505,6 +4635,7 @@ const server = http.createServer(async (req, res) => {
             if (bnd.peer && bnd.peer.kind && bnd.peer.id) match.peer = { kind: String(bnd.peer.kind).replace(/[^a-zA-Z0-9_-]/g, ''), id: String(bnd.peer.id).substring(0, 128) };
             if (bnd.guildId) match.guildId = String(bnd.guildId).substring(0, 128);
             if (bnd.teamId) match.teamId = String(bnd.teamId).substring(0, 128);
+            if (bnd.roles && Array.isArray(bnd.roles) && bnd.roles.length) match.roles = bnd.roles.map(r => String(r).replace(/[^a-zA-Z0-9_]/g, '').substring(0, 64)).filter(Boolean);
             if (match.channel) cfg.bindings.push({ agentId: name, match });
           }
           saveConfig(cfg);
@@ -4563,8 +4694,45 @@ const server = http.createServer(async (req, res) => {
         if (body.skills === null) delete config.agents.list[agent].skills;
         else if (Array.isArray(body.skills)) config.agents.list[agent].skills = body.skills;
       }
+      // Update groupChat.mentionPatterns
+      if (body.groupChat !== undefined) {
+        if (body.groupChat === null) { delete config.agents.list[agent].groupChat; }
+        else {
+          if (!config.agents.list[agent].groupChat) config.agents.list[agent].groupChat = {};
+          if (Array.isArray(body.groupChat.mentionPatterns)) {
+            config.agents.list[agent].groupChat.mentionPatterns = body.groupChat.mentionPatterns.map(p => String(p).substring(0, 256)).filter(Boolean);
+          }
+          if (!config.agents.list[agent].groupChat.mentionPatterns?.length) delete config.agents.list[agent].groupChat;
+        }
+      }
       // Clean up empty entries
       if (Object.keys(config.agents.list[agent]).length === 0) delete config.agents.list[agent];
+      saveConfig(config);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Agent-to-Agent settings (global)
+  if (req.method === 'GET' && url.pathname === '/api/agent-to-agent') {
+    try {
+      const config = getConfig();
+      const a2a = config?.tools?.agentToAgent || { enabled: false, allow: [] };
+      const maxTurns = config?.session?.agentToAgent?.maxPingPongTurns ?? 3;
+      return json(res, 200, { ok: true, enabled: a2a.enabled || false, allow: a2a.allow || [], maxPingPongTurns: maxTurns });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/agent-to-agent') {
+    try {
+      const body = await parseBody(req);
+      const config = getConfig();
+      if (!config.tools) config.tools = {};
+      config.tools.agentToAgent = {
+        enabled: !!body.enabled,
+        allow: Array.isArray(body.allow) ? body.allow.map(a => String(a).replace(/[^a-zA-Z0-9_*-]/g, '').substring(0, 64)).filter(Boolean) : []
+      };
+      if (!config.session) config.session = {};
+      config.session.agentToAgent = { maxPingPongTurns: Math.min(5, Math.max(0, parseInt(body.maxPingPongTurns, 10) || 0)) };
       saveConfig(config);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
@@ -4584,6 +4752,7 @@ const server = http.createServer(async (req, res) => {
       if (m.peer && m.peer.kind && m.peer.id) match.peer = { kind: String(m.peer.kind).replace(/[^a-zA-Z0-9_-]/g, ''), id: String(m.peer.id).substring(0, 128) };
       if (m.guildId) match.guildId = String(m.guildId).substring(0, 128);
       if (m.teamId) match.teamId = String(m.teamId).substring(0, 128);
+      if (m.roles && Array.isArray(m.roles) && m.roles.length) match.roles = m.roles.map(r => String(r).replace(/[^a-zA-Z0-9_]/g, '').substring(0, 64)).filter(Boolean);
       const config = getConfig();
       if (!config.bindings) config.bindings = [];
       config.bindings.push({ agentId: agent, match });
@@ -4694,6 +4863,95 @@ const server = http.createServer(async (req, res) => {
         try { execSync('chown openclaw:openclaw ' + cfgPath); } catch {}
       } catch {}
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Multi-account: list accounts for a channel
+  if (req.method === 'POST' && url.pathname === '/api/channel-accounts') {
+    try {
+      const body = await parseBody(req);
+      const channelId = (body.channel || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      const ch = CHANNELS[channelId];
+      if (!ch) return json(res, 400, { ok: false, error: 'Invalid channel' });
+      const config = getConfig();
+      const chCfg = config?.channels?.[channelId] || {};
+      let accounts = {};
+      if (chCfg.accounts && Object.keys(chCfg.accounts).length) {
+        accounts = JSON.parse(JSON.stringify(chCfg.accounts));
+      } else {
+        // Legacy: check ENV for single token
+        const hasToken = ch.envKeys.every(k => { const v = getEnvValue(k); return v && !v.startsWith('#'); });
+        if (hasToken) {
+          const acc = {};
+          ch.envKeys.forEach(k => { acc[k] = getEnvValue(k); });
+          accounts = { default: acc };
+        }
+      }
+      // Mask tokens in response
+      const masked = {};
+      for (const [id, acc] of Object.entries(accounts)) {
+        masked[id] = {};
+        for (const [key, val] of Object.entries(acc)) {
+          if (typeof val === 'string' && (key.toLowerCase().includes('token') || key.toLowerCase().includes('secret')) && val.length > 8) {
+            masked[id][key] = val.substring(0, 4) + '***' + val.substring(val.length - 4);
+          } else { masked[id][key] = val; }
+        }
+      }
+      return json(res, 200, { ok: true, accounts: masked, envKeys: ch.envKeys, envLabels: ch.envLabels || {}, envPlaceholders: ch.envPlaceholders || {} });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Multi-account: save/update an account
+  if (req.method === 'POST' && url.pathname === '/api/channel-accounts/save') {
+    try {
+      const body = await parseBody(req);
+      const channelId = (body.channel || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      const accountId = (body.accountId || 'default').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 64);
+      const ch = CHANNELS[channelId];
+      if (!ch) return json(res, 400, { ok: false, error: 'Invalid channel' });
+      const config = getConfig();
+      if (!config.channels) config.channels = {};
+      if (!config.channels[channelId]) config.channels[channelId] = {};
+      config.channels[channelId].enabled = true;
+      if (!config.channels[channelId].accounts) config.channels[channelId].accounts = {};
+      const acc = config.channels[channelId].accounts[accountId] || {};
+      if (body.tokens) {
+        for (const [k, v] of Object.entries(body.tokens)) {
+          if (v && !String(v).includes('***')) acc[k] = String(v).replace(/[\r\n\x00-\x1f]/g, '');
+        }
+      }
+      config.channels[channelId].accounts[accountId] = acc;
+      // Sync default account to legacy ENV
+      if (accountId === 'default' && body.tokens) {
+        for (const envKey of ch.envKeys) {
+          if (body.tokens[envKey] && !String(body.tokens[envKey]).includes('***')) setEnvValue(envKey, body.tokens[envKey]);
+        }
+      }
+      // Also enable in plugins.entries
+      try { if (!config.plugins) config.plugins = {}; if (!config.plugins.entries) config.plugins.entries = {}; if (!config.plugins.entries[channelId]) config.plugins.entries[channelId] = {}; config.plugins.entries[channelId].enabled = true; } catch {}
+      saveConfig(config);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 3000));
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Multi-account: delete an account
+  if (req.method === 'DELETE' && url.pathname === '/api/channel-accounts') {
+    try {
+      const body = await parseBody(req);
+      const channelId = (body.channel || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      const accountId = (body.accountId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!channelId || !accountId) return json(res, 400, { ok: false, error: 'Missing params' });
+      if (accountId === 'default') return json(res, 400, { ok: false, error: 'Cannot delete default account' });
+      const config = getConfig();
+      if (config.channels?.[channelId]?.accounts?.[accountId]) {
+        delete config.channels[channelId].accounts[accountId];
+        // Also remove bindings referencing this account
+        if (config.bindings) config.bindings = config.bindings.filter(b => !(b.match?.channel === channelId && b.match?.accountId === accountId));
+        saveConfig(config);
+        restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      }
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
