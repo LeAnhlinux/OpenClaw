@@ -89,7 +89,7 @@ function checkInstallPrereqs(inst) {
   }
   return { ok: true };
 }
-const PANEL_VERSION = '2026.02.27.1';
+const PANEL_VERSION = '2026.02.27.2';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -2345,13 +2345,13 @@ function onNewAgentBindChChange(idx){
   const fields=document.getElementById('nabFields'+idx);if(!fields)return;
   if(ch==='telegram'){
     fields.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap">'
-      +'<select id="nabTgKind'+idx+'" style="flex:1;min-width:100px"><option value="">Any peer</option><option value="user">user</option><option value="group">group</option><option value="supergroup">supergroup</option></select>'
+      +'<select id="nabTgKind'+idx+'" style="flex:1;min-width:100px"><option value="">Any peer</option><option value="direct">direct (DM)</option><option value="group">group</option><option value="channel">channel</option></select>'
       +'<input type="text" id="nabTgId'+idx+'" placeholder="Chat/Peer ID (opt)" style="flex:2;min-width:120px">'
       +'</div>';
   } else if(ch==='discord'){
     fields.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap">'
       +'<input type="text" id="nabDcGuild'+idx+'" placeholder="Guild ID (opt)" style="flex:1;min-width:120px">'
-      +'<select id="nabDcKind'+idx+'" style="flex:1;min-width:100px"><option value="">Any peer</option><option value="user">user (DM)</option><option value="channel">channel</option></select>'
+      +'<select id="nabDcKind'+idx+'" style="flex:1;min-width:100px"><option value="">Any peer</option><option value="direct">direct (DM)</option><option value="channel">channel</option></select>'
       +'<input type="text" id="nabDcPeerId'+idx+'" placeholder="Peer ID (opt)" style="flex:1;min-width:120px">'
       +'</div>';
   } else {
@@ -2494,12 +2494,12 @@ function showAgentDetail(id){
     +'<div style="font-weight:600;margin-bottom:12px">Add New Binding</div>'
     +'<div class="field"><label>Channel</label><select id="bindNewChannel" onchange="onBindChannelChange()">'+bindChannelOpts+'</select></div>'
     +'<div id="bindTelegramFields" style="display:none">'
-    +'<div class="field"><label>Peer Kind <span style="color:var(--text2);font-weight:400">(optional)</span></label><select id="bindTgPeerKind"><option value="">-- Any --</option><option value="user">user</option><option value="group">group</option><option value="supergroup">supergroup</option></select></div>'
+    +'<div class="field"><label>Peer Kind <span style="color:var(--text2);font-weight:400">(optional)</span></label><select id="bindTgPeerKind"><option value="">-- Any --</option><option value="direct">direct (DM)</option><option value="group">group</option><option value="channel">channel</option></select></div>'
     +'<div class="field"><label>Peer / Chat ID <span style="color:var(--text2);font-weight:400">(optional)</span></label><input type="text" id="bindTgPeerId" placeholder="e.g. 123456789"></div>'
     +'</div>'
     +'<div id="bindDiscordFields" style="display:none">'
     +'<div class="field"><label>Guild ID <span style="color:var(--text2);font-weight:400">(optional)</span></label><input type="text" id="bindDcGuildId" placeholder="e.g. 123456789"></div>'
-    +'<div class="field"><label>Peer Kind <span style="color:var(--text2);font-weight:400">(optional)</span></label><select id="bindDcPeerKind"><option value="">-- Any --</option><option value="user">user (DM)</option><option value="channel">channel</option></select></div>'
+    +'<div class="field"><label>Peer Kind <span style="color:var(--text2);font-weight:400">(optional)</span></label><select id="bindDcPeerKind"><option value="">-- Any --</option><option value="direct">direct (DM)</option><option value="channel">channel</option></select></div>'
     +'<div class="field"><label>Peer ID <span style="color:var(--text2);font-weight:400">(optional)</span></label><input type="text" id="bindDcPeerId" placeholder="e.g. channel or user ID"></div>'
     +'</div>'
     +'<div class="btn-row" style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="addAgentBinding(\\''+esc(id).replace(/'/g,"\\\\'")+'\\')">${ICONS.plus} Add Binding</button></div>'
