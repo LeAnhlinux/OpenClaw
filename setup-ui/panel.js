@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.02.27.11';
+const PANEL_VERSION = '2026.02.27.12';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -2455,18 +2455,20 @@ function addNewAgentBindingRow(){
 function onNewAgentBindChChange(idx){
   const ch=(document.getElementById('nabCh'+idx)||{}).value||'';
   const fields=document.getElementById('nabFields'+idx);if(!fields)return;
+  const accRow='<input type="text" id="nabAccId'+idx+'" placeholder="Account ID (opt, for multi-account)" style="margin-top:6px;width:100%">';
   if(ch==='telegram'){
     fields.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap">'
       +'<select id="nabTgKind'+idx+'" style="flex:1;min-width:100px"><option value="">Any peer</option><option value="direct">direct (DM)</option><option value="group">group</option><option value="channel">channel</option></select>'
       +'<input type="text" id="nabTgId'+idx+'" placeholder="Chat/Peer ID (opt)" style="flex:2;min-width:120px">'
-      +'</div>';
+      +'</div>'+accRow;
   } else if(ch==='discord'){
     fields.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap">'
       +'<input type="text" id="nabDcGuild'+idx+'" placeholder="Guild ID (opt)" style="flex:1;min-width:120px">'
       +'<select id="nabDcKind'+idx+'" style="flex:1;min-width:100px"><option value="">Any peer</option><option value="direct">direct (DM)</option><option value="channel">channel</option></select>'
       +'<input type="text" id="nabDcPeerId'+idx+'" placeholder="Peer ID (opt)" style="flex:1;min-width:120px">'
       +'</div>'
-      +'<input type="text" id="nabDcRoles'+idx+'" placeholder="Role IDs (comma-sep, opt)" style="margin-top:6px;width:100%">';
+      +'<input type="text" id="nabDcRoles'+idx+'" placeholder="Role IDs (comma-sep, opt)" style="margin-top:6px;width:100%">'
+      +accRow;
   } else {
     fields.innerHTML='';
   }
@@ -2795,6 +2797,8 @@ async function addAgent(){
       const ch=(document.getElementById('nabCh'+idx)||{}).value||'';
       if(!ch)return;
       const bnd={channel:ch};
+      const nabAccId=(document.getElementById('nabAccId'+idx)||{}).value||'';
+      if(nabAccId.trim())bnd.accountId=nabAccId.trim();
       if(ch==='telegram'){
         const kind=(document.getElementById('nabTgKind'+idx)||{}).value||'';
         const pid=(document.getElementById('nabTgId'+idx)||{}).value||'';
