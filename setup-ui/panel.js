@@ -89,7 +89,7 @@ function checkInstallPrereqs(inst) {
   }
   return { ok: true };
 }
-const PANEL_VERSION = '2026.02.26.8';
+const PANEL_VERSION = '2026.02.27.1';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -1287,6 +1287,22 @@ body.dark .log-box::-webkit-scrollbar-thumb,body.dark .chat-msgs::-webkit-scroll
 .skill-card .skill-badges{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center}
 .skill-card .skill-missing{font-size:11px;color:#d97706;margin-top:6px;display:flex;align-items:center;gap:4px}
 
+/* Binding components */
+.binding-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;transition:border-color .2s}
+.binding-card:hover{border-color:var(--accent)}
+.binding-card-header{display:flex;align-items:center;gap:8px}
+.binding-card-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px}
+.binding-card-icon svg{width:18px;height:18px}
+.binding-card-channel{font-weight:600;font-size:13px;color:var(--text)}
+.binding-remove{background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:4px 6px;border-radius:6px;margin-left:auto;transition:all .2s}
+.binding-remove:hover{background:rgba(234,67,53,.1);color:var(--danger)}
+.binding-card-details{font-size:12px;color:var(--text2);margin-top:6px;padding-left:32px}
+.binding-add-form{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.binding-add-row{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.binding-badge{background:var(--border);color:var(--text2);display:inline-flex;align-items:center;gap:4px}
+.binding-badge .badge-icon{display:inline-flex;align-items:center}
+.binding-badge .badge-icon svg{width:12px;height:12px}
+
 /* Marketplace Card */
 .market-card{border:2px solid var(--border);border-radius:14px;padding:18px;transition:all .3s ease;background:var(--card-bg);cursor:pointer}
 .market-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 25px rgba(66,133,244,.12)}
@@ -1346,22 +1362,77 @@ body.dark .modal-tabs{border-color:var(--border)}
 body.dark .modal-close:hover{background:rgba(255,255,255,.1)}
 
 /* Responsive */
-.hamburger{display:none;position:fixed;top:12px;left:12px;z-index:20;background:var(--sidebar-bg);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:18px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);backdrop-filter:blur(8px)}
+.hamburger{display:none;position:fixed;top:12px;left:12px;z-index:101;background:var(--sidebar-bg);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:18px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2);backdrop-filter:blur(8px)}
 .hamburger:active{transform:scale(.92)}
-@media(max-width:768px){
-  .sidebar{transform:translateX(-100%);transition:transform .25s} .sidebar.open{transform:translateX(0)}
-  .main{margin-left:0;padding:20px 16px;padding-top:56px}
-  .hamburger{display:block}
-  .ch-list{gap:6px}
-  .skill-grid{grid-template-columns:1fr}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99;backdrop-filter:blur(2px);-webkit-tap-highlight-color:transparent}
+
+/* Tablet */
+@media(max-width:1024px){
+  .sidebar{width:220px} :root{--sidebar-w:220px}
+  .main{padding:28px 24px}
+  .page-title{font-size:22px}
+  .page-desc{font-size:13px;margin-bottom:20px}
+  .card{padding:20px}
   .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .skill-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+}
+
+/* Mobile */
+@media(max-width:768px){
+  .sidebar{position:fixed;width:280px;transform:translateX(-100%);transition:transform .25s;z-index:100}
+  .sidebar.open{transform:translateX(0)}
+  .hamburger{display:block}
+  .main{margin-left:0;padding:16px 14px;padding-top:56px}
+  .page-title{font-size:20px;gap:8px}
+  .page-title svg{width:22px;height:22px}
+  .page-desc{font-size:12px;margin-bottom:16px}
+  .card{padding:16px;border-radius:12px;margin-bottom:16px}
+  .card-title{font-size:14px}
+  .stat-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat-card{padding:14px 10px}
+  .stat-num{font-size:22px}
+  .stat-label{font-size:10px}
+  .skill-grid{grid-template-columns:1fr}
   .filter-pills{gap:6px}
   .filter-pill{padding:5px 12px;font-size:12px}
-  .modal-card{max-width:100%;margin:8px}
-  .modal-header{padding:16px 16px 12px}
-  .modal-body{padding:16px}
-  .modal-footer{padding:12px 16px}
+  .info-row{flex-direction:column;align-items:flex-start;gap:4px}
+  .info-v{max-width:100%}
+  .field{margin-bottom:14px}
+  .field input,.field select,.field textarea{padding:10px 12px;font-size:14px}
+  .btn{padding:10px 18px;font-size:13px}
+  .btn-sm{padding:8px 14px;font-size:12px}
+  .modal-card{max-width:100%;margin:8px;border-radius:12px}
+  .modal-header{padding:14px 16px 10px}
+  .modal-body{padding:14px}
+  .modal-footer{padding:10px 14px}
+  .modal-tabs{gap:0;padding:0 12px}
+  .modal-tab{padding:8px 10px;font-size:12px}
+  .ch-list{gap:6px}
+  .ch-item{padding:10px 12px}
   #browserCards{grid-template-columns:1fr !important}
+  .search-input{font-size:13px;padding:10px 12px 10px 36px}
+  .sidebar-footer-actions{flex-direction:column;gap:4px}
+  .sidebar-action-btn{width:100%;justify-content:center}
+  .prov-card-icon{width:36px;height:36px}
+  .prov-card-icon svg{width:22px;height:22px}
+  .skill-card{padding:14px}
+  .skill-name{font-size:13px}
+  .skill-desc{font-size:11px}
+  .badge{font-size:9px;padding:2px 6px}
+  .binding-card{padding:10px 12px}
+  .binding-add-form{padding-top:12px}
+}
+
+/* Small phone */
+@media(max-width:380px){
+  .main{padding:12px 10px;padding-top:52px}
+  .stat-grid{grid-template-columns:1fr}
+  .page-title{font-size:18px}
+  .modal-card{margin:4px}
+  .modal-body{padding:12px}
+  .btn-row{flex-direction:column}
+  .btn-row .btn{width:100%}
+  .binding-add-row{padding:8px}
 }`;
 
 // --- Login HTML ---
@@ -1423,8 +1494,10 @@ function panelPage() {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OpenClaw Panel</title>
 <style>${CSS}</style></head><body>
+<input type="text" name="fakeuser" autocomplete="username" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none" tabindex="-1"><input type="password" name="fakepass" autocomplete="current-password" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none" tabindex="-1">
 
-<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+<button class="hamburger" onclick="var s=document.querySelector('.sidebar'),o=document.querySelector('.sidebar-overlay');s.classList.toggle('open');if(o)o.style.display=s.classList.contains('open')?'block':'none'">&#9776;</button>
+<div class="sidebar-overlay" onclick="document.querySelector('.sidebar').classList.remove('open');this.style.display='none'"></div>
 
 <div class="sidebar">
   <div class="brand"><h1>OpenClaw</h1><p>Management Panel</p></div>
@@ -1483,7 +1556,7 @@ function panelPage() {
     <div class="page-desc">Select AI provider, configure API key and choose your model.</div>
     <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.barChart}</span> Overview</div><div id="providerSummary" class="stat-grid"></div></div>
     <div class="card"><div class="card-title"><span class="ct-icon">${ICONS.refresh}</span> All Providers</div>
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap"><div class="search-wrap" style="flex:1;min-width:200px"><input type="text" class="search-input" id="providerSearchInput" placeholder="Search providers..." oninput="filterProviders()"></div></div>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap"><div class="search-wrap" style="flex:1;min-width:200px"><input type="search" class="search-input" id="providerSearchInput" placeholder="Search providers..." oninput="filterProviders()" autocomplete="off"></div></div>
       <div class="filter-pills" id="providerFilterPills" style="margin-bottom:14px"></div>
       <div id="providerGrid"></div>
       <div class="status" id="provStatus"></div>
@@ -1527,7 +1600,7 @@ function panelPage() {
     </div>
     <div class="card">
       <div class="card-title"><span class="ct-icon">${ICONS.robot}</span> Agents</div>
-      <div class="search-wrap"><input type="text" class="search-input" id="agentSearch" placeholder="Search agents..." oninput="filterAgents()"></div>
+      <div class="search-wrap"><input type="search" class="search-input" id="agentSearch" placeholder="Search agents..." oninput="filterAgents()" autocomplete="off"></div>
       <div id="agentFilterPills" class="filter-pills"></div>
       <div id="agentGrid" class="skill-grid"><div class="muted">Loading...</div></div>
     </div>
@@ -1537,7 +1610,7 @@ function panelPage() {
       <div class="field"><label>Agent Name (ID)</label><input type="text" id="newAgentName" placeholder="e.g. support, sales, dev"></div>
       <div class="field"><label>Model</label><select id="newAgentModel" onchange="toggleNewAgentCustomModel()"><option value="">-- Select model --</option></select></div>
       <div class="field" id="newAgentCustomModelField" style="display:none"><label>Custom Model ID</label><input type="text" id="newAgentCustomModel" placeholder="e.g. openai/gpt-4o-2024-08-06"><div style="font-size:11px;color:var(--text2);margin-top:4px">Format: provider/model-id</div></div>
-      <div class="field"><label>Channel Binding (optional)</label><select id="newAgentBind"><option value="">-- No binding --</option></select></div>
+      <div class="field"><label>Channel Bindings (optional)</label><div id="newAgentBindings"></div><button class="btn btn-outline btn-sm" onclick="addNewAgentBindingRow()" style="margin-top:8px">${ICONS.plus} Add Binding</button></div>
       <div class="btn-row"><button class="btn btn-primary" onclick="addAgent()">Add Agent</button></div>
       <div class="status" id="addAgentStatus"></div>
     </div>
@@ -1810,7 +1883,7 @@ function panelPage() {
     <div class="card">
       <div class="card-title"><span class="ct-icon">${ICONS.package}</span> Installed Plugins</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <div class="search-wrap" style="flex:1;min-width:200px;margin-bottom:0"><input type="text" class="search-input" id="pluginsSearchInput" placeholder="Search plugins..." oninput="filterPluginsUI()"></div>
+        <div class="search-wrap" style="flex:1;min-width:200px;margin-bottom:0"><input type="search" class="search-input" id="pluginsSearchInput" placeholder="Search plugins..." oninput="filterPluginsUI()" autocomplete="off"></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-outline btn-sm" onclick="loadPlugins()">${ICONS.refreshCw} Refresh</button>
           <button class="btn btn-outline btn-sm" onclick="updateAllPlugins()">${ICONS.arrowUp} Update All</button>
@@ -1843,7 +1916,7 @@ function panelPage() {
     </div>
     <div class="card">
       <div class="card-title"><span class="ct-icon">${ICONS.zap}</span> Installed Skills</div>
-      <div class="search-wrap"><input type="text" class="search-input" id="skillsSearchInput" placeholder="Search skills..." oninput="filterSkills()"></div>
+      <div class="search-wrap"><input type="search" class="search-input" id="skillsSearchInput" placeholder="Search skills..." oninput="filterSkills()" autocomplete="off"></div>
       <div class="filter-pills" id="skillsFilterPills"></div>
       <div id="skillsList"></div>
       <div class="status" id="skillsStatus"></div>
@@ -1856,7 +1929,7 @@ function panelPage() {
       <div class="card-title"><span class="ct-icon">${ICONS.globe}</span> ClawHub \u2014 Marketplace</div>
       <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Search and install community skills from the ClawHub public registry.</p>
       <div style="display:flex;gap:8px;margin-bottom:14px">
-        <div class="search-wrap" style="flex:1;margin-bottom:0"><input type="text" class="search-input" id="clawhubSearchInput" placeholder="Search skills... e.g. docker, weather, git" onkeydown="if(event.key==='Enter')searchClawHub()"></div>
+        <div class="search-wrap" style="flex:1;margin-bottom:0"><input type="search" class="search-input" id="clawhubSearchInput" placeholder="Search skills... e.g. docker, weather, git" onkeydown="if(event.key==='Enter')searchClawHub()" autocomplete="off"></div>
         <button class="btn btn-primary" style="padding:10px 24px;height:fit-content" onclick="searchClawHub()">Search</button>
       </div>
       <div id="clawhubResults"></div>
@@ -1929,6 +2002,7 @@ function showTab(name,el){
   const sec=document.getElementById('sec-'+name);if(sec)sec.classList.add('active');
   if(el)el.classList.add('active');
   document.querySelector('.sidebar').classList.remove('open');
+  const ov=document.querySelector('.sidebar-overlay');if(ov)ov.style.display='none';
   const loaders={provider:loadProvider,fallback:loadFallback,agents:loadAgents,channels:loadChannels,gateway:loadGateway,domain:loadDomain,browser:loadBrowserStatus,update:loadUpdate,
     chat:loadChat,analytics:loadAnalytics,history:loadHistory,users:loadUsers,backup:()=>{},config:loadConfigEditor,qr:loadQR,
     plugins:loadPlugins,skills:loadSkills,doctor:loadDoctor,status:()=>{loadStatus();loadLogs()}};
@@ -2243,21 +2317,58 @@ function populateAgentFormDropdowns(){
   modelSel.innerHTML='<option value="">-- Select model --</option>';
   if(agentActiveProviders.length){agentActiveProviders.forEach(p=>{p.models.forEach(m=>{modelSel.innerHTML+='<option value="'+m.id+'">'+esc(p.name)+' \\u2014 '+esc(m.name)+'</option>'})});modelSel.innerHTML+='<option value="__custom__">\\u270f Custom model...</option>'}
   else{modelSel.innerHTML='<option value="">No AI Provider configured</option>'}
-  const bindSel=document.getElementById('newAgentBind');
-  bindSel.innerHTML='<option value="">-- No binding --</option>';
-  agentActiveChannels.forEach(c=>{bindSel.innerHTML+='<option value="'+c.id+'">'+c.icon+' '+esc(c.name)+'</option>'});
+  // Clear binding rows
+  const bindContainer=document.getElementById('newAgentBindings');
+  if(bindContainer)bindContainer.innerHTML='';
+}
+function getNewAgentChannelOptions(){
+  let opts='<option value="">-- Select --</option>';
+  if(agentActiveChannels.some(c=>c.id==='telegram'))opts+='<option value="telegram">\\ud83d\\udce8 Telegram</option>';
+  if(agentActiveChannels.some(c=>c.id==='discord'))opts+='<option value="discord">\\ud83c\\udfae Discord</option>';
+  return opts;
+}
+let newAgentBindCounter=0;
+function addNewAgentBindingRow(){
+  const container=document.getElementById('newAgentBindings');if(!container)return;
+  const idx=newAgentBindCounter++;
+  const row=document.createElement('div');
+  row.className='binding-add-row';row.id='nabRow'+idx;
+  row.innerHTML='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+    +'<select id="nabCh'+idx+'" onchange="onNewAgentBindChChange('+idx+')" style="flex:1;min-width:120px">'+getNewAgentChannelOptions()+'</select>'
+    +'<button class="binding-remove" onclick="document.getElementById(\\'nabRow'+idx+'\\').remove()" title="Remove">\\u2715</button>'
+    +'</div>'
+    +'<div id="nabFields'+idx+'" style="margin-top:6px"></div>';
+  container.appendChild(row);
+}
+function onNewAgentBindChChange(idx){
+  const ch=(document.getElementById('nabCh'+idx)||{}).value||'';
+  const fields=document.getElementById('nabFields'+idx);if(!fields)return;
+  if(ch==='telegram'){
+    fields.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +'<select id="nabTgKind'+idx+'" style="flex:1;min-width:100px"><option value="">Any peer</option><option value="user">user</option><option value="group">group</option><option value="supergroup">supergroup</option></select>'
+      +'<input type="text" id="nabTgId'+idx+'" placeholder="Chat/Peer ID (opt)" style="flex:2;min-width:120px">'
+      +'</div>';
+  } else if(ch==='discord'){
+    fields.innerHTML='<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +'<input type="text" id="nabDcGuild'+idx+'" placeholder="Guild ID (opt)" style="flex:1;min-width:120px">'
+      +'<select id="nabDcKind'+idx+'" style="flex:1;min-width:100px"><option value="">Any peer</option><option value="user">user (DM)</option><option value="channel">channel</option></select>'
+      +'<input type="text" id="nabDcPeerId'+idx+'" placeholder="Peer ID (opt)" style="flex:1;min-width:120px">'
+      +'</div>';
+  } else {
+    fields.innerHTML='';
+  }
 }
 function renderAgentSummary(agents){
   const el=document.getElementById('agentSummary');if(!el)return;
   const total=agents.length;
   const defAgent=agents.find(a=>a.isDefault);
   const defName=defAgent?(defAgent.identity&&defAgent.identity.name?defAgent.identity.name:defAgent.id):'N/A';
-  const totalBindings=agents.reduce((s,a)=>s+(a.bindings||0),0);
-  const totalRoutes=agents.reduce((s,a)=>s+(a.routes?a.routes.length:0),0);
+  const totalBindings=agents.reduce((s,a)=>s+(Array.isArray(a.bindings)?a.bindings.length:0),0);
+  const allChannels=[];agents.forEach(a=>{(a.bindingChannels||[]).forEach(ch=>{if(!allChannels.includes(ch))allChannels.push(ch)})});
   el.innerHTML='<div class="stat-card"><div class="stat-num">'+total+'</div><div class="stat-label">Agents</div></div>'
     +'<div class="stat-card"><div class="stat-num" style="font-size:16px;line-height:1.3">'+esc(defName)+'</div><div class="stat-label">Default Agent</div></div>'
     +'<div class="stat-card"><div class="stat-num">'+totalBindings+'</div><div class="stat-label">Bindings</div></div>'
-    +'<div class="stat-card"><div class="stat-num">'+totalRoutes+'</div><div class="stat-label">Routes</div></div>';
+    +'<div class="stat-card"><div class="stat-num">'+allChannels.length+'</div><div class="stat-label">Channels</div></div>';
 }
 function renderAgentFilterPills(total,def,custom){
   const el=document.getElementById('agentFilterPills');if(!el)return;
@@ -2282,25 +2393,44 @@ function filterAgents(){
 function renderAgentGrid(agents){
   const el=document.getElementById('agentGrid');if(!el)return;
   if(!agents.length){el.innerHTML='<div class="muted" style="padding:20px;text-align:center">No agents found</div>';return}
+  const chIconMap={telegram:'${ICONS.telegram}',discord:'${ICONS.discord}',slack:'${ICONS.slack}',whatsapp:'${ICONS.whatsapp}',zalo:'${ICONS.zalo}'};
   let h='';
   agents.forEach(a=>{
     const emoji=a.identity&&a.identity.emoji?a.identity.emoji:'\\ud83e\\udd16';
     const displayName=a.identity&&a.identity.name?a.identity.name:a.id;
     const model=(a.model||'N/A').split('/').pop();
     const isDefault=a.isDefault;
+    const agentBindings=a.bindings||[];
     const bindChannels=a.bindingChannels&&a.bindingChannels.length?a.bindingChannels:[];
     const cardClass='skill-card'+(isDefault?' enabled':'');
     const defaultBadge=isDefault?'<span class="badge bg-green">DEFAULT</span>':'<span class="badge bg-blue">AGENT</span>';
-    const bindBadge=bindChannels.length>0?bindChannels.map(function(ch){return '<span class="badge" style="background:var(--border);color:var(--text2)">'+esc(ch)+'</span>'}).join(''):'';
-    const routeText=a.routes&&a.routes.length?a.routes.join(', '):(bindChannels.length?bindChannels.join(', '):'No routes');
+    // Show unique channel icons as badges
+    const uniqueChannels=[...new Set(bindChannels)];
+    const channelBadges=uniqueChannels.map(function(ch){
+      const icon=chIconMap[ch]||'';
+      return '<span class="badge binding-badge">'+(icon?'<span class="badge-icon">'+icon+'</span>':'')+esc(ch)+'</span>';
+    }).join('');
+    const bindCountBadge=agentBindings.length?'<span class="badge" style="background:var(--accent);color:#fff;font-size:10px">'+agentBindings.length+' binding'+(agentBindings.length>1?'s':'')+'</span>':'';
+    // Build binding detail text
+    let bindDetail='';
+    if(agentBindings.length){
+      bindDetail=agentBindings.map(function(b){
+        let parts=[b.match&&b.match.channel?b.match.channel:'?'];
+        if(b.match&&b.match.peer)parts.push(b.match.peer.kind+':'+b.match.peer.id);
+        else if(b.match&&b.match.guildId)parts.push('guild:'+b.match.guildId);
+        return parts.join('/');
+      }).join(', ');
+    } else {
+      bindDetail='No bindings';
+    }
     h+='<div class="'+cardClass+'" style="cursor:pointer" onclick="showAgentDetail(\\''+esc(a.id).replace(/'/g,"\\\\'")+'\\')">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
       +'<span style="font-size:28px">'+emoji+'</span>'
       +'<div><div class="skill-name">'+esc(displayName)+'</div>'
       +'<div style="font-size:11px;color:var(--text2)">'+esc(a.id)+'</div></div></div>'
-      +'<div class="skill-badges">'+defaultBadge+bindBadge+'</div>'
+      +'<div class="skill-badges">'+defaultBadge+bindCountBadge+channelBadges+'</div>'
       +'<div class="skill-desc" style="margin-top:6px">'+esc(model)+'</div>'
-      +'<div style="font-size:11px;color:var(--text2);margin-top:4px">'+esc(routeText)+'</div>'
+      +'<div style="font-size:11px;color:var(--text2);margin-top:4px">'+esc(bindDetail)+'</div>'
       +'</div>';
   });
   el.innerHTML=h;
@@ -2313,9 +2443,6 @@ function showAgentDetail(id){
   const theme=a.identity&&a.identity.theme?a.identity.theme:'';
   const isDefault=a.isDefault;
   const defaultBadge=isDefault?'<span class="badge bg-green">DEFAULT</span>':'<span class="badge bg-blue">AGENT</span>';
-  const bindChannels=a.bindingChannels&&a.bindingChannels.length?a.bindingChannels:[];
-  const bindText=bindChannels.length?bindChannels.map(function(ch){return '<span class="badge" style="background:var(--border);color:var(--text2)">'+esc(ch)+'</span>'}).join(' '):'<span style="color:var(--text2)">None</span>';
-  const routeText=a.routes&&a.routes.length?a.routes.join(', '):(bindChannels.length?bindChannels.join(', '):'No routes');
   const skillsData=a.skills;
   const useAll=skillsData===null||skillsData===undefined;
   // Build model options for per-agent override
@@ -2338,6 +2465,46 @@ function showAgentDetail(id){
   } else {
     skillsHtml='<div class="muted" style="padding:12px">No skills available</div>';
   }
+  // Build bindings list
+  const agentBindings=a.bindings||[];
+  let bindingsHtml='';
+  if(agentBindings.length){
+    agentBindings.forEach(function(b,i){
+      const ch=b.match&&b.match.channel?b.match.channel:'unknown';
+      const chIcon=ch==='telegram'?'${ICONS.telegram}':ch==='discord'?'${ICONS.discord}':'\\ud83d\\udd17';
+      const chName=ch.charAt(0).toUpperCase()+ch.slice(1);
+      let details=[];
+      if(b.match.accountId)details.push('Account: '+esc(b.match.accountId));
+      if(b.match.peer)details.push('Peer: '+esc(b.match.peer.kind)+':'+esc(b.match.peer.id));
+      if(b.match.guildId)details.push('Guild: '+esc(b.match.guildId));
+      if(b.match.teamId)details.push('Team: '+esc(b.match.teamId));
+      bindingsHtml+='<div class="binding-card"><div class="binding-card-header"><span class="binding-card-icon">'+chIcon+'</span><span class="binding-card-channel">'+esc(chName)+'</span>'
+        +'<button class="binding-remove" onclick="removeAgentBinding(\\''+esc(id).replace(/'/g,"\\\\'")+'\\',' +i+')" title="Remove binding">\\u2715</button></div>'
+        +(details.length?'<div class="binding-card-details">'+details.join(' \\u00b7 ')+'</div>':'<div class="binding-card-details" style="color:var(--text2)">All messages on '+esc(chName)+'</div>')
+        +'</div>';
+    });
+  } else {
+    bindingsHtml='<div class="muted" style="padding:16px;text-align:center">No bindings configured. This agent receives unrouted messages only.</div>';
+  }
+  // Build binding add form (Telegram + Discord only)
+  const bindChannelOpts='<option value="">-- Select channel --</option>'
+    +(agentActiveChannels.some(c=>c.id==='telegram')?'<option value="telegram">\\ud83d\\udce8 Telegram</option>':'')
+    +(agentActiveChannels.some(c=>c.id==='discord')?'<option value="discord">\\ud83c\\udfae Discord</option>':'');
+  const bindFormHtml='<div class="binding-add-form">'
+    +'<div style="font-weight:600;margin-bottom:12px">Add New Binding</div>'
+    +'<div class="field"><label>Channel</label><select id="bindNewChannel" onchange="onBindChannelChange()">'+bindChannelOpts+'</select></div>'
+    +'<div id="bindTelegramFields" style="display:none">'
+    +'<div class="field"><label>Peer Kind <span style="color:var(--text2);font-weight:400">(optional)</span></label><select id="bindTgPeerKind"><option value="">-- Any --</option><option value="user">user</option><option value="group">group</option><option value="supergroup">supergroup</option></select></div>'
+    +'<div class="field"><label>Peer / Chat ID <span style="color:var(--text2);font-weight:400">(optional)</span></label><input type="text" id="bindTgPeerId" placeholder="e.g. 123456789"></div>'
+    +'</div>'
+    +'<div id="bindDiscordFields" style="display:none">'
+    +'<div class="field"><label>Guild ID <span style="color:var(--text2);font-weight:400">(optional)</span></label><input type="text" id="bindDcGuildId" placeholder="e.g. 123456789"></div>'
+    +'<div class="field"><label>Peer Kind <span style="color:var(--text2);font-weight:400">(optional)</span></label><select id="bindDcPeerKind"><option value="">-- Any --</option><option value="user">user (DM)</option><option value="channel">channel</option></select></div>'
+    +'<div class="field"><label>Peer ID <span style="color:var(--text2);font-weight:400">(optional)</span></label><input type="text" id="bindDcPeerId" placeholder="e.g. channel or user ID"></div>'
+    +'</div>'
+    +'<div class="btn-row" style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="addAgentBinding(\\''+esc(id).replace(/'/g,"\\\\'")+'\\')">${ICONS.plus} Add Binding</button></div>'
+    +'<div class="status" id="agentBindingStatus"></div>'
+    +'</div>';
   const escId=esc(id).replace(/'/g,"\\\\'");
   container.innerHTML='<div class="modal-overlay" onclick="if(event.target===this)closeAgentModal()">'
     +'<div class="modal-card">'
@@ -2345,15 +2512,14 @@ function showAgentDetail(id){
     +'<div><div style="font-size:18px;font-weight:700">'+esc(displayName)+'</div>'
     +'<div style="margin-top:4px">'+defaultBadge+'</div></div></div>'
     +'<button class="modal-close" onclick="closeAgentModal()">\\u2715</button></div>'
-    +'<div class="modal-tabs"><button class="modal-tab active" onclick="switchAgentModalTab(\\'info\\',this)">${ICONS.robot} Info & Identity</button>'
+    +'<div class="modal-tabs"><button class="modal-tab active" onclick="switchAgentModalTab(\\'info\\',this)">${ICONS.robot} Info</button>'
+    +'<button class="modal-tab" onclick="switchAgentModalTab(\\'bindings\\',this)">${ICONS.link} Bindings <span class="pill-count" style="margin-left:4px">'+agentBindings.length+'</span></button>'
     +'<button class="modal-tab" onclick="switchAgentModalTab(\\'skills\\',this)">${ICONS.zap} Skills</button></div>'
     +'<div class="modal-body">'
     +'<div id="agentTabInfo">'
     +'<div class="info-grid">'
     +'<div class="info-row"><span class="info-k">Agent ID</span><span class="info-v" style="font-family:monospace">'+esc(id)+'</span></div>'
     +'<div class="info-row"><span class="info-k">Model</span><span class="info-v">'+esc(a.model||'N/A')+'</span></div>'
-    +'<div class="info-row"><span class="info-k">Bindings</span><span class="info-v">'+bindText+'</span></div>'
-    +'<div class="info-row"><span class="info-k">Routes</span><span class="info-v">'+esc(routeText)+'</span></div>'
     +'</div>'
     +'<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">'
     +'<div style="font-weight:600;margin-bottom:12px">Edit Identity</div>'
@@ -2371,6 +2537,10 @@ function showAgentDetail(id){
     +(isDefault?'':'<button class="btn btn-outline" style="color:var(--danger)" onclick="deleteAgent(\\''+escId+'\\')">${ICONS.trash} Delete</button>')
     +'</div><div class="status" id="agentModalStatus"></div>'
     +'</div>'
+    +'<div id="agentTabBindings" style="display:none">'
+    +'<div style="margin-bottom:16px">'+bindingsHtml+'</div>'
+    +bindFormHtml
+    +'</div>'
     +'<div id="agentTabSkills" style="display:none">'
     +'<div style="margin-bottom:12px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">'
     +'<input type="checkbox" id="agentUseAllSkills"'+(useAll?' checked':'')+' onchange="toggleAllAgentSkills(this.checked)" style="accent-color:var(--accent)">'
@@ -2386,13 +2556,48 @@ function showAgentDetail(id){
 }
 function closeAgentModal(){const c=document.getElementById('agentModalContainer');if(c)c.innerHTML=''}
 function switchAgentModalTab(tab,btn){
-  const info=document.getElementById('agentTabInfo'),skills=document.getElementById('agentTabSkills');
-  if(!info||!skills)return;
-  info.style.display=tab==='info'?'block':'none';
-  skills.style.display=tab==='skills'?'block':'none';
+  const info=document.getElementById('agentTabInfo'),bindings=document.getElementById('agentTabBindings'),skills=document.getElementById('agentTabSkills');
+  if(info)info.style.display=tab==='info'?'block':'none';
+  if(bindings)bindings.style.display=tab==='bindings'?'block':'none';
+  if(skills)skills.style.display=tab==='skills'?'block':'none';
   const tabs=btn?btn.parentElement.querySelectorAll('.modal-tab'):[];
   tabs.forEach(t=>t.classList.remove('active'));
   if(btn)btn.classList.add('active');
+}
+function onBindChannelChange(){
+  const ch=(document.getElementById('bindNewChannel')||{}).value||'';
+  const tgFields=document.getElementById('bindTelegramFields');
+  const dcFields=document.getElementById('bindDiscordFields');
+  if(tgFields)tgFields.style.display=ch==='telegram'?'block':'none';
+  if(dcFields)dcFields.style.display=ch==='discord'?'block':'none';
+}
+async function addAgentBinding(agentId){
+  const st=document.getElementById('agentBindingStatus');
+  const ch=(document.getElementById('bindNewChannel')||{}).value||'';
+  if(!ch){if(st){st.className='status fail';st.textContent='Select a channel'}return}
+  const match={channel:ch};
+  if(ch==='telegram'){
+    const peerKind=(document.getElementById('bindTgPeerKind')||{}).value||'';
+    const peerId=(document.getElementById('bindTgPeerId')||{}).value||'';
+    if(peerKind&&peerId)match.peer={kind:peerKind,id:peerId.trim()};
+    else if(peerId)match.peer={kind:'user',id:peerId.trim()};
+  } else if(ch==='discord'){
+    const guildId=(document.getElementById('bindDcGuildId')||{}).value||'';
+    const peerKind=(document.getElementById('bindDcPeerKind')||{}).value||'';
+    const peerId=(document.getElementById('bindDcPeerId')||{}).value||'';
+    if(guildId)match.guildId=guildId.trim();
+    if(peerKind&&peerId)match.peer={kind:peerKind,id:peerId.trim()};
+  }
+  if(st){st.className='status loading';st.textContent='Adding binding...'}
+  const d=await api('/api/agents/bindings','POST',{agent:agentId,match:match});
+  if(!d.ok){if(st){st.className='status fail';st.textContent=d.error||'Error'}return}
+  if(st){st.className='status ok';st.textContent='Binding added! Restarting...'}
+  setTimeout(function(){closeAgentModal();loadAgents()},2000);
+}
+async function removeAgentBinding(agentId,index){
+  if(!confirm('Remove this binding?'))return;
+  const d=await api('/api/agents/bindings','DELETE',{agent:agentId,index:index});
+  if(d.ok){closeAgentModal();loadAgents()}else{alert(d.error||'Error removing binding')}
 }
 function toggleAllAgentSkills(checked){
   const cbs=document.querySelectorAll('.agent-skill-cb');
@@ -2439,14 +2644,38 @@ async function addAgent(){
   const name=document.getElementById('newAgentName').value.trim();
   let model=document.getElementById('newAgentModel').value;
   if(model==='__custom__'){model=(document.getElementById('newAgentCustomModel')||{}).value.trim();if(!model){document.getElementById('addAgentStatus').className='status fail';document.getElementById('addAgentStatus').textContent='Enter a custom model ID';return}}
-  const bind=document.getElementById('newAgentBind').value;
   const st=document.getElementById('addAgentStatus');
   const tplKey=document.getElementById('agentTemplate').value;
   if(!name){st.className='status fail';st.textContent='Enter agent name';return}
   if(!/^[a-zA-Z0-9_-]+$/.test(name)){st.className='status fail';st.textContent='Name must contain only letters, numbers, -, _';return}
   if(name.length>32){st.className='status fail';st.textContent='Name too long (max 32 chars)';return}
+  // Collect multi-bindings from rows
+  const bindings=[];
+  const bindContainer=document.getElementById('newAgentBindings');
+  if(bindContainer){
+    const rows=bindContainer.querySelectorAll('.binding-add-row');
+    rows.forEach(function(row){
+      const idx=row.id.replace('nabRow','');
+      const ch=(document.getElementById('nabCh'+idx)||{}).value||'';
+      if(!ch)return;
+      const bnd={channel:ch};
+      if(ch==='telegram'){
+        const kind=(document.getElementById('nabTgKind'+idx)||{}).value||'';
+        const pid=(document.getElementById('nabTgId'+idx)||{}).value||'';
+        if(kind&&pid)bnd.peer={kind:kind,id:pid.trim()};
+        else if(pid)bnd.peer={kind:'user',id:pid.trim()};
+      } else if(ch==='discord'){
+        const guildId=(document.getElementById('nabDcGuild'+idx)||{}).value||'';
+        const kind=(document.getElementById('nabDcKind'+idx)||{}).value||'';
+        const pid=(document.getElementById('nabDcPeerId'+idx)||{}).value||'';
+        if(guildId)bnd.guildId=guildId.trim();
+        if(kind&&pid)bnd.peer={kind:kind,id:pid.trim()};
+      }
+      bindings.push(bnd);
+    });
+  }
   st.className='status loading';st.textContent='Adding agent...';
-  const d=await api('/api/agents/add','POST',{name,model,bind});
+  const d=await api('/api/agents/add','POST',{name,model,bindings:bindings});
   if(!d.ok){st.className='status fail';st.textContent=d.error||'Error';return}
   // Apply template identity if selected
   const tpl=AGENT_TEMPLATES[tplKey];
@@ -2456,6 +2685,7 @@ async function addAgent(){
   st.className='status ok';st.textContent='Added agent '+name+'!';
   document.getElementById('newAgentName').value='';
   document.getElementById('agentTemplate').value='';
+  newAgentBindCounter=0;
   setTimeout(loadAgents,1500);
 }
 async function deleteAgent(agentId){
@@ -3726,7 +3956,7 @@ function toggleDark(){
 (function(){try{if(localStorage.getItem('oc-dark')==='1')document.body.classList.add('dark')}catch{} updateThemeIcon()})();
 
 // Mobile: close sidebar on outside click
-document.addEventListener('click',function(e){if(window.innerWidth<=768){const sb=document.querySelector('.sidebar');const hb=document.querySelector('.hamburger');if(sb&&sb.classList.contains('open')&&!sb.contains(e.target)&&e.target!==hb)sb.classList.remove('open')}});
+document.addEventListener('click',function(e){if(window.innerWidth<=768){const sb=document.querySelector('.sidebar');const hb=document.querySelector('.hamburger');if(sb&&sb.classList.contains('open')&&!sb.contains(e.target)&&e.target!==hb){sb.classList.remove('open');const ov=document.querySelector('.sidebar-overlay');if(ov)ov.style.display='none'}}});
 // Auto-refresh status tab every 30s
 let statusInterval=null;
 const origShowTab=showTab;
@@ -4217,13 +4447,14 @@ const server = http.createServer(async (req, res) => {
       const agentCfg = config?.agents?.list || {};
       const cfgBindings = config?.bindings || [];
       agents = (Array.isArray(agents) ? agents : []).map(a => {
-        const agentBindings = cfgBindings.filter(b => b.agentId === a.id).map(b => b.match?.channel || 'unknown');
+        const agentBindings = cfgBindings.filter(b => b.agentId === a.id);
         return {
           ...a,
           model: a.model || agentCfg[a.id]?.model || defaultModel,
           identity: a.identity || {},
           skills: agentCfg[a.id]?.skills !== undefined ? agentCfg[a.id].skills : null,
-          bindingChannels: agentBindings
+          bindings: agentBindings,
+          bindingChannels: agentBindings.map(b => b.match?.channel || 'unknown')
         };
       });
       // Collect active providers (have API key set)
@@ -4261,13 +4492,21 @@ const server = http.createServer(async (req, res) => {
       if (body.model) { const m = body.model.replace(/[^a-zA-Z0-9/_.-]/g, ''); cmd += ` --model "${m}"`; }
       try { execSync(`/opt/openclaw-cli.sh ${cmd}`, { timeout: 30000, stdio: 'pipe' }); }
       catch (e) { const err = ((e.stderr || '') + (e.stdout || '')).toString().trim(); return json(res, 200, { ok: false, error: err.substring(0, 300) || e.message }); }
-      // Add channel binding directly to config (CLI --bind doesn't work in non-interactive mode)
-      if (body.bind) {
+      // Add channel bindings directly to config (CLI --bind doesn't work in non-interactive mode)
+      const bindings = Array.isArray(body.bindings) ? body.bindings : (body.bind ? [{ channel: body.bind }] : []);
+      if (bindings.length) {
         try {
-          const b = body.bind.replace(/[^a-zA-Z0-9_:-]/g, '');
           const cfg = getConfig();
           if (!cfg.bindings) cfg.bindings = [];
-          cfg.bindings.push({ agentId: name, match: { channel: b } });
+          for (const bnd of bindings) {
+            const match = {};
+            if (bnd.channel) match.channel = String(bnd.channel).replace(/[^a-zA-Z0-9_:-]/g, '');
+            if (bnd.accountId) match.accountId = String(bnd.accountId).substring(0, 128);
+            if (bnd.peer && bnd.peer.kind && bnd.peer.id) match.peer = { kind: String(bnd.peer.kind).replace(/[^a-zA-Z0-9_-]/g, ''), id: String(bnd.peer.id).substring(0, 128) };
+            if (bnd.guildId) match.guildId = String(bnd.guildId).substring(0, 128);
+            if (bnd.teamId) match.teamId = String(bnd.teamId).substring(0, 128);
+            if (match.channel) cfg.bindings.push({ agentId: name, match });
+          }
           saveConfig(cfg);
         } catch (be) { console.error('[Panel] Binding error:', be.message); }
       }
@@ -4326,6 +4565,52 @@ const server = http.createServer(async (req, res) => {
       }
       // Clean up empty entries
       if (Object.keys(config.agents.list[agent]).length === 0) delete config.agents.list[agent];
+      saveConfig(config);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Add binding to agent
+  if (req.method === 'POST' && url.pathname === '/api/agents/bindings') {
+    try {
+      const body = await parseBody(req);
+      const agent = (body.agent || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!agent) return json(res, 400, { ok: false, error: 'Missing agent ID' });
+      const m = body.match || {};
+      if (!m.channel) return json(res, 400, { ok: false, error: 'Missing channel in match' });
+      const match = { channel: String(m.channel).replace(/[^a-zA-Z0-9_:-]/g, '') };
+      if (m.accountId) match.accountId = String(m.accountId).substring(0, 128);
+      if (m.peer && m.peer.kind && m.peer.id) match.peer = { kind: String(m.peer.kind).replace(/[^a-zA-Z0-9_-]/g, ''), id: String(m.peer.id).substring(0, 128) };
+      if (m.guildId) match.guildId = String(m.guildId).substring(0, 128);
+      if (m.teamId) match.teamId = String(m.teamId).substring(0, 128);
+      const config = getConfig();
+      if (!config.bindings) config.bindings = [];
+      config.bindings.push({ agentId: agent, match });
+      saveConfig(config);
+      restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Remove binding from agent
+  if (req.method === 'DELETE' && url.pathname === '/api/agents/bindings') {
+    try {
+      const body = await parseBody(req);
+      const agent = (body.agent || '').replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!agent) return json(res, 400, { ok: false, error: 'Missing agent ID' });
+      const idx = parseInt(body.index, 10);
+      if (isNaN(idx) || idx < 0) return json(res, 400, { ok: false, error: 'Invalid binding index' });
+      const config = getConfig();
+      const bindings = config.bindings || [];
+      // Find the Nth binding for this agent
+      let count = -1;
+      let removeAt = -1;
+      for (let i = 0; i < bindings.length; i++) {
+        if (bindings[i].agentId === agent) { count++; if (count === idx) { removeAt = i; break; } }
+      }
+      if (removeAt === -1) return json(res, 400, { ok: false, error: 'Binding not found' });
+      config.bindings.splice(removeAt, 1);
       saveConfig(config);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
