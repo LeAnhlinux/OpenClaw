@@ -308,10 +308,20 @@ Sau khi lưu, agent card hiển thị mention badges (nền vàng, tối đa 3 b
 
 ### Cách dùng — Gắn account vào binding
 
-1. Vào tab **Agents** → mở agent modal → tab **Bindings**
+**Cách 1: Agent đã có** — Thêm binding cho agent hiện tại
+
+1. Vào tab **Agents** → click vào agent card → tab **Bindings**
 2. Ở form "Add New Binding", chọn channel
-3. Nhập **Account ID** đã tạo vào field "Account ID (optional, for multi-account)"
+3. Nhập **Account ID** đã tạo vào field **"Account ID (optional, for multi-account)"**
 4. Click **+ Add Binding** → agent này sẽ chỉ nhận tin từ account đó
+
+**Cách 2: Tạo agent mới** — Gắn account ngay lúc tạo
+
+1. Cuộn xuống section **"+ Add New Agent"** ở cuối trang Agents
+2. Điền tên agent, chọn model
+3. Click **+ Add Binding** → chọn channel (VD: Telegram)
+4. Nhập **Account ID** vào field **"Account ID (opt, for multi-account)"** bên dưới
+5. Click **Add Agent** → agent mới được tạo kèm binding đến account đó
 
 ### Quy tắc quan trọng
 
