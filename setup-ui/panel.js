@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.02.27.5';
+const PANEL_VERSION = '2026.02.27.6';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -5586,6 +5586,20 @@ const server = http.createServer(async (req, res) => {
       try { fs.copyFileSync(PANEL_FILE, PANEL_FILE + '.bak'); } catch {}
       log += 'Replacing panel.js...\n';
       fs.renameSync(tmpFile, PANEL_FILE);
+      // Update helper scripts from GitHub
+      log += 'Updating helper scripts...\n';
+      const HELPER_SCRIPTS = ['restart-openclaw.sh','status-openclaw.sh','update-openclaw.sh','openclaw-cli.sh','openclaw-tui.sh','setup-openclaw-domain.sh'];
+      const HELPERS_BASE = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/scripts/helpers';
+      let hOk = 0;
+      for (const s of HELPER_SCRIPTS) {
+        try {
+          const tmp2 = '/tmp/helper-' + s;
+          const r = safeExec(`curl -fsSL --max-time 10 -o "${tmp2}" "${HELPERS_BASE}/${s}" && echo OK`, 15000);
+          if (r.includes('OK') && fs.statSync(tmp2).size > 20) { fs.copyFileSync(tmp2, '/opt/' + s); fs.chmodSync('/opt/' + s, 0o755); hOk++; }
+          try { fs.unlinkSync(tmp2); } catch {}
+        } catch {}
+      }
+      log += 'Helper scripts: ' + hOk + '/' + HELPER_SCRIPTS.length + ' updated.\n';
       log += 'Restarting panel service...\n';
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, log, message: 'Update successful! Panel restarting...' }));
