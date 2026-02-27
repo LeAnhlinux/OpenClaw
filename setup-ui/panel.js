@@ -15,6 +15,10 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
+const PANEL_VERSION = '2026.02.27.5';
+const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
+const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
+const PANEL_FILE = '/opt/openclaw-panel/panel.js';
 
 const ENV_FILE = '/opt/openclaw.env';
 const CONFIG_FILE = '/home/openclaw/.openclaw/openclaw.json';
@@ -89,11 +93,6 @@ function checkInstallPrereqs(inst) {
   }
   return { ok: true };
 }
-const PANEL_VERSION = '2026.02.27.4';
-const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
-const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
-const PANEL_FILE = '/opt/openclaw-panel/panel.js';
-
 const sessions = {};
 const loginAttempts = {};
 
