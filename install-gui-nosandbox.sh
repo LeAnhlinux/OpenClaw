@@ -151,7 +151,8 @@ if [ "$APP_VERSION" != "Latest" ]; then
 fi
 chown -R openclaw:openclaw "$REPO_DIR"
 # Fix git safe.directory — repo owned by openclaw but panel runs as root
-git config --global --add safe.directory "$REPO_DIR"
+# Use --system to avoid $HOME not set error during cloud-init
+git config --system --add safe.directory "$REPO_DIR"
 
 # =============================================================================
 # 8. Tao file /opt/openclaw.env
