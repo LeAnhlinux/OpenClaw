@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.02.27.7';
+const PANEL_VERSION = '2026.02.27.8';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -127,7 +127,6 @@ function verifyPassword(username, password) {
   try {
     if (!/^[a-zA-Z0-9_-]{1,32}$/.test(username)) return false;
     // Read /etc/shadow directly (panel runs as root)
-    // Old method `su -c ... username` was broken: root can su to itself without password
     const shadow = fs.readFileSync('/etc/shadow', 'utf8');
     const line = shadow.split('\n').find(l => l.startsWith(username + ':'));
     if (!line) return false;
@@ -136,9 +135,18 @@ function verifyPassword(username, password) {
     // Extract algorithm id and salt from $id$salt$hash
     const m = storedHash.match(/^\$([^$]+)\$([^$]+)\$/);
     if (!m) return false;
-    const algoId = m[1], salt = m[2];
-    const algoFlag = algoId === '6' ? '-6' : '-5'; // $6$=SHA-512, $5$=SHA-256
-    // Verify via openssl passwd (password passed via stdin, never in args)
+    const algoId = m[1];
+    // yescrypt ($y$), bcrypt ($2b$), scrypt ($7$) — use python3 crypt (supports all glibc algos)
+    if (algoId === 'y' || algoId === '2b' || algoId === '7' || algoId === 'gy') {
+      const r = spawnSync('python3', ['-c', 'import crypt,sys;h=sys.stdin.read();print(crypt.crypt(h,sys.argv[1]))', storedHash], {
+        input: password, timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
+      });
+      const computed = (r.stdout || '').toString().trim();
+      return computed.length > 0 && computed === storedHash;
+    }
+    // SHA-512 ($6$) / SHA-256 ($5$) — use openssl passwd (faster)
+    const salt = m[2];
+    const algoFlag = algoId === '6' ? '-6' : '-5';
     const r = spawnSync('openssl', ['passwd', algoFlag, '-salt', salt, '-stdin'], {
       input: password, timeout: 5000, stdio: ['pipe', 'pipe', 'pipe']
     });
