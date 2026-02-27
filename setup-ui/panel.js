@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.02.27.9';
+const PANEL_VERSION = '2026.02.27.11';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -995,6 +995,8 @@ const PROVIDERS = {
 };
 
 // --- Channel configs ---
+// Map ENV key names to OpenClaw config key names for multi-account
+const ENV_TO_CONFIG_KEY = { TELEGRAM_BOT_TOKEN: 'botToken', DISCORD_BOT_TOKEN: 'token', SLACK_BOT_TOKEN: 'botToken', SLACK_APP_TOKEN: 'appToken', WHATSAPP_BOT_TOKEN: 'botToken', ZALO_BOT_TOKEN: 'botToken' };
 const CHANNELS = {
   telegram: { name: 'Telegram', icon: ICONS.telegram, envKeys: ['TELEGRAM_BOT_TOKEN'], envLabels: { TELEGRAM_BOT_TOKEN: 'Bot Token' }, envPlaceholders: { TELEGRAM_BOT_TOKEN: 'e.g. 123456:ABC-DEF...' }, pairCmd: 'telegram', desc: 'Create bot via @BotFather on Telegram', canPair: true, isBuiltin: true,
     testFn: (tokens) => { try { const t = tokens.TELEGRAM_BOT_TOKEN; if (!t) return false; return safeExec(`curl -s -o /dev/null -w '%{http_code}' 'https://api.telegram.org/bot'${shellEsc(t)}'/getMe'`, 15000) === '200'; } catch { return false; } } },
@@ -1622,7 +1624,7 @@ function panelPage() {
     <div class="card">
       <div class="card-title"><span class="ct-icon">${ICONS.messageCircle}</span> Agent-to-Agent Communication</div>
       <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">Allow agents to send messages to and read history from other agents during conversations.</div>
-      <div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600"><input type="checkbox" id="a2aEnabled" style="accent-color:var(--accent)" onchange="document.getElementById('a2aSettings').style.display=this.checked?'block':'none'"> Enable Agent-to-Agent messaging</label></div>
+      <div style="margin-bottom:18px"><label style="display:flex !important;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:14px;text-transform:none;letter-spacing:0;color:var(--text)"><input type="checkbox" id="a2aEnabled" style="accent-color:var(--accent);width:18px;height:18px" onchange="document.getElementById('a2aSettings').style.display=this.checked?'block':'none'"> Enable Agent-to-Agent Messaging</label></div>
       <div id="a2aSettings" style="display:none">
         <div class="field"><label>Allowed Agents</label><div id="a2aAgentChecks" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:8px"></div></div>
         <div class="field"><label>Max Ping-Pong Turns <span style="color:var(--text2);font-weight:400">(0-5)</span></label><input type="number" id="a2aMaxTurns" min="0" max="5" value="3" style="width:80px"></div>
@@ -4577,6 +4579,9 @@ const server = http.createServer(async (req, res) => {
       try { output = execSync(`/opt/openclaw-cli.sh agents list --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); }
       catch (e) { output = (e.stdout || '').toString(); }
       let agents;
+      // CLI may output doctor warnings before JSON — extract JSON array
+      const jsonMatch = output.match(/(\[[\s\S]*\])\s*$/);
+      if (jsonMatch) output = jsonMatch[1];
       try { agents = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Unable to read agent list' }); }
       const config = getConfig();
       const defaultModel = config?.agents?.defaults?.model?.primary || '';
@@ -4884,8 +4889,18 @@ const server = http.createServer(async (req, res) => {
       const config = getConfig();
       const chCfg = config?.channels?.[channelId] || {};
       let accounts = {};
+      // Reverse mapping: config key -> ENV key
+      const cfgToEnv = {};
+      for (const [ek, ck] of Object.entries(ENV_TO_CONFIG_KEY)) cfgToEnv[ck] = cfgToEnv[ck] || ek;
       if (chCfg.accounts && Object.keys(chCfg.accounts).length) {
-        accounts = JSON.parse(JSON.stringify(chCfg.accounts));
+        const raw = JSON.parse(JSON.stringify(chCfg.accounts));
+        // Normalize: convert config keys (botToken) to ENV keys (TELEGRAM_BOT_TOKEN) for UI
+        for (const [aid, acc] of Object.entries(raw)) {
+          const norm = {};
+          for (const [k, v] of Object.entries(acc)) { norm[cfgToEnv[k] || k] = v; }
+          raw[aid] = norm;
+        }
+        accounts = raw;
       } else {
         // Legacy: check ENV for single token
         const hasToken = ch.envKeys.every(k => { const v = getEnvValue(k); return v && !v.startsWith('#'); });
@@ -4925,7 +4940,10 @@ const server = http.createServer(async (req, res) => {
       const acc = config.channels[channelId].accounts[accountId] || {};
       if (body.tokens) {
         for (const [k, v] of Object.entries(body.tokens)) {
-          if (v && !String(v).includes('***')) acc[k] = String(v).replace(/[\r\n\x00-\x1f]/g, '');
+          if (v && !String(v).includes('***')) {
+            const cfgKey = ENV_TO_CONFIG_KEY[k] || k;
+            acc[cfgKey] = String(v).replace(/[\r\n\x00-\x1f]/g, '');
+          }
         }
       }
       config.channels[channelId].accounts[accountId] = acc;
