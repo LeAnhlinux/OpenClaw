@@ -150,6 +150,8 @@ if [ "$APP_VERSION" != "Latest" ]; then
     git checkout "$APP_VERSION" || { log "ERROR: Failed to checkout $APP_VERSION"; exit 1; }
 fi
 chown -R openclaw:openclaw "$REPO_DIR"
+# Fix git safe.directory — repo owned by openclaw but panel runs as root
+git config --global --add safe.directory "$REPO_DIR"
 
 # =============================================================================
 # 8. Tao file /opt/openclaw.env
