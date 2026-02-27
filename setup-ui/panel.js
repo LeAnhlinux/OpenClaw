@@ -89,7 +89,7 @@ function checkInstallPrereqs(inst) {
   }
   return { ok: true };
 }
-const PANEL_VERSION = '2026.02.27.3';
+const PANEL_VERSION = '2026.02.27.4';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -1006,7 +1006,7 @@ const CSS = `
 body{font-family:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;background:#f4f6fb;color:var(--text);min-height:100vh;display:flex;transition:background-color .3s ease,color .3s ease}
 
 /* Sidebar */
-.sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);min-height:100vh;position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:10}
+.sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);height:100vh;position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:10}
 .sidebar .brand{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
 .sidebar .brand h1{font-size:18px;color:#fff;font-weight:700;letter-spacing:-.2px;background:linear-gradient(135deg,#4285f4,#34a853);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
 .sidebar .brand p{font-size:10px;color:rgba(255,255,255,.3);margin-top:2px;letter-spacing:.3px;text-transform:uppercase;font-weight:600}
