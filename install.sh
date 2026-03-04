@@ -14,6 +14,7 @@ LOG_FILE="/var/log/openclaw-install.log"
 # --- Logging helper ---
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 
+INSTALL_START_TIME=$(date +%s)
 log "=== Bat dau cai dat OpenClaw ${APP_VERSION} ==="
 
 # =============================================================================
@@ -742,7 +743,13 @@ apt-get -qqy autoremove
 apt-get -qqy autoclean
 
 # =============================================================================
+INSTALL_END_TIME=$(date +%s)
+INSTALL_DURATION=$((INSTALL_END_TIME - INSTALL_START_TIME))
+INSTALL_MINUTES=$((INSTALL_DURATION / 60))
+INSTALL_SECONDS=$((INSTALL_DURATION % 60))
+
 log "=== Cai dat OpenClaw ${APP_VERSION} hoan tat! ==="
+log "Tong thoi gian cai dat: ${INSTALL_MINUTES} phut ${INSTALL_SECONDS} giay"
 log "Gateway token: ${NEW_GATEWAY_TOKEN}"
 log "Dashboard: https://$(hostname -I | awk '{print $1}')?token=${NEW_GATEWAY_TOKEN}"
 log "SSH vao server de chay setup wizard cau hinh AI provider."
