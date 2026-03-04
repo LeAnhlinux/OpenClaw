@@ -44,6 +44,7 @@ elif [ "$ENABLE_GUI" = "true" ]; then
 elif [ "$ENABLE_SANDBOX" = "true" ]; then
     MODE_DESC="CLI + Sandbox"
 fi
+INSTALL_START_TIME=$(date +%s)
 log "=== Bat dau cai dat OpenClaw ${APP_VERSION} (${MODE_DESC}) ==="
 
 # =============================================================================
@@ -773,9 +774,15 @@ apt-get -qqy autoclean
 # =============================================================================
 # Hoan tat
 # =============================================================================
+INSTALL_END_TIME=$(date +%s)
+INSTALL_DURATION=$((INSTALL_END_TIME - INSTALL_START_TIME))
+INSTALL_MINUTES=$((INSTALL_DURATION / 60))
+INSTALL_SECONDS=$((INSTALL_DURATION % 60))
+
 if [ "$ENABLE_GUI" = "true" ]; then
     PANEL_URL="http://$(hostname -I | awk '{print $1}'):${PANEL_PORT}"
     log "=== Cai dat OpenClaw ${APP_VERSION} hoan tat! ==="
+    log "Tong thoi gian cai dat: ${INSTALL_MINUTES} phut ${INSTALL_SECONDS} giay"
     log "Gateway token: ${NEW_GATEWAY_TOKEN}"
     log ""
     log "=========================================="
@@ -787,6 +794,7 @@ if [ "$ENABLE_GUI" = "true" ]; then
     log "Backup: SSH vao server va chay: sudo /etc/setup_wizard.sh"
 else
     log "=== Cai dat OpenClaw ${APP_VERSION} hoan tat! ==="
+    log "Tong thoi gian cai dat: ${INSTALL_MINUTES} phut ${INSTALL_SECONDS} giay"
     log "Gateway token: ${NEW_GATEWAY_TOKEN}"
     log ""
     log "SSH vao server de chay setup wizard, hoac:"
