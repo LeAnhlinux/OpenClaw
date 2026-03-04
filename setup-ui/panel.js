@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.03.04.3';
+const PANEL_VERSION = '2026.03.04.5';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -4848,6 +4848,18 @@ const server = http.createServer(async (req, res) => {
         if (body.channel === 'discord' || body.channel === 'slack') {
           cfg.channels[body.channel].groupPolicy = 'open';
         }
+        // NOTE: OpenClaw normalize Telegram → dmPolicy="pairing" + groupPolicy="allowlist"
+        //   → chặn hết DM và group message → bot im lặng
+        //   → LUÔN force defaults hợp lý cho Telegram mỗi lần save
+        if (body.channel === 'telegram') {
+          if (!cfg.channels[body.channel].dmPolicy || cfg.channels[body.channel].dmPolicy === 'pairing') {
+            cfg.channels[body.channel].dmPolicy = 'open';
+            cfg.channels[body.channel].allowFrom = cfg.channels[body.channel].allowFrom || ['*'];
+          }
+          if (!cfg.channels[body.channel].groupPolicy || (cfg.channels[body.channel].groupPolicy === 'allowlist' && !cfg.channels[body.channel].groupAllowFrom?.length)) {
+            cfg.channels[body.channel].groupPolicy = 'open';
+          }
+        }
         // NOTE: Slack streaming="partial" + nativeStreaming=true gây double message
         //   → bot gửi partial (edited) rồi gửi thêm 1 final message nữa
         //   → LUÔN force tắt streaming cho Slack mỗi lần save
@@ -4974,7 +4986,7 @@ const server = http.createServer(async (req, res) => {
           const defAcc = {};
           ch.envKeys.forEach(k => { const cfgKey = ENV_TO_CONFIG_KEY[k] || k; defAcc[cfgKey] = getEnvValue(k); });
           config.channels[channelId].accounts['default'] = defAcc;
-          log(`[channel-accounts] auto-migrated ENV token to accounts.default for ${channelId}`);
+          console.log(`[channel-accounts] auto-migrated ENV token to accounts.default for ${channelId}`);
         }
       }
       const acc = config.channels[channelId].accounts[accountId] || {};
@@ -4987,6 +4999,12 @@ const server = http.createServer(async (req, res) => {
         }
       }
       config.channels[channelId].accounts[accountId] = acc;
+      // Ensure Telegram channel-level policies are not restrictive after adding accounts
+      if (channelId === 'telegram') {
+        const chCfg = config.channels[channelId];
+        if (!chCfg.dmPolicy || chCfg.dmPolicy === 'pairing') { chCfg.dmPolicy = 'open'; chCfg.allowFrom = chCfg.allowFrom || ['*']; }
+        if (!chCfg.groupPolicy || (chCfg.groupPolicy === 'allowlist' && !chCfg.groupAllowFrom?.length)) { chCfg.groupPolicy = 'open'; }
+      }
       // Sync default account to legacy ENV
       if (accountId === 'default' && body.tokens) {
         for (const envKey of ch.envKeys) {
