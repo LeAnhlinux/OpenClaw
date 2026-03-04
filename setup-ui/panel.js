@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.02.27.12';
+const PANEL_VERSION = '2026.03.04.3';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -4579,9 +4579,18 @@ const server = http.createServer(async (req, res) => {
   // === Agents ===
   if (req.method === 'GET' && url.pathname === '/api/agents') {
     try {
-      let output = '';
-      try { output = execSync(`/opt/openclaw-cli.sh agents list --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); }
-      catch (e) { output = (e.stdout || '').toString(); }
+      // Run CLI calls in parallel to reduce load time
+      const [agentResult, skillResult] = await Promise.all([
+        new Promise(resolve => {
+          try { const out = execSync(`/opt/openclaw-cli.sh agents list --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); resolve(out); }
+          catch (e) { resolve((e.stdout || '').toString()); }
+        }),
+        new Promise(resolve => {
+          try { const out = execSync('/opt/openclaw-cli.sh skills list --json 2>/dev/null', { timeout: 15000, stdio: 'pipe' }).toString(); resolve(out); }
+          catch { resolve('[]'); }
+        })
+      ]);
+      let output = agentResult;
       let agents;
       // CLI may output doctor warnings before JSON — extract JSON array
       const jsonMatch = output.match(/(\[[\s\S]*\])\s*$/);
@@ -4589,16 +4598,22 @@ const server = http.createServer(async (req, res) => {
       try { agents = JSON.parse(output); } catch { return json(res, 200, { ok: false, error: 'Unable to read agent list' }); }
       const config = getConfig();
       const defaultModel = config?.agents?.defaults?.model?.primary || '';
-      const agentCfg = config?.agents?.list || {};
+      // Handle agents.list as array or object
+      const agentListRaw = config?.agents?.list || {};
+      const agentCfgLookup = (id) => {
+        if (Array.isArray(agentListRaw)) return agentListRaw.find(a => a && a.id === id) || {};
+        return agentListRaw[id] || {};
+      };
       const cfgBindings = config?.bindings || [];
       agents = (Array.isArray(agents) ? agents : []).map(a => {
+        const cfg = agentCfgLookup(a.id);
         const agentBindings = cfgBindings.filter(b => b.agentId === a.id);
         return {
           ...a,
-          model: a.model || agentCfg[a.id]?.model || defaultModel,
+          model: a.model || cfg.model || defaultModel,
           identity: a.identity || {},
-          skills: agentCfg[a.id]?.skills !== undefined ? agentCfg[a.id].skills : null,
-          groupChat: agentCfg[a.id]?.groupChat || null,
+          skills: cfg.skills !== undefined ? cfg.skills : null,
+          groupChat: cfg.groupChat || null,
           bindings: agentBindings,
           bindingChannels: agentBindings.map(b => b.match?.channel || 'unknown')
         };
@@ -4609,11 +4624,10 @@ const server = http.createServer(async (req, res) => {
         const key = getEnvValue(p.envKey);
         if (key && !key.startsWith('#')) activeProviders.push({ id: k, name: p.name, icon: p.icon, models: p.models });
       }
-      // Collect available skill names
+      // Parse skills
       let availableSkills = [];
       try {
-        const skillOut = execSync('/opt/openclaw-cli.sh skills list --json 2>/dev/null', { timeout: 15000, stdio: 'pipe' }).toString();
-        const skillList = JSON.parse(skillOut);
+        const skillList = JSON.parse(skillResult);
         if (Array.isArray(skillList)) availableSkills = skillList.map(s => ({ name: s.name || s.id, description: s.description || '', emoji: s.emoji || '🧩' }));
       } catch {}
       // Collect active channels (have credentials configured)
@@ -4698,31 +4712,41 @@ const server = http.createServer(async (req, res) => {
       if (!agent) return json(res, 400, { ok: false, error: 'Missing agent ID' });
       const config = getConfig();
       if (!config.agents) config.agents = {};
-      if (!config.agents.list) config.agents.list = {};
-      if (!config.agents.list[agent]) config.agents.list[agent] = {};
+      // Handle agents.list as array or object
+      let entry;
+      if (Array.isArray(config.agents.list)) {
+        entry = config.agents.list.find(a => a && a.id === agent);
+        if (!entry) { entry = { id: agent }; config.agents.list.push(entry); }
+      } else {
+        if (!config.agents.list) config.agents.list = {};
+        if (!config.agents.list[agent]) config.agents.list[agent] = {};
+        entry = config.agents.list[agent];
+      }
       // Update per-agent model
       if (body.model !== undefined) {
-        if (body.model) config.agents.list[agent].model = body.model;
-        else delete config.agents.list[agent].model;
+        if (body.model) entry.model = body.model;
+        else delete entry.model;
       }
       // Update per-agent skills allowlist (null=all, []=none, ['x','y']=specific)
       if (body.skills !== undefined) {
-        if (body.skills === null) delete config.agents.list[agent].skills;
-        else if (Array.isArray(body.skills)) config.agents.list[agent].skills = body.skills;
+        if (body.skills === null) delete entry.skills;
+        else if (Array.isArray(body.skills)) entry.skills = body.skills;
       }
       // Update groupChat.mentionPatterns
       if (body.groupChat !== undefined) {
-        if (body.groupChat === null) { delete config.agents.list[agent].groupChat; }
+        if (body.groupChat === null) { delete entry.groupChat; }
         else {
-          if (!config.agents.list[agent].groupChat) config.agents.list[agent].groupChat = {};
+          if (!entry.groupChat) entry.groupChat = {};
           if (Array.isArray(body.groupChat.mentionPatterns)) {
-            config.agents.list[agent].groupChat.mentionPatterns = body.groupChat.mentionPatterns.map(p => String(p).substring(0, 256)).filter(Boolean);
+            entry.groupChat.mentionPatterns = body.groupChat.mentionPatterns.map(p => String(p).substring(0, 256)).filter(Boolean);
           }
-          if (!config.agents.list[agent].groupChat.mentionPatterns?.length) delete config.agents.list[agent].groupChat;
+          if (!entry.groupChat?.mentionPatterns?.length) delete entry.groupChat;
         }
       }
-      // Clean up empty entries
-      if (Object.keys(config.agents.list[agent]).length === 0) delete config.agents.list[agent];
+      // Clean up empty entries (object mode only)
+      if (!Array.isArray(config.agents.list)) {
+        if (Object.keys(config.agents.list[agent]).length === 0) delete config.agents.list[agent];
+      }
       saveConfig(config);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true });
@@ -4940,7 +4964,19 @@ const server = http.createServer(async (req, res) => {
       if (!config.channels) config.channels = {};
       if (!config.channels[channelId]) config.channels[channelId] = {};
       config.channels[channelId].enabled = true;
+      // Auto-migrate: if accounts doesn't exist yet and we're adding a non-default account,
+      // migrate the existing ENV token into accounts.default so it keeps running
+      const hadAccounts = config.channels[channelId].accounts && Object.keys(config.channels[channelId].accounts).length > 0;
       if (!config.channels[channelId].accounts) config.channels[channelId].accounts = {};
+      if (!hadAccounts && accountId !== 'default') {
+        const hasEnvToken = ch.envKeys.every(k => { const v = getEnvValue(k); return v && !v.startsWith('#') && !v.startsWith('your_'); });
+        if (hasEnvToken) {
+          const defAcc = {};
+          ch.envKeys.forEach(k => { const cfgKey = ENV_TO_CONFIG_KEY[k] || k; defAcc[cfgKey] = getEnvValue(k); });
+          config.channels[channelId].accounts['default'] = defAcc;
+          log(`[channel-accounts] auto-migrated ENV token to accounts.default for ${channelId}`);
+        }
+      }
       const acc = config.channels[channelId].accounts[accountId] || {};
       if (body.tokens) {
         for (const [k, v] of Object.entries(body.tokens)) {
