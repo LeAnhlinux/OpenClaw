@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.03.04.5';
+const PANEL_VERSION = '2026.03.04.8';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -2316,12 +2316,16 @@ async function loadChannelAccounts(channelId){
   var h='';
   for(var id in accounts){var acc=accounts[id];
     var tokenParts=[];for(var k in acc){if(typeof acc[k]==='string'&&(k.toLowerCase().indexOf('token')!==-1||k.toLowerCase().indexOf('secret')!==-1))tokenParts.push(esc((_chAccEnvLabels[k]||k))+': '+esc(acc[k]))}
+    // Discord: show guild/channel info
+    var guildInfo='';
+    if(acc.guilds&&typeof acc.guilds==='object'){var gids=Object.keys(acc.guilds);if(gids.length){guildInfo=gids.map(function(gid){var g=acc.guilds[gid];var cids=g&&g.channels?Object.keys(g.channels):[];return 'Guild: '+esc(gid)+(cids.length?' (ch: '+cids.map(esc).join(', ')+')':'')}).join('; ')}}
     h+='<div class="binding-card"><div class="binding-card-header">'
       +'<span class="binding-card-channel" style="font-weight:600">'+esc(id)+'</span>'
       +(id==='default'?'<span class="badge bg-blue" style="font-size:9px;margin-left:4px">DEFAULT</span>':'')
       +(id!=='default'?'<button class="binding-remove" onclick="deleteChannelAccount(\\''+esc(id)+'\\')" title="Delete">\\u2715</button>':'')
       +'</div>'
       +(tokenParts.length?'<div class="binding-card-details" style="font-size:11px;color:var(--text2);margin-top:4px">'+tokenParts.join(' &bull; ')+'</div>':'')
+      +(guildInfo?'<div class="binding-card-details" style="font-size:11px;color:var(--text2);margin-top:2px">'+guildInfo+'</div>':'')
       +'</div>'}
   el.innerHTML=h;
 }
@@ -2333,6 +2337,15 @@ function showAddAccountForm(){
   fields.innerHTML=_chAccEnvKeys.map(function(k){
     return '<div class="field"><label>'+esc((_chAccEnvLabels[k]||k))+'</label><input type="text" id="chAccField-'+k+'" placeholder="'+esc((_chAccEnvPlaceholders[k]||'Enter '+k))+'"></div>'
   }).join('');
+  // Discord: add guild/channel config fields per docs
+  if(selectedChannel&&selectedChannel.id==='discord'){
+    fields.innerHTML+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">'
+      +'<div style="font-weight:600;font-size:13px;margin-bottom:8px">Guild / Channel Config <span style="color:var(--text2);font-weight:400">(optional)</span></div>'
+      +'<div class="field"><label>Guild ID</label><input type="text" id="chAccGuildId" placeholder="e.g. 123456789012345678"></div>'
+      +'<div class="field"><label>Channel IDs <span style="color:var(--text2);font-weight:400">(comma-separated)</span></label><input type="text" id="chAccChannelIds" placeholder="e.g. 222222222,333333333"></div>'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-top:6px"><input type="checkbox" id="chAccRequireMention" style="accent-color:var(--accent)"> Require @mention to respond</label>'
+      +'</div>';
+  }
   document.getElementById('channelAccountForm').style.display='block';
 }
 async function saveChannelAccount(){
@@ -2342,7 +2355,21 @@ async function saveChannelAccount(){
   var tokens={};_chAccEnvKeys.forEach(function(k){var el=document.getElementById('chAccField-'+k);if(el&&el.value.trim())tokens[k]=el.value.trim()});
   if(!Object.keys(tokens).length){st.className='status fail';st.textContent='Enter at least one token';return}
   st.className='status loading';st.textContent='Saving account...';
-  var d=await api('/api/channel-accounts/save','POST',{channel:selectedChannel.id,accountId:accId,tokens:tokens});
+  // Collect Discord guild/channel config if present
+  var postData={channel:selectedChannel.id,accountId:accId,tokens:tokens};
+  if(selectedChannel&&selectedChannel.id==='discord'){
+    var guildId=(document.getElementById('chAccGuildId')||{}).value||'';
+    var channelIds=(document.getElementById('chAccChannelIds')||{}).value||'';
+    var requireMention=(document.getElementById('chAccRequireMention')||{}).checked||false;
+    if(guildId.trim()){
+      var guilds={};var chObj={};
+      channelIds.split(',').map(function(s){return s.trim()}).filter(Boolean).forEach(function(cid){chObj[cid]={allow:true,requireMention:requireMention}});
+      if(!Object.keys(chObj).length){chObj['*']={allow:true,requireMention:requireMention}}
+      guilds[guildId.trim()]={channels:chObj};
+      postData.guilds=guilds;
+    }
+  }
+  var d=await api('/api/channel-accounts/save','POST',postData);
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Account saved! Restarting...':(d.error||'Error');
   if(d.ok){document.getElementById('channelAccountForm').style.display='none';setTimeout(function(){loadChannelAccounts(selectedChannel.id)},1500)}
 }
@@ -4848,14 +4875,9 @@ const server = http.createServer(async (req, res) => {
         if (body.channel === 'discord' || body.channel === 'slack') {
           cfg.channels[body.channel].groupPolicy = 'open';
         }
-        // NOTE: OpenClaw normalize Telegram → dmPolicy="pairing" + groupPolicy="allowlist"
-        //   → chặn hết DM và group message → bot im lặng
-        //   → LUÔN force defaults hợp lý cho Telegram mỗi lần save
+        // NOTE: Telegram dmPolicy="pairing" is correct default per docs (requires pairing approval)
+        // Only fix groupPolicy if "allowlist" with empty allowFrom (drops all group messages)
         if (body.channel === 'telegram') {
-          if (!cfg.channels[body.channel].dmPolicy || cfg.channels[body.channel].dmPolicy === 'pairing') {
-            cfg.channels[body.channel].dmPolicy = 'open';
-            cfg.channels[body.channel].allowFrom = cfg.channels[body.channel].allowFrom || ['*'];
-          }
           if (!cfg.channels[body.channel].groupPolicy || (cfg.channels[body.channel].groupPolicy === 'allowlist' && !cfg.channels[body.channel].groupAllowFrom?.length)) {
             cfg.channels[body.channel].groupPolicy = 'open';
           }
@@ -4998,11 +5020,34 @@ const server = http.createServer(async (req, res) => {
           }
         }
       }
+      // Discord: save guilds config per docs format
+      if (channelId === 'discord' && body.guilds && typeof body.guilds === 'object') {
+        const sanitizedGuilds = {};
+        for (const [gid, gval] of Object.entries(body.guilds)) {
+          const safeGid = String(gid).replace(/[^0-9*]/g, '').substring(0, 24);
+          if (!safeGid) continue;
+          const guild = { channels: {} };
+          if (gval && gval.channels && typeof gval.channels === 'object') {
+            for (const [cid, cval] of Object.entries(gval.channels)) {
+              const safeCid = String(cid).replace(/[^0-9*]/g, '').substring(0, 24);
+              if (!safeCid) continue;
+              guild.channels[safeCid] = { allow: true, requireMention: !!(cval && cval.requireMention) };
+            }
+          }
+          if (Object.keys(guild.channels).length) sanitizedGuilds[safeGid] = guild;
+        }
+        if (Object.keys(sanitizedGuilds).length) acc.guilds = sanitizedGuilds;
+      }
       config.channels[channelId].accounts[accountId] = acc;
-      // Ensure Telegram channel-level policies are not restrictive after adding accounts
+      // Telegram policy defaults per docs:
+      //   default account → dmPolicy="pairing" (require pairing approval)
+      //   non-default accounts → dmPolicy="allowlist" + allowFrom=["*"] (allow DMs)
       if (channelId === 'telegram') {
+        if (accountId !== 'default') {
+          if (!acc.dmPolicy || acc.dmPolicy === 'pairing') { acc.dmPolicy = 'allowlist'; acc.allowFrom = acc.allowFrom || ['*']; }
+        }
+        // Channel-level groupPolicy: open if allowlist is empty (prevents silent drop)
         const chCfg = config.channels[channelId];
-        if (!chCfg.dmPolicy || chCfg.dmPolicy === 'pairing') { chCfg.dmPolicy = 'open'; chCfg.allowFrom = chCfg.allowFrom || ['*']; }
         if (!chCfg.groupPolicy || (chCfg.groupPolicy === 'allowlist' && !chCfg.groupAllowFrom?.length)) { chCfg.groupPolicy = 'open'; }
       }
       // Sync default account to legacy ENV
