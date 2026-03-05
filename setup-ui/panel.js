@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.03.04.8';
+const PANEL_VERSION = '2026.03.04.9';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -1665,7 +1665,7 @@ function panelPage() {
           <div class="btn-row"><button class="btn btn-success" onclick="pairChannel()">Approve</button></div>
           <div class="status" id="pairStatus"></div>
         </div>
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <div id="multiAccountSection" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
           <div style="font-weight:600;margin-bottom:6px">\ud83d\udc65 Multi-Account</div>
           <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Add multiple bot accounts for this channel. Each account can be routed to a different agent via bindings.</div>
           <div id="channelAccountsList"></div>
@@ -2287,6 +2287,9 @@ async function loadChannels(){
       // Pre-fill current values
       if(isActive)(async()=>{const cfg=await api('/api/channel-values','POST',{channel:c.id});if(cfg.ok&&cfg.values)Object.entries(cfg.values).forEach(([k,v])=>{const el=document.getElementById('chfield-'+k);if(el&&v)el.value=v})})();
       document.getElementById('channelConfig').style.display='block';
+      // Multi-Account only for channels with docs support: telegram, discord, whatsapp
+      var maSection=document.getElementById('multiAccountSection');
+      if(maSection){var maChannels=['telegram','discord','whatsapp'];maSection.style.display=maChannels.includes(c.id)?'block':'none'}
       loadChannelAccounts(c.id);
     };
     list.appendChild(div);
