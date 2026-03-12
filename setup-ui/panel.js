@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.03.04.9';
+const PANEL_VERSION = '2026.03.12.2';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -182,6 +182,7 @@ function setEnvValue(key, value) {
   fs.writeFileSync(ENV_FILE, c.trim() + '\n', { mode: 0o600 });
 }
 function removeEnvValue(key) { try { let c = fs.readFileSync(ENV_FILE, 'utf8'); c = c.replace(new RegExp(`^#?\\s*${key}=.*$`, 'm'), '').trim() + '\n'; fs.writeFileSync(ENV_FILE, c, 'utf8'); } catch {} }
+function getGatewayToken() { return getEnvValue('OPENCLAW_GATEWAY_TOKEN') || ((() => { try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'))?.gateway?.auth?.token || ''; } catch { return ''; } })()); }
 function getConfig() { try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch { return {}; } }
 function saveConfig(config) {
   const dir = '/home/openclaw/.openclaw'; fs.mkdirSync(dir, { recursive: true });
@@ -4437,7 +4438,7 @@ const server = http.createServer(async (req, res) => {
         const key = getEnvValue(p.envKey);
         if (key && !key.startsWith('#')) configuredProviders.push(k);
       }
-      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getEnvValue('OPENCLAW_GATEWAY_TOKEN'), version, panelVersion: PANEL_VERSION, serverIP: getServerIP(), configuredProviders });
+      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getGatewayToken(), version, panelVersion: PANEL_VERSION, serverIP: getServerIP(), configuredProviders });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -4501,7 +4502,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = await parseBody(req); const prov = PROVIDERS[body.provider];
       if (!prov) return json(res, 400, { ok: false, error: 'Invalid provider' });
-      const token = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+      const token = getGatewayToken();
       // Validate new key before saving
       if (body.apiKey && prov.testFn) { try { const valid = prov.testFn(body.apiKey); if (!valid) return json(res, 400, { ok: false, error: 'Invalid API key for ' + prov.name }); } catch {} }
       if (body.apiKey) setEnvValue(prov.envKey, body.apiKey);
@@ -5125,7 +5126,7 @@ const server = http.createServer(async (req, res) => {
   // Device Pair — find and approve pending pairing request
   if (req.method === 'POST' && url.pathname === '/api/pair') {
     try {
-      const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+      const gatewayToken = getGatewayToken();
       if (!gatewayToken) return json(res, 400, { ok: false, error: 'No gateway token' });
       let output = '';
       try { output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); } catch (e) { output = (e.stdout || '').toString(); }
@@ -5148,7 +5149,7 @@ const server = http.createServer(async (req, res) => {
   // Device List
   if (req.method === 'GET' && url.pathname === '/api/devices') {
     try {
-      const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+      const gatewayToken = getGatewayToken();
       if (!gatewayToken) return json(res, 200, { ok: true, devices: [] });
       let output = '';
       try { output = execSync(`/opt/openclaw-cli.sh devices list --token=${gatewayToken} --json 2>/dev/null`, { timeout: 15000, stdio: 'pipe' }).toString(); } catch (e) { output = (e.stdout || '').toString(); }
@@ -5167,7 +5168,7 @@ const server = http.createServer(async (req, res) => {
       const deviceId = (body.deviceId || '').replace(/[^a-f0-9]/g, '');
       const role = (body.role || 'operator').replace(/[^a-z]/g, '');
       if (!deviceId) return json(res, 400, { ok: false, error: 'Missing device ID' });
-      const gatewayToken = getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+      const gatewayToken = getGatewayToken();
       if (!gatewayToken) return json(res, 400, { ok: false, error: 'No gateway token' });
       execSync(`/opt/openclaw-cli.sh devices revoke --device ${deviceId} --role ${role} --token=${gatewayToken}`, { timeout: 15000, stdio: 'pipe' });
       return json(res, 200, { ok: true });
@@ -5180,7 +5181,7 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody(req);
       let t = (body.action === 'custom' && body.token) ? body.token.replace(/[^a-zA-Z0-9_-]/g, '') : crypto.randomBytes(32).toString('hex');
       setEnvValue('OPENCLAW_GATEWAY_TOKEN', t);
-      const config = getConfig(); if (config.gateway?.auth) { config.gateway.auth.token = t; saveConfig(config); }
+      const config = getConfig(); if (!config.gateway) config.gateway = {}; if (!config.gateway.auth) config.gateway.auth = {}; config.gateway.auth.token = t; saveConfig(config);
       restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
       return json(res, 200, { ok: true, token: t });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
@@ -5758,7 +5759,7 @@ const server = http.createServer(async (req, res) => {
         cpu: safeExec("top -bn1 | grep 'Cpu(s)' | awk '{print $2\"%\"}'") || safeExec("nproc") + ' cores',
         version: (() => { let v = getEnvValue('OPENCLAW_VERSION') || ''; if (!v || v === 'Latest') { try { v = JSON.parse(fs.readFileSync(OPENCLAW_DIR + '/package.json', 'utf8')).version || '-'; } catch {} } return v; })(),
         panelVersion: PANEL_VERSION,
-        token: getEnvValue('OPENCLAW_GATEWAY_TOKEN') || '-'
+        token: getGatewayToken() || '-'
       });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
@@ -6073,7 +6074,7 @@ const server = http.createServer(async (req, res) => {
       // Restore config (keep existing token)
       if (d.config && typeof d.config === 'object') {
         const existing = getConfig();
-        const token = existing?.gateway?.auth?.token || getEnvValue('OPENCLAW_GATEWAY_TOKEN');
+        const token = existing?.gateway?.auth?.token || getGatewayToken();
         if (d.config.gateway?.auth?.token === '***REDACTED***' && token) d.config.gateway.auth.token = token;
         saveConfig(d.config);
       }
