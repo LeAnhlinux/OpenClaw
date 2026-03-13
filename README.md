@@ -13,7 +13,7 @@
 ## Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/install-gui-nosandbox.sh | bash
 ```
 
 > **Requirements:** Ubuntu 24.04 LTS, minimum 2 vCPU / 4GB RAM
