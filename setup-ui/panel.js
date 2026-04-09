@@ -15,7 +15,7 @@ const PORT = 9999;
 const SESSION_TTL = 60 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const BLOCK_DURATION = 15 * 60 * 1000;
-const PANEL_VERSION = '2026.03.12.2';
+const PANEL_VERSION = '2026.03.19.1';
 const PANEL_UPDATE_URL = 'https://raw.githubusercontent.com/LeAnhlinux/OpenClaw/main/setup-ui/panel.js';
 const PANEL_CHECK_URL = 'https://api.github.com/repos/LeAnhlinux/OpenClaw/contents/setup-ui/panel.js';
 const PANEL_FILE = '/opt/openclaw-panel/panel.js';
@@ -731,6 +731,10 @@ const PROVIDERS = {
   anthropic: {
     name: 'Anthropic', envKey: 'ANTHROPIC_API_KEY', configFile: `${CONFIG_DIR}/anthropic.json`,
     color: '#d97706', icon: ICONS.anthropic, category: 'cloud',
+    authMethods: ['apikey', 'setup-token'],
+    setupTokenLabel: 'Claude Setup Token',
+    setupTokenPlaceholder: 'Paste token from "claude setup-token"',
+    setupTokenHint: 'Run <code>claude setup-token</code> on any machine with Claude CLI, then paste the token here.<br><small style="color:var(--warning)">Note: Anthropic may restrict subscription usage outside Claude Code. API key is recommended for production.</small>',
     models: [
       { id: 'anthropic/claude-opus-4-6', name: 'Claude Opus 4.6', desc: 'Flagship — smartest' },
       { id: 'anthropic/claude-sonnet-4-6', name: 'Claude Sonnet 4.6', desc: 'Latest — balanced & fast' },
@@ -744,6 +748,10 @@ const PROVIDERS = {
   openai: {
     name: 'OpenAI', envKey: 'OPENAI_API_KEY', configFile: `${CONFIG_DIR}/openai.json`,
     color: '#10a37f', icon: ICONS.openai, category: 'cloud',
+    authMethods: ['apikey', 'oauth'],
+    setupTokenLabel: 'ChatGPT OAuth Token',
+    setupTokenPlaceholder: 'Paste OAuth access token',
+    setupTokenHint: 'Run <code>openclaw onboard</code> or use the ChatGPT OAuth flow to get your token, then paste it here.',
     models: [
       { id: 'openai/o4-mini', name: 'o4-mini', desc: 'Reasoning — fast & cheap' },
       { id: 'openai/gpt-4.1', name: 'GPT-4.1', desc: 'Balanced — fast' },
@@ -1354,6 +1362,12 @@ body.dark .mention-badge{background:#78350f;color:#fef3c7}
 .modal-tab svg{width:14px;height:14px}
 .modal-tab:hover{color:var(--text)}
 .modal-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.prov-auth-tabs{display:flex;gap:4px;margin-bottom:14px}
+.prov-auth-tab{padding:5px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);transition:all .2s}
+.prov-auth-tab:hover{border-color:var(--accent);color:var(--text)}
+.prov-auth-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.prov-auth-hint{font-size:12px;color:var(--text2);margin-top:6px;line-height:1.5}
+.prov-auth-hint code{background:var(--border);padding:1px 5px;border-radius:4px;font-size:11px}
 
 /* Status Dot */
 .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
@@ -1505,7 +1519,7 @@ document.getElementById('f').addEventListener('submit',async e=>{
 
 // --- Panel HTML ---
 function panelPage() {
-  const provJSON = JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,color:v.color,icon:v.icon,models:v.models,category:v.category||'cloud',extraEnvKeys:v.extraEnvKeys||[],keyLabel:v.keyLabel||'',keyPlaceholder:v.keyPlaceholder||'',extraEnvLabels:v.extraEnvLabels||{},extraEnvPlaceholders:v.extraEnvPlaceholders||{}})));
+  const provJSON = JSON.stringify(Object.entries(PROVIDERS).map(([k,v])=>({id:k,name:v.name,color:v.color,icon:v.icon,models:v.models,category:v.category||'cloud',extraEnvKeys:v.extraEnvKeys||[],keyLabel:v.keyLabel||'',keyPlaceholder:v.keyPlaceholder||'',extraEnvLabels:v.extraEnvLabels||{},extraEnvPlaceholders:v.extraEnvPlaceholders||{},authMethods:v.authMethods||[],setupTokenLabel:v.setupTokenLabel||'',setupTokenPlaceholder:v.setupTokenPlaceholder||'',setupTokenHint:v.setupTokenHint||''})));
   const chJSON = JSON.stringify(Object.entries(CHANNELS).map(([k,v])=>({id:k,name:v.name,icon:v.icon,desc:v.desc,envKeys:v.envKeys,canPair:v.canPair,envLabels:v.envLabels||{},envPlaceholders:v.envPlaceholders||{}})));
 
   return `<!DOCTYPE html><html lang="vi"><head>
@@ -2125,7 +2139,9 @@ function renderProviderGrid(list){
     const isCurrent=currentProviderData&&currentProviderData.provider===p.id;
     const hasKey=currentProviderData&&currentProviderData.configuredProviders&&currentProviderData.configuredProviders.includes(p.id);
     const cardClass='skill-card'+((isCurrent||hasKey)?' enabled':'');
+    const hasToken=currentProviderData&&currentProviderData.oauthConfigured&&currentProviderData.oauthConfigured[p.id];
     const activeBadge=isCurrent?'<span class="badge bg-green">ACTIVE</span>':(hasKey?'<span class="badge bg-blue">CONFIGURED</span>':'');
+    const tokenBadge=hasToken?'<span class="badge" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0">TOKEN</span>':'';
     const cat=p.category||'cloud';
     const catClass=cat==='gateway'?'cat-gateway':cat==='local'?'cat-local':'cat-cloud';
     const catLabel=cat==='gateway'?'Gateway':cat==='local'?'Local':'Cloud';
@@ -2137,7 +2153,7 @@ function renderProviderGrid(list){
       +'<div style="display:flex;align-items:center;gap:12px">'
       +'<div class="prov-card-icon" style="background:'+p.color+'15;color:'+p.color+'">'+p.icon+'</div>'
       +'<div><div class="skill-name">'+esc(p.name)+'</div>'
-      +'<div class="skill-badges">'+activeBadge+catBadge+' '+modelCount+'</div></div></div>'
+      +'<div class="skill-badges">'+activeBadge+tokenBadge+catBadge+' '+modelCount+'</div></div></div>'
       +'</div>'
       +'<div class="skill-desc" style="margin-top:8px;font-size:12px;color:var(--text2)">'+preview+'</div>'
       +'</div>';
@@ -2185,6 +2201,8 @@ function showProviderDetail(id){
     +'<div class="field"><label>Model</label><select id="provModel" onchange="toggleProvCustomModel()">'+modelOptions+'</select></div>'
     +'<div class="field" id="provCustomModelField" style="display:'+(isCustomModel?'block':'none')+'"><label>Custom Model ID</label><input type="text" id="provCustomModel" placeholder="e.g. gpt-4o-2024-08-06" value="'+(isCustomModel?esc(currentModel.split('/').slice(1).join('/')):'')+'">'
     +'<div style="font-size:11px;color:var(--text2);margin-top:4px">Enter the exact model ID from the provider\\u2019s API docs</div></div>'
+    +(p.authMethods&&p.authMethods.length>1?'<div class="prov-auth-tabs"><button class="prov-auth-tab active" onclick="switchProvAuthTab(\\x27apikey\\x27)">${ICONS.key} API Key</button><button class="prov-auth-tab" onclick="switchProvAuthTab(\\x27token\\x27)">'+(id==='openai'?'${ICONS.zap} OAuth':'${ICONS.zap} Setup Token')+'</button></div>':'')
+    +'<div id="provAuthApikey">'
     +'<div class="field"><label>'+(p.keyLabel||'API Key')+'</label><input type="password" id="provKey" placeholder="'+(p.keyPlaceholder||'Enter API key')+'"></div>'
     +extraHtml
     +'<div class="btn-row" style="margin-top:16px;flex-wrap:wrap">'
@@ -2193,6 +2211,15 @@ function showProviderDetail(id){
     +'<button class="btn btn-primary btn-sm" onclick="applyProvider()">${ICONS.zap} Apply & Switch</button>'
     +(hasKey&&!isCurrent?'<button class="btn btn-outline btn-sm" style="border-color:var(--danger);color:var(--danger)" onclick="removeProviderKey()">${ICONS.trash} Remove Key</button>':'')
     +'</div>'
+    +'</div>'
+    +(p.authMethods&&p.authMethods.length>1?'<div id="provAuthToken" style="display:none">'
+    +'<div class="field"><label>'+esc(p.setupTokenLabel||'Token')+'</label><input type="password" id="provSetupToken" placeholder="'+esc(p.setupTokenPlaceholder||'Paste token here')+'"></div>'
+    +'<div class="prov-auth-hint">'+(p.setupTokenHint||'')+'</div>'
+    +'<div class="btn-row" style="margin-top:16px;flex-wrap:wrap">'
+    +'<button class="btn btn-outline btn-sm" style="border-color:var(--accent2);color:var(--accent2)" onclick="saveSetupToken()">${ICONS.save} Save Token</button>'
+    +'<button class="btn btn-primary btn-sm" onclick="applySetupToken()">${ICONS.zap} Apply & Switch</button>'
+    +'</div>'
+    +'</div>':'')
     +'<div class="status" id="provModalStatus"></div>'
     +'</div>'
     +'<div class="modal-footer">'
@@ -2265,6 +2292,34 @@ async function removeProviderKey(force){
     st.className='status';st.textContent='';return;
   }
   st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'API key removed for '+esc(name)+'.':d.error||'Error';
+  if(d.ok)setTimeout(()=>{closeProviderModal();loadProvider()},1500);
+}
+
+function switchProvAuthTab(tab){
+  const tabs=document.querySelectorAll('.prov-auth-tab');
+  tabs.forEach((t,i)=>{t.classList.toggle('active',i===(tab==='apikey'?0:1))});
+  const apiDiv=document.getElementById('provAuthApikey');
+  const tokDiv=document.getElementById('provAuthToken');
+  if(apiDiv)apiDiv.style.display=tab==='apikey'?'block':'none';
+  if(tokDiv)tokDiv.style.display=tab==='token'?'block':'none';
+}
+async function saveSetupToken(){
+  const st=document.getElementById('provModalStatus'),t=(document.getElementById('provSetupToken')||{}).value;
+  if(!t||!t.trim()){st.className='status fail';st.textContent='Paste a token first';return}
+  if(!selectedProvider){st.className='status fail';st.textContent='No provider selected';return}
+  st.className='status loading';st.textContent='Saving token...';
+  const d=await api('/api/provider-setup-token','POST',{provider:selectedProvider,token:t.trim()});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Token saved successfully!':d.error||'Error saving token';
+  if(d.ok)setTimeout(()=>{closeProviderModal();loadProvider()},1500);
+}
+async function applySetupToken(){
+  const st=document.getElementById('provModalStatus'),t=(document.getElementById('provSetupToken')||{}).value,m=getSelectedProvModel();
+  if(!t||!t.trim()){st.className='status fail';st.textContent='Paste a token first';return}
+  if(!selectedProvider){st.className='status fail';st.textContent='No provider selected';return}
+  if(!m||m.endsWith('/')){st.className='status fail';st.textContent='Select a valid model';return}
+  st.className='status loading';st.textContent='Applying token...';
+  const d=await api('/api/provider-setup-token','POST',{provider:selectedProvider,token:t.trim(),model:m,apply:true});
+  st.className=d.ok?'status ok':'status fail';st.textContent=d.ok?'Success! OpenClaw restarted.':d.error||'Error';
   if(d.ok)setTimeout(()=>{closeProviderModal();loadProvider()},1500);
 }
 
@@ -4438,7 +4493,28 @@ const server = http.createServer(async (req, res) => {
         const key = getEnvValue(p.envKey);
         if (key && !key.startsWith('#')) configuredProviders.push(k);
       }
-      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getGatewayToken(), version, panelVersion: PANEL_VERSION, serverIP: getServerIP(), configuredProviders });
+      // Check OAuth/setup-token status
+      const oauthConfigured = {};
+      try {
+        const authGlob = '/home/openclaw/.openclaw/agents/*/agent/auth-profiles.json';
+        const authFiles = safeExec(`ls ${authGlob} 2>/dev/null`, 5000);
+        if (authFiles) {
+          for (const f of authFiles.split('\n').filter(l => l.trim())) {
+            try {
+              const profiles = JSON.parse(fs.readFileSync(f.trim(), 'utf8'));
+              if (profiles && typeof profiles === 'object') {
+                for (const [profileId, prof] of Object.entries(profiles)) {
+                  if (prof && prof.access) {
+                    if (profileId.includes('anthropic') || (prof.provider && prof.provider === 'anthropic')) oauthConfigured.anthropic = true;
+                    if (profileId.includes('openai') || (prof.provider && prof.provider === 'openai') || prof.accountId) oauthConfigured.openai = true;
+                  }
+                }
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+      return json(res, 200, { ok: true, provider, providerName, model, channels: activeChannels, domain, token: getGatewayToken(), version, panelVersion: PANEL_VERSION, serverIP: getServerIP(), configuredProviders, oauthConfigured });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }
 
@@ -4493,6 +4569,41 @@ const server = http.createServer(async (req, res) => {
       removeEnvValue(prov.envKey);
       if (prov.extraEnvKeys) prov.extraEnvKeys.forEach(ek => removeEnvValue(ek));
       if (affectedAgents.length > 0) { restartService('openclaw'); await new Promise(r => setTimeout(r, 2000)); }
+      return json(res, 200, { ok: true });
+    } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
+  }
+
+  // Save Setup Token / OAuth Token (via CLI paste-token)
+  if (req.method === 'POST' && url.pathname === '/api/provider-setup-token') {
+    try {
+      const body = await parseBody(req);
+      const provId = body.provider;
+      if (!provId || !['anthropic', 'openai'].includes(provId)) return json(res, 400, { ok: false, error: 'Only Anthropic and OpenAI support setup tokens' });
+      if (!body.token || !body.token.trim()) return json(res, 400, { ok: false, error: 'Token is required' });
+      const prov = PROVIDERS[provId];
+      // Write token to temp file (mode 0600) to avoid exposing in process args
+      const tmpFile = '/tmp/.oc-setup-token-' + Date.now();
+      fs.writeFileSync(tmpFile, body.token.trim(), { mode: 0o600 });
+      try {
+        const result = safeExec(`cat ${shellEsc(tmpFile)} | su - openclaw -c "/opt/openclaw-cli.sh models auth paste-token --provider ${provId}" 2>&1`, 30000);
+        // Check for success indicators
+        const success = result && !result.toLowerCase().includes('error') && !result.toLowerCase().includes('failed');
+        if (!success && result) return json(res, 400, { ok: false, error: result.substring(0, 200) });
+        if (!success) return json(res, 400, { ok: false, error: 'Failed to save token via CLI' });
+      } finally {
+        try { fs.unlinkSync(tmpFile); } catch {}
+      }
+      // If apply mode: also set model and restart
+      if (body.apply && body.model) {
+        let config; try { config = JSON.parse(fs.readFileSync(prov.configFile, 'utf8')); } catch { config = getConfig(); }
+        config.gateway = config.gateway || {}; config.gateway.auth = config.gateway.auth || {}; config.gateway.auth.token = getGatewayToken();
+        config.agents = config.agents || { defaults: { model: {} } }; config.agents.defaults = config.agents.defaults || { model: {} }; config.agents.defaults.model = config.agents.defaults.model || {};
+        config.agents.defaults.model.primary = body.model;
+        config.browser = config.browser || {};
+        config.gateway.mode = config.gateway.mode || 'local'; config.gateway.bind = config.gateway.bind || 'loopback'; config.gateway.trustedProxies = config.gateway.trustedProxies || ['127.0.0.1', '::1'];
+        saveConfig(config); restartService('openclaw'); await new Promise(r => setTimeout(r, 2000));
+        return json(res, 200, { ok: isServiceActive('openclaw'), error: isServiceActive('openclaw') ? null : 'Token saved but unable to restart' });
+      }
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 500, { ok: false, error: e.message }); }
   }

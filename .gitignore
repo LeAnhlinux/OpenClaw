@@ -1,3 +1,10 @@
 .claude/
 test-panel.sh
 CLAUDE.md
+.claude/skills/.venv/
+.claude/skills/.env
+.claude/.env
+.claude/hooks/.logs/
+.claude/session-state/
+plans/reports/
+CLAUDE.md.backup
